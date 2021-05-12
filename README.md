@@ -1,4 +1,4 @@
-# Tackle-DiVA (Data-intensitve Validity Analyzer)
+# Tackle-DiVA (Data-intensive Validity Analyzer)
 
 Tackle-DiVA is a command-line tool for data-centric application analysis. It imports a set of target application source files (*.java/xml) and provides following analysis result files.
 
