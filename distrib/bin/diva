@@ -1,0 +1,68 @@
+#!/bin/bash
+#	Copyright IBM Corporation 2021
+#	
+#	Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+#	you may not use this file except in compliance with the License.
+#	
+#	Unless required by applicable law or agreed to in writing, software
+#	distributed under the License is distributed on an "AS IS" BASIS,
+#	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#	See the License for the specific language governing permissions and
+#	limitations under the License.
+
+
+function usage() {
+  echo $1
+  cat <<_EOT_
+Usage:
+  `basename $0` [-c contexts.yml] application_source_code_directory
+Options:
+  -c list of target application entries for analysis filtering
+  -h help
+_EOT_
+  exit 1
+}
+
+while getopts "c:h" OPT
+do
+  case $OPT in
+    c) OPT_c=$OPTARG;;
+    h) usage "[Help]";;
+    \?) usage;;
+  esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ $# -ne 1 ]; then
+  echo "[Error] Application source code directory is not specified."
+  usage
+fi
+
+if [[ ! -e $1 ]]; then
+    echo "[Error] $1 does not exist"
+    exit 1
+fi
+
+
+OUTPUTDIR=../output
+if [ ! -d $OUTPUTDIR ]; then
+    rm -rf ${OUTPUTDIR}
+    mkdir -p ${OUTPUTDIR}
+fi
+
+if [[ -n "${OPT_c+UNDEF}" ]]; then
+    if [[ ! -e ${OPT_c} ]]; then
+        echo "[Error] ${OPT_c} does not exist"
+        exit 1
+    fi
+    java -jar ./diva.jar --source $1 --contexts ${OPT_c}
+    mv transaction.json transaction.yml ${OUTPUTDIR}
+else
+    java -jar ./diva.jar --source $1
+    mv transaction.json transaction.yml contexts.yml ${OUTPUTDIR}
+fi
+
+python analysis.py ${OUTPUTDIR}/transaction.json > ${OUTPUTDIR}/transaction_summary.dot
+dot -Tpdf ${OUTPUTDIR}/transaction_summary.dot > ${OUTPUTDIR}/transaction_summary.pdf
+python db_extractor.py ${OUTPUTDIR}/transaction.json $1 > ${OUTPUTDIR}/database.json
