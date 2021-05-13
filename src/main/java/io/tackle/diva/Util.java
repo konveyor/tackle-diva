@@ -15,7 +15,9 @@ package io.tackle.diva;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -39,6 +41,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.callgraph.CallGraph;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.Advice;
@@ -46,6 +50,7 @@ import net.bytebuddy.dynamic.DynamicType.Builder;
 import net.bytebuddy.matcher.ElementMatchers;
 
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.intset.BitVector;
 
 public class Util {
 
@@ -181,6 +186,31 @@ public class Util {
                 m.invoke(null, args);
                 break;
             }
+        }
+    }
+
+    public static void dumpCallGraph(CallGraph cg) throws IOException {
+        BitVector seen = new BitVector();
+
+        try (PrintWriter out = new PrintWriter(new FileWriter("cg.dot"))) {
+            out.println("digraph {");
+            out.println("node[shape=plaintext]");
+            out.println("rankdir=LR");
+
+            for (CGNode src : cg) {
+                if (!seen.contains(src.getGraphNodeId())) {
+                    seen.set(src.getGraphNodeId());
+                    out.println("n" + src.getGraphNodeId() + " [label=\"" + src.toString() + "\"]");
+                }
+                for (CGNode tgt : (Iterable<CGNode>) () -> cg.getSuccNodes(src)) {
+                    if (!seen.contains(tgt.getGraphNodeId())) {
+                        seen.set(tgt.getGraphNodeId());
+                        out.println("n" + tgt.getGraphNodeId() + " [label=\"" + tgt.toString() + "\"]");
+                    }
+                    out.println("n" + src.getGraphNodeId() + " -> n" + tgt.getGraphNodeId());
+                }
+            }
+            out.println("}");
         }
     }
 
