@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -46,10 +46,12 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -186,6 +188,15 @@ public class DivaIRGen {
 
             wellKnownType = unit.getAST()::resolveWellKnownType;
 
+            for (ImportDeclaration imp : (List<ImportDeclaration>) unit.imports()) {
+                if (imp.isOnDemand())
+                    continue;
+                if (imp.isStatic())
+                    continue;
+                QualifiedName qname = (QualifiedName) imp.getName();
+                imports.put(qname.getName().toString(), qname.toString());
+            }
+
             unit.accept(new ASTVisitor() {
 
                 @Override
@@ -265,8 +276,8 @@ public class DivaIRGen {
                     ITypeBinding t = node.resolveBinding();
                     String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
                     for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
-                        if (prop instanceof NormalAnnotation) {
-                            Annotation a = processAnnotation((NormalAnnotation) prop, cha);
+                        if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
+                            Annotation a = processAnnotation((org.eclipse.jdt.core.dom.Annotation) prop, cha);
                             if (annotations == null) {
                                 annotations = new LinkedHashMap<>();
                             }
@@ -287,32 +298,37 @@ public class DivaIRGen {
 
     public static Map<String, List<Annotation>> annotations;
 
-    public static Annotation processAnnotation(NormalAnnotation a, IClassHierarchy cha) {
-        String name = StringStuff.deployment2CanonicalTypeString(
-                a.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
-        Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
-        for (MemberValuePair kv : (List<MemberValuePair>) a.values()) {
-            AnnotationsReader.ElementValue ev = null;
-            Object v = kv.getValue().resolveConstantExpressionValue();
-            if (v != null) {
-                ev = new AnnotationsReader.ConstantElementValue(v);
-            } else if (v == null && kv.getValue() instanceof ArrayInitializer) {
-                ArrayInitializer i = (ArrayInitializer) kv.getValue();
-                AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions().size()];
-                int k = 0;
-                for (Expression e : (List<Expression>) i.expressions()) {
-                    vs[k] = new AnnotationsReader.ConstantElementValue(i.expressions().get(k));
-                }
-                ev = new AnnotationsReader.ArrayElementValue(vs);
-            }
-            namedParams.put(kv.getName().toString(), ev);
-            // System.out.println("HERE:" + name + "/" + kv.getName().toString() + "=" + v);
-        }
+    public static Annotation processAnnotation(org.eclipse.jdt.core.dom.Annotation annot, IClassHierarchy cha) {
 
+        String name = StringStuff.deployment2CanonicalTypeString(
+                annot.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
+        Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
+
+        if (annot instanceof NormalAnnotation) {
+            NormalAnnotation a = (NormalAnnotation) annot;
+            for (MemberValuePair kv : (List<MemberValuePair>) a.values()) {
+                AnnotationsReader.ElementValue ev = null;
+                Object v = kv.getValue().resolveConstantExpressionValue();
+                if (v != null) {
+                    ev = new AnnotationsReader.ConstantElementValue(v);
+                } else if (v == null && kv.getValue() instanceof ArrayInitializer) {
+                    ArrayInitializer i = (ArrayInitializer) kv.getValue();
+                    AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions().size()];
+                    int k = 0;
+                    for (Expression e : (List<Expression>) i.expressions()) {
+                        vs[k] = new AnnotationsReader.ConstantElementValue(i.expressions().get(k));
+                    }
+                    ev = new AnnotationsReader.ArrayElementValue(vs);
+                }
+                namedParams.put(kv.getName().toString(), ev);
+                // System.out.println("HERE:" + name + "/" + kv.getName().toString() + "=" + v);
+            }
+        }
         IClass c = cha.getLoader(ClassLoaderReference.Extension).lookupClass(TypeName.findOrCreate(name));
         TypeReference t = c != null ? c.getReference()
                 : TypeReference.findOrCreate(ClassLoaderReference.Extension, name);
         return Annotation.makeWithNamed(t, namedParams);
+
     }
 
     // public static void processAnnotations(IBinding binding) {
@@ -522,11 +538,16 @@ public class DivaIRGen {
 
     public static Function<String, ITypeBinding> wellKnownType;
 
+    public static Map<String, String> imports = new HashMap<>();
+
     public static Map<String, ITypeBinding> phantomTypes;
     public static Map<Object, IMethodBinding> phantomMethods;
     public static Set<String> isClass;
 
     public static ITypeBinding findOrCreateUnknownPhantomType(String name) {
+        if (imports.containsKey(name)) {
+            return findOrCreatePhantomType(imports.get(name));
+        }
         return findOrCreatePhantomType("unknown." + name);
     }
 

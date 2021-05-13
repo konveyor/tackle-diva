@@ -29,7 +29,7 @@ import io.tackle.diva.Trace;
 public class JDBCAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
 
-    public static Context.CallSiteVisitor getAnalysis(Framework fw, Context context) {
+    public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
             @SuppressWarnings("unused")

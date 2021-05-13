@@ -35,8 +35,14 @@ public interface Constants {
     Atom process = Atom.findOrCreateUnicodeAtom("process");
     Atom init = Atom.findOrCreateUnicodeAtom("init");
     Atom service = Atom.findOrCreateUnicodeAtom("service");
+    
+    Atom queryForObject = Atom.findOrCreateUnicodeAtom("queryForObject");
+    Atom update = Atom.findOrCreateUnicodeAtom("update");
 
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
 
+    TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
+    TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
+    TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
 }

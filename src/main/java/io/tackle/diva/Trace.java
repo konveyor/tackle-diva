@@ -30,6 +30,33 @@ public class Trace extends Util.Chain<Trace> {
         void visitCallSite(Trace trace);
 
         void visitNode(Trace trace);
+
+        default void visitExit(Trace trace) {
+        }
+
+        default Visitor with(Visitor other) {
+            Visitor self = this;
+            return new Visitor() {
+
+                @Override
+                public void visitCallSite(Trace trace) {
+                    self.visitCallSite(trace);
+                    other.visitCallSite(trace);
+                }
+
+                @Override
+                public void visitNode(Trace trace) {
+                    self.visitNode(trace);
+                    other.visitNode(trace);
+                }
+
+                @Override
+                public void visitExit(Trace trace) {
+                    self.visitExit(trace);
+                    other.visitExit(trace);
+                }
+            };
+        }
     }
 
     @FunctionalInterface
@@ -51,6 +78,10 @@ public class Trace extends Util.Chain<Trace> {
 
     public CGNode node() {
         return node;
+    }
+
+    public Trace parent() {
+        return next;
     }
 
     public CallSiteReference site() {
