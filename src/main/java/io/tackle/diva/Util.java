@@ -18,6 +18,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringBufferInputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 
@@ -107,6 +109,20 @@ public class Util {
         }
         return res;
     }
+    
+    public static List<Annotation> getAnnotations(IMethod m) {
+        List<Annotation> res = new ArrayList<>();
+        Collection<Annotation> as = m.getAnnotations();
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
+        String key = m.getDeclaringClass().getName() + " " + m.getName() + " " + m.getDescriptor().toString();
+        as = DivaIRGen.annotations.get(key);
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
+        return res;
+    }    
 
     public static void injectedCall(Map<String, Class<?>> injectors, String name, Object... args) throws Exception {
 

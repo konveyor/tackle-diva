@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -17,6 +17,9 @@ import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.strings.Atom;
 
 public interface Constants {
+
+    Atom theInit = Atom.findOrCreateUnicodeAtom("<init>");
+    Atom theClinit = Atom.findOrCreateUnicodeAtom("<clinit>");
 
     Atom getParameter = Atom.findOrCreateUnicodeAtom("getParameter");
     Atom prepareStatement = Atom.findOrCreateUnicodeAtom("prepareStatement");
@@ -35,7 +38,7 @@ public interface Constants {
     Atom process = Atom.findOrCreateUnicodeAtom("process");
     Atom init = Atom.findOrCreateUnicodeAtom("init");
     Atom service = Atom.findOrCreateUnicodeAtom("service");
-    
+
     Atom queryForObject = Atom.findOrCreateUnicodeAtom("queryForObject");
     Atom update = Atom.findOrCreateUnicodeAtom("update");
 
@@ -45,4 +48,5 @@ public interface Constants {
     TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
     TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
     TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
+    TypeName LSpringAutowired = TypeName.findOrCreate("Lorg/springframework/beans/factory/annotation/Autowired");
 }
