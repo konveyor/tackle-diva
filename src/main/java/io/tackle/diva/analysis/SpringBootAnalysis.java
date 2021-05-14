@@ -98,7 +98,7 @@ public class SpringBootAnalysis {
             SSAAbstractInvokeInstruction init = (SSAAbstractInvokeInstruction) value.trace().node().getIR()
                     .getInstructions()[instr.iIndex() + 1];
             if (init.getDeclaredTarget().getDeclaringClass().getName() == Constants.LSpringBeanSource) {
-                IClass c = JDBCAnalysis.typeInference(fw, value.getDef(init.getUse(1)));
+                IClass c = value.trace().inferType(fw, init.getUse(1));
                 if (c != null) {
                     String s = String.join(", ", Util.map(c.getDeclaredInstanceFields(), f -> f.getName().toString()));
                     String t = String.join(", ", Util.map(c.getDeclaredInstanceFields(), f -> "?"));

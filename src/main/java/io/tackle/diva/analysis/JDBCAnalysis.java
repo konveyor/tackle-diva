@@ -23,14 +23,11 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
-import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
-import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.intset.IntPair;
 
 import io.tackle.diva.Constants;
@@ -148,7 +145,7 @@ public class JDBCAnalysis {
 
     public static Trace.Val pointerAnalysis(Framework fw, Trace trace, SSAGetInstruction field) {
         if (!field.isStatic()) {
-            IClass c = typeInference(fw, trace.getDef(field.getUse(0)));
+            IClass c = trace.inferType(fw, field.getUse(0));
             if (c == null)
                 return null;
             for (CGNode n : fw.callgraph()) {
@@ -173,23 +170,4 @@ public class JDBCAnalysis {
         return null;
     }
 
-    public static IClass typeInference(Framework fw, Trace.Val value) {
-        if (value == null)
-            return null;
-        if (value.isConstant())
-            return null;
-        SSAInstruction instr = value.instr();
-        TypeReference ref = null;
-        if (instr instanceof SSAGetInstruction)
-            ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
-        if (instr instanceof SSANewInstruction)
-            ref = ((SSANewInstruction) instr).getConcreteType();
-        if (instr instanceof SSAAbstractInvokeInstruction)
-            ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
-        if (instr instanceof SSACheckCastInstruction)
-            ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
-        if (ref == null)
-            return null;
-        return fw.classHierarchy().lookupClass(ref);
-    }
 }
