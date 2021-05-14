@@ -16,8 +16,6 @@ import java.util.function.Supplier;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
@@ -54,13 +52,8 @@ public class TradingAppTest {
 
     public static void fromSource() throws Exception {
         long start = System.currentTimeMillis();
-        // JavaSourceAnalysisEngine engine = new ECJJavaSourceAnalysisEngine();
-        // EclipseSourceFileModule.createEclipseSourceFileModule(selectedIte
 
-        // String[] sourceDirs = new String[] {
-        // "/Users/akihiko/work/ocp/daytrader-example-webrepo/daytrader-webapp/daytrader-web/src/main/java/"
-        // };
-        String[] sourceDirs = new String[] { "/Users/akihiko/git/trading-app" };
+        String[] sourceDirs = new String[] { "../trading-app" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {
@@ -193,7 +186,6 @@ public class TradingAppTest {
             }
         }
 
-        ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
         try (Writer f = new FileWriter("transaction.json")) {
             f.write(Util.JSON_SERIALIZER.writeValueAsString(res));
         }

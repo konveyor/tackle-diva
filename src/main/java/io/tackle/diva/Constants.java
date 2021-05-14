@@ -41,6 +41,10 @@ public interface Constants {
 
     Atom queryForObject = Atom.findOrCreateUnicodeAtom("queryForObject");
     Atom update = Atom.findOrCreateUnicodeAtom("update");
+    Atom executeAndReturnKey = Atom.findOrCreateUnicodeAtom("executeAndReturnKey");
+    Atom execute = Atom.findOrCreateUnicodeAtom("execute");
+    Atom withTableName = Atom.findOrCreateUnicodeAtom("withTableName");
+    Atom usingGeneratedKeyColumns = Atom.findOrCreateUnicodeAtom("usingGeneratedKeyColumns");
 
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
@@ -49,4 +53,6 @@ public interface Constants {
     TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
     TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
     TypeName LSpringAutowired = TypeName.findOrCreate("Lorg/springframework/beans/factory/annotation/Autowired");
+    TypeName LSpringBeanSource = TypeName
+            .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
 }

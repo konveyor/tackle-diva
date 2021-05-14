@@ -188,8 +188,6 @@ public class DivaIRGen {
         for (String source : units.keySet()) {
             CompilationUnit unit = units.get(source);
 
-            wellKnownType = unit.getAST()::resolveWellKnownType;
-
             for (ImportDeclaration imp : (List<ImportDeclaration>) unit.imports()) {
                 if (imp.isOnDemand())
                     continue;
@@ -198,6 +196,12 @@ public class DivaIRGen {
                 QualifiedName qname = (QualifiedName) imp.getName();
                 imports.put(qname.getName().toString(), qname.toString());
             }
+        }
+
+        for (String source : units.keySet()) {
+            CompilationUnit unit = units.get(source);
+
+            wellKnownType = unit.getAST()::resolveWellKnownType;
 
             unit.accept(new ASTVisitor() {
 

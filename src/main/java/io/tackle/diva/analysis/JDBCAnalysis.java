@@ -23,11 +23,12 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
+import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
-import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.intset.IntPair;
@@ -110,23 +111,13 @@ public class JDBCAnalysis {
                 return calculateReachingString(fw, value.getDef(bin.getUse(0)), visited)
                         + calculateReachingString(fw, value.getDef(bin.getUse(1)), visited);
             }
+
         } else if (instr instanceof SSAGetInstruction) {
-            SSAGetInstruction field = (SSAGetInstruction) instr;
-            if (!field.isStatic()) {
-                Trace.Val self = value.trace().getDef(1); // value number 1 == this
-                if (self != null && !self.isConstant() && self.instr() instanceof SSAGetInstruction) {
-                    TypeReference impl = ((SSAGetInstruction) self.instr()).getDeclaredFieldType();
-                    IClass c = fw.classHierarchy().lookupClass(impl);
-                    for (CGNode n : fw.callgraph()) {
-                        if (n.getMethod().getDeclaringClass() != c || !n.getMethod().isInit())
-                            continue;
-                        Trace.Val v = pointerAnalysis(fw, n, field.getDeclaredField());
-                        if (v == null)
-                            continue;
-                        return calculateReachingString(fw, v, visited);
-                    }
-                }
+            Trace.Val v = pointerAnalysis(fw, value.trace(), (SSAGetInstruction) instr);
+            if (v != null) {
+                return calculateReachingString(fw, v, visited);
             }
+
         } else if (instr instanceof SSAPhiInstruction) {
             SSAPhiInstruction phi = (SSAPhiInstruction) instr;
             Trace.Val lhs = value.getDef(phi.getUse(0));
@@ -147,20 +138,58 @@ public class JDBCAnalysis {
         return "??";
     }
 
-    public static Trace.Val pointerAnalysis(Framework fw, CGNode entry, FieldReference ref) {
-        Trace.Val[] v = new Trace.Val[] { null };
-        fw.traverse(entry, (Trace.NodeVisitor) (Trace trace) -> {
-            CGNode node = trace.node();
-            for (SSAInstruction instr : node.getIR().getInstructions()) {
-                if (instr == null || !(instr instanceof SSAPutInstruction))
+    public static class Escape extends RuntimeException {
+        public Trace.Val val;
+
+        public Escape(Trace.Val value) {
+            this.val = value;
+        }
+    }
+
+    public static Trace.Val pointerAnalysis(Framework fw, Trace trace, SSAGetInstruction field) {
+        if (!field.isStatic()) {
+            IClass c = typeInference(fw, trace.getDef(field.getUse(0)));
+            if (c == null)
+                return null;
+            for (CGNode n : fw.callgraph()) {
+                if (n.getMethod().getDeclaringClass() != c || !n.getMethod().isInit())
                     continue;
-                SSAPutInstruction field = (SSAPutInstruction) instr;
-                if (field.getDeclaredField() == ref) {
-                    v[0] = trace.getDef(field.getUse(1));
-                    return;
+                try {
+                    fw.traverse(n, (Trace.NodeVisitor) (Trace t) -> {
+                        for (SSAInstruction instr : t.node().getIR().getInstructions()) {
+                            if (instr == null || !(instr instanceof SSAPutInstruction))
+                                continue;
+                            SSAPutInstruction put = (SSAPutInstruction) instr;
+                            if (put.getDeclaredField() == field.getDeclaredField()) {
+                                throw new Escape(t.getDef(put.getUse(1)));
+                            }
+                        }
+                    }, true);
+                } catch (Escape e) {
+                    return e.val;
                 }
             }
-        }, true);
-        return v[0];
+        }
+        return null;
+    }
+
+    public static IClass typeInference(Framework fw, Trace.Val value) {
+        if (value == null)
+            return null;
+        if (value.isConstant())
+            return null;
+        SSAInstruction instr = value.instr();
+        TypeReference ref = null;
+        if (instr instanceof SSAGetInstruction)
+            ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
+        if (instr instanceof SSANewInstruction)
+            ref = ((SSANewInstruction) instr).getConcreteType();
+        if (instr instanceof SSAAbstractInvokeInstruction)
+            ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
+        if (instr instanceof SSACheckCastInstruction)
+            ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
+        if (ref == null)
+            return null;
+        return fw.classHierarchy().lookupClass(ref);
     }
 }
