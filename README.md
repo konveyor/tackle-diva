@@ -63,6 +63,6 @@ The other frameworks to be supported (e.g. SpringBoot)
 
 ## Supported Database Operation Types
 
-- SQLs via JDBC
+- SQL
 
 The other types to be supported (e.g. JPA: Java Persistence API)
