@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -17,6 +17,9 @@ import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.strings.Atom;
 
 public interface Constants {
+
+    Atom theInit = Atom.findOrCreateUnicodeAtom("<init>");
+    Atom theClinit = Atom.findOrCreateUnicodeAtom("<clinit>");
 
     Atom getParameter = Atom.findOrCreateUnicodeAtom("getParameter");
     Atom prepareStatement = Atom.findOrCreateUnicodeAtom("prepareStatement");
@@ -36,7 +39,26 @@ public interface Constants {
     Atom init = Atom.findOrCreateUnicodeAtom("init");
     Atom service = Atom.findOrCreateUnicodeAtom("service");
 
+    Atom queryForObject = Atom.findOrCreateUnicodeAtom("queryForObject");
+    Atom update = Atom.findOrCreateUnicodeAtom("update");
+    Atom executeAndReturnKey = Atom.findOrCreateUnicodeAtom("executeAndReturnKey");
+    Atom execute = Atom.findOrCreateUnicodeAtom("execute");
+    Atom withTableName = Atom.findOrCreateUnicodeAtom("withTableName");
+    Atom usingGeneratedKeyColumns = Atom.findOrCreateUnicodeAtom("usingGeneratedKeyColumns");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
+
+    TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
+    TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
+    TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
+    TypeName LSpringAutowired = TypeName.findOrCreate("Lorg/springframework/beans/factory/annotation/Autowired");
+    TypeName LSpringBeanSource = TypeName
+            .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
+    TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
+
+    TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
+    TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");
+    TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
 
 }

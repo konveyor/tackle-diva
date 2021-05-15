@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -77,6 +77,7 @@ import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
+import io.tackle.diva.analysis.SpringBootAnalysis;
 
 public class Framework {
 
@@ -348,14 +349,17 @@ public class Framework {
         visitor.visitNode(stack.peek());
 
         while (!stack.isEmpty()) {
+            Trace trace = stack.peek();
 
             if (!iters.peek().hasNext()) {
+                trace.setSite(null);
+                visitor.visitExit(trace);
                 stack.pop();
                 iters.pop();
                 continue;
             }
             CallSiteReference site = iters.peek().next();
-            Trace trace = stack.peek();
+
             if (!trace.in(site))
                 continue;
 
@@ -411,7 +415,7 @@ public class Framework {
                     SourcePosition p = null;
                     try {
                         p = m.getSourcePosition(t.site().getProgramCounter());
-                    } catch (InvalidClassFileException e) {
+                    } catch (InvalidClassFileException | NullPointerException e) {
                     }
                     SourcePosition pos = p;
                     stacktrace.add((Report.Named site) -> {
@@ -438,7 +442,8 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, JDBCAnalysis.getAnalysis(this, cxt), true);
+        traverse(entry, JDBCAnalysis.getTransactionAnalysis(this, cxt)
+                .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)), true);
         if (txStarted()) {
             reportTxBoundary();
         }

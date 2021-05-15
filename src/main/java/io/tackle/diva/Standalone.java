@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -55,6 +55,7 @@ import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.analysis.ServletAnalysis;
+import io.tackle.diva.analysis.SpringBootAnalysis;
 
 public class Standalone {
 
@@ -106,21 +107,26 @@ public class Standalone {
                         return DivaIRGen.makeNewSourceLoader(sourceDirs, stdlibs, classLoaderReference, cha, parent);
                     }
                 });
-        System.out.println(cha.getNumberOfClasses() + " classes");
-        System.out.println(Warnings.asString());
+        Util.LOGGER.info(cha.getNumberOfClasses() + " classes");
+        Util.LOGGER.info(Warnings.asString());
 
         IClassLoader apploader = cha.getLoader(JavaSourceAnalysisScope.SOURCE);
 
-        List<IMethod> entries = ServletAnalysis.getEntries(cha);
+        List<IMethod> entries = new ArrayList<>();
+        entries.addAll(ServletAnalysis.getEntries(cha));
+        entries.addAll(SpringBootAnalysis.getEntries(cha));
 
-        CallGraph cg = gengraph(scope, cha, apploader, entries);
+        List<IMethod> cgEntries = new ArrayList<>();
+        cgEntries.addAll(entries);
+        cgEntries.addAll(SpringBootAnalysis.getInits(cha));
+
+        CallGraph cg = gengraph(scope, cha, apploader, cgEntries);
 
         Framework fw = new Framework(cha, cg);
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
                 fw.recordContraint(new EntryConstraint(n));
-
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
@@ -247,11 +253,11 @@ public class Standalone {
         // options, entries);
         Supplier<CallGraph> builder = Framework.chaCgBuilder(cha, options, entries);
 
-        System.out.println("building call graph...");
+        Util.LOGGER.info("building call graph...");
         // CallGraph cg = builder.makeCallGraph(options, null);
         CallGraph cg = builder.get();
-        System.out.println("done");
-        System.out.println(CallGraphStats.getStats(cg));
+        Util.LOGGER.info("done");
+        Util.LOGGER.info(CallGraphStats.getStats(cg));
         return cg;
     }
 

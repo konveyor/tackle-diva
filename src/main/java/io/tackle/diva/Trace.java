@@ -9,19 +9,24 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
+import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
+import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.intset.BitVector;
 
 public class Trace extends Util.Chain<Trace> {
@@ -30,6 +35,33 @@ public class Trace extends Util.Chain<Trace> {
         void visitCallSite(Trace trace);
 
         void visitNode(Trace trace);
+
+        default void visitExit(Trace trace) {
+        }
+
+        default Visitor with(Visitor other) {
+            Visitor self = this;
+            return new Visitor() {
+
+                @Override
+                public void visitCallSite(Trace trace) {
+                    self.visitCallSite(trace);
+                    other.visitCallSite(trace);
+                }
+
+                @Override
+                public void visitNode(Trace trace) {
+                    self.visitNode(trace);
+                    other.visitNode(trace);
+                }
+
+                @Override
+                public void visitExit(Trace trace) {
+                    self.visitExit(trace);
+                    other.visitExit(trace);
+                }
+            };
+        }
     }
 
     @FunctionalInterface
@@ -51,6 +83,10 @@ public class Trace extends Util.Chain<Trace> {
 
     public CGNode node() {
         return node;
+    }
+
+    public Trace parent() {
+        return next;
     }
 
     public CallSiteReference site() {
@@ -160,6 +196,48 @@ public class Trace extends Util.Chain<Trace> {
             }
         }
         return null;
+    }
+
+    public IClass inferType(Framework fw, int number) {
+        IR ir = node.getIR();
+        TypeReference ref = null;
+        if (ir == null) {
+            return null;
+        }
+        SymbolTable sym = ir.getSymbolTable();
+        if (sym.isConstant(number)) {
+            return null;
+        }
+        if (ud == null) {
+            populateUd();
+        }
+        if (ud[number] instanceof SSAInstruction) {
+            SSAInstruction instr = (SSAInstruction) ud[number];
+            if (instr instanceof SSAGetInstruction)
+                ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
+            if (instr instanceof SSANewInstruction)
+                ref = ((SSANewInstruction) instr).getConcreteType();
+            if (instr instanceof SSAAbstractInvokeInstruction)
+                ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
+            if (instr instanceof SSACheckCastInstruction)
+                ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
+        }
+        if (ud[number] instanceof Integer) {
+            // interprocedural resolution of call parameters
+            Trace callerTrace = this.next;
+            if (callerTrace != null) {
+                SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
+                IClass res = callerTrace.inferType(fw, caller.getUse((Integer) ud[number]));
+                if (res != null) {
+                    return res;
+                }
+            }
+            ref = node.getMethod().getParameterType((Integer) ud[number]);
+        }
+        if (ref == null) {
+            return null;
+        }
+        return fw.classHierarchy().lookupClass(ref);
     }
 
     public SSAAbstractInvokeInstruction instrFromSite(CallSiteReference site) {

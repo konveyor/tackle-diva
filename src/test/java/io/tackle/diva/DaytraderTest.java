@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
+ */
 
 package io.tackle.diva;
 
@@ -30,8 +30,6 @@ import java.util.function.Supplier;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
@@ -140,20 +138,9 @@ public class DaytraderTest {
     public static void fromBinary() throws Exception {
 
         long start = System.currentTimeMillis();
-        // Properties p = CommandLine.parse(args);
-        // String scopeFile = "dt7.txt";
-        String exclusionFile = "exclusion.txt";
-        // String entryClass =
-        // "org.apache.geronimo.daytrader.javaee6.web.TradeAppServlet";
-        // String entryClass =
-        // "org.apache.geronimo.daytrader.javaee6.web.TradeAppServlet";
-        // String mainClass = null;
-        // if (mainClass != null && entryClass != null) {
-        // throw new IllegalArgumentException("only specify one of mainClass or
-        // entryClass");
-        // }
-        String[] classDirs = new String[] { "/Users/akihiko/git/sample.daytrader7/daytrader-ee7-web/target/classes/",
-                "/Users/akihiko/git/sample.daytrader7/daytrader-ee7-ejb/target/classes/" };
+
+        String[] classDirs = new String[] { "../sample.daytrader7/daytrader-ee7-web/target/classes/",
+                "../sample.daytrader7/daytrader-ee7-ejb/target/classes/" };
         AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
         // set exclusions. we use these exclusions as standard for handling JDK 8
         addDefaultExclusions(scope);
@@ -248,12 +235,12 @@ public class DaytraderTest {
                 p = k.substring(0, j);
             }
             packages.add(p);
-//            if (k.contains("daytrader")) {
-//                if (k.contains("TradeServletAction")) {
-//                    System.out.println("HERE");
-//                }
-//                System.out.println(k);
-//            }
+            // if (k.contains("daytrader")) {
+            // if (k.contains("TradeServletAction")) {
+            // System.out.println("HERE");
+            // }
+            // System.out.println(k);
+            // }
             if (k.contains("unknown")) {
                 System.out.println(k);
                 TypeReference ref = TypeReference.findOrCreate(c.getClassLoader().getReference(), c.getName());
@@ -343,17 +330,6 @@ public class DaytraderTest {
             }
         }
 
-        // for (CGNode n : cg) {
-        // if (n.getMethod().getDeclaringClass() == tradeServletAction) {
-        // res.add(new LinkedHashMap() {
-        // {
-        // put("entry", n.getMethod().toString());
-        // put("transaction", fw.calculateTransactions(n));
-        // }
-        // });
-        // }
-        // }
-        ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
         try (Writer f = new FileWriter("transaction.json")) {
             f.write(Util.JSON_SERIALIZER.writeValueAsString(res));
         }
