@@ -61,7 +61,8 @@ public class ServletAnalysis {
             String urlPattern = null;
 
             for (Annotation a : Util.getAnnotations(c)) {
-                if (!a.getType().toString().contains("WebServlet)") && !a.getType().toString().contains("WebFileter)"))
+                if (a.getType().getName() != Constants.LJavaxWebServlet
+                        && a.getType().getName() != Constants.LJavaxWebFilter)
                     continue;
                 isServlet = true;
                 for (Entry<String, ElementValue> e : a.getNamedArguments().entrySet()) {
@@ -70,14 +71,14 @@ public class ServletAnalysis {
                         if (v instanceof ArrayElementValue) {
                             v = ((ArrayElementValue) v).vals[0];
                         }
-                        urlPattern = (String) ((ConstantElementValue) v).val;
+                        urlPattern = ((ConstantElementValue) v).val.toString();
                     }
                 }
             }
 
             if (!isServlet) {
                 for (IClass p : Util.superChain(c)) {
-                    if (p.getName().toString().contains("HttpServlet")) {
+                    if (p.getName() == Constants.LJavaxHttpServlet) {
                         isServlet = true;
                         break;
                     }

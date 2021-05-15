@@ -1,11 +1,15 @@
 package io.tackle.diva.analysis;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
@@ -21,6 +25,41 @@ import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
 
 public class SpringBootAnalysis {
+
+    public static List<IMethod> getEntries(IClassHierarchy cha) throws IOException {
+        List<IMethod> entries = new ArrayList<>();
+
+        for (IClass c : cha) {
+            if (!Util.any(Util.getAnnotations(c), a -> a.getType().getName() == Constants.LSpringController))
+                continue;
+            for (IMethod m : c.getDeclaredMethods()) {
+                if (m.isStatic())
+                    continue;
+                if (m.isInit())
+                    continue;
+                entries.add(m);
+            }
+
+        }
+        return entries;
+
+    }
+
+    public static List<IMethod> getInits(IClassHierarchy cha) throws IOException {
+        List<IMethod> entries = new ArrayList<>();
+
+        for (IClass c : cha) {
+            for (IMethod m : c.getDeclaredMethods()) {
+                if (!m.isInit())
+                    continue;
+                if (!Util.any(Util.getAnnotations(m), a -> a.getType().getName() == Constants.LSpringAutowired))
+                    continue;
+                entries.add(m);
+            }
+        }
+        return entries;
+
+    }
 
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {

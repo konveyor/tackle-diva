@@ -55,4 +55,10 @@ public interface Constants {
     TypeName LSpringAutowired = TypeName.findOrCreate("Lorg/springframework/beans/factory/annotation/Autowired");
     TypeName LSpringBeanSource = TypeName
             .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
+    TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
+
+    TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
+    TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");
+    TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
+
 }
