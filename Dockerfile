@@ -21,7 +21,7 @@ RUN jar xvf build/distributions/diva-all.zip
 FROM openjdk:8u282-jre-slim
 
 RUN mkdir -p /diva-distribution/lib
-COPY distrib/* /diva-distribution/
+COPY distrib/ /diva-distribution/
 COPY --from=build /home/gradle/diva/bin/*.jar /diva-distribution/bin/
 COPY --from=build /home/gradle/diva/lib/*.jar /diva-distribution/lib/
 

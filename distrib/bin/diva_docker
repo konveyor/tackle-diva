@@ -12,4 +12,5 @@
 
 TARGET_APP_DIRECTORY=$1
 
-docker run -v ${TARGET_APP_DIRECTORY}:/app -v ${PWD}/../output:/diva-distribution/output diva /bin/bash -c "cd /diva-distribution/bin; ./diva /app"
+docker rm -f diva 2> /dev/null || true
+docker run -v ${TARGET_APP_DIRECTORY}:/app -v ${PWD}/../output:/diva-distribution/output --name diva diva /bin/bash -c "cd /diva-distribution/bin; ./diva /app"
