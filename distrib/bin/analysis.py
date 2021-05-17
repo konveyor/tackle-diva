@@ -118,13 +118,13 @@ def dump_dot(c, label, txs, opts):
     for tx in txs:
         stack = []
         for op in tx['transaction']:
-            
+
             sql = op['sql']
             if op['sql'] == 'BEGIN':
                 if not stack:
                     rwsets[i] = op['rwset']
                 stack.append(None)
-                sql += ' ' + json.dumps({'rwset' : op['rwset']}).replace('"', '')
+                sql += ' ' + json.dumps({'rwset' : map(list, op['rwset'])}).replace('"', '')
 
             text += '<tr><td align="text">%s<br align="left" /></td></tr>' % ('  ' *len(stack) + sql) 
 
