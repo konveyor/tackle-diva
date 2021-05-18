@@ -14,9 +14,9 @@ limitations under the License.
 package io.tackle.diva;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -71,6 +72,7 @@ public class DaytraderTest {
         Util.injectedCall(DivaIRGen.advices(), DaytraderTest.class.getName() + ".fromSource");
     }
 
+    @Ignore
     @Test
     public void fromBinaryTest() throws Exception {
         fromBinary();
@@ -84,8 +86,8 @@ public class DaytraderTest {
         // String[] sourceDirs = new String[] {
         // "/Users/akihiko/work/ocp/daytrader-example-webrepo/daytrader-webapp/daytrader-web/src/main/java/"
         // };
-        String[] sourceDirs = new String[] { "/Users/akihiko/git/sample.daytrader7/daytrader-ee7-web/src/main/java/",
-                "/Users/akihiko/git/sample.daytrader7/daytrader-ee7-ejb/src/main/java/" };
+        String[] sourceDirs = new String[] { "../sample.daytrader7/daytrader-ee7-web/src/main/java/",
+                "../sample.daytrader7/daytrader-ee7-ejb/src/main/java/" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {
