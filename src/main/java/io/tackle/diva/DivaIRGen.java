@@ -62,6 +62,7 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.Java2IRTranslator;
 import com.ibm.wala.cast.java.translator.SourceModuleTranslator;
@@ -80,8 +81,8 @@ import com.ibm.wala.classLoader.ModuleEntry;
 import com.ibm.wala.classLoader.PhantomClass;
 import com.ibm.wala.classLoader.SourceFileModule;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
-import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
+import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
@@ -518,6 +519,13 @@ public class DivaIRGen {
         }
     }
 
+    public static class DoGetDirectInterfaces {
+        @Advice.OnMethodExit(onThrowable = AssertionError.class)
+        public static void exit(@Advice.Thrown(readOnly = false) AssertionError e) {
+            e = null;
+        }
+    }
+
     // public static class DoGetAnnotationType {
     // @Advice.OnMethodExit
     // public static void exit(
@@ -546,6 +554,8 @@ public class DivaIRGen {
                 put("org.eclipse.jdt.core.dom.MethodBinding.getParameterTypes", DoGetParameterTypes.class);
                 put("org.eclipse.jdt.core.dom.DefaultBindingResolver.getTypeBinding", DoGetTypeBinding.class);
                 put("com.ibm.wala.shrikeCT.ClassReader.<init>", DoShrikeCTParse.class);
+                put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getDirectInterfaces",
+                        DoGetDirectInterfaces.class);
             }
         });
     }
