@@ -33,15 +33,16 @@ jobs:
         path: trading-app
     - name: Moving apps
       run: mv sample.daytrader7 trading-app ../
-    - name: Build with gradle
+    - name: Build & test with gradle
       uses: eskatos/gradle-command-action@v1
       with:
         dependencies-cache-enabled: true
-        configuration-cache-enabled: true        
+        configuration-cache-enabled: true
         gradle-version: current
-        arguments: compileJava compileTestJava
-    - name: Test with gradle
-      uses: eskatos/gradle-command-action@v1
+        arguments: test
+    - name: Upload Test Report
+      uses: actions/upload-artifact@v1
+      if: always()
       with:
-        gradle-version: current
-        arguments: test -i
+        name: test results
+        path: build/test-results/test
