@@ -26,7 +26,7 @@ $ cd /tmp/tackle-diva/
 $ docker build . -t diva
 ```
 
-1. Prepare source codes of target Java applications whose Java framework and database operation types meet DiVA, such as DayTrader7 application: https://github.com/WASdev/sample.daytrader7 
+1. Prepare source codes of target Java applications whose Java framework is supported in DiVA, such as [DayTrader7](https://github.com/WASdev/sample.daytrader7) and [TradingApp](https://github.com/saud-aslam/trading-app).
    
 ```
 $ cd /tmp
@@ -55,14 +55,9 @@ An `output` directory for storing analysis result files:
 - `transaction.json/yml`: Extracted transactions that expresses as a sequence of service entry, call graphs, SQLs
 - `transaction_summary.dot/pdf`: Extracted database-to-database/transaction-to-transaction dependencies and recommended transaction refactoring.
 
-## Supported Java Application Frameworks
+## Supported Java Frameworks
 
-- Servlet
+- Spring Boot (e.g. [TradingApp](https://github.com/saud-aslam/trading-app))
+- Servlet  (e.g. [DayTrader7](https://github.com/WASdev/sample.daytrader7))
   
-The other frameworks to be supported (e.g. SpringBoot)
-
-## Supported Database Operation Types
-
-- SQL
-
-The other types to be supported (e.g. JPA: Java Persistence API)
+The other frameworks to be supported.
