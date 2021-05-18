@@ -20,7 +20,7 @@ db_dict = {}
 db_list = []
 
 for tx_entry in tx_entries:
-    if len(tx_entry["transactions"]) > 1:
+    if len(tx_entry["transactions"]) >= 1:
         for txs in tx_entry["transactions"]:
             if 'transaction' in txs:
                 for trans in txs['transaction']:
