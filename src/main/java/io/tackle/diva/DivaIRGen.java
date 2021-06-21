@@ -281,17 +281,21 @@ public class DivaIRGen {
                         isClass.add(superName);
                     }
                     ITypeBinding t = node.resolveBinding();
-                    String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
-                    processAnnotations(cha, node, name);
+                    if (t != null) {
+                        String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
+                        processAnnotations(cha, node, name);
+                    }
                     return true;
                 }
 
                 @Override
                 public boolean visit(MethodDeclaration node) {
                     IMethodBinding binding = node.resolveBinding();
-                    String name = methodSignature(binding.getDeclaringClass(), binding.getName(),
-                            binding.getParameterTypes(), binding.getReturnType());
-                    processAnnotations(cha, node, name);
+                    if (binding != null) {
+                        String name = methodSignature(binding.getDeclaringClass(), binding.getName(),
+                                binding.getParameterTypes(), binding.getReturnType());
+                        processAnnotations(cha, node, name);
+                    }
                     return true;
                 }
 

@@ -192,7 +192,9 @@ public class Trace extends Util.Chain<Trace> {
             Trace callerTrace = this.next;
             if (callerTrace != null) {
                 SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                return callerTrace.getDef(caller.getUse((Integer) ud[number]));
+                if (caller != null) {
+                    return callerTrace.getDef(caller.getUse((Integer) ud[number]));
+                }
             }
         }
         return null;
