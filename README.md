@@ -61,3 +61,8 @@ An `output` directory for storing analysis result files:
 - Servlet  (e.g. [DayTrader7](https://github.com/WASdev/sample.daytrader7))
   
 The other frameworks to be supported.
+
+## Materials
+
+- [opensource.com article](https://opensource.com/article/21/6/tackle-diva-kubernetes)
+- [Youtube recording](https://youtu.be/UJi1tGFMw2M)
