@@ -115,7 +115,7 @@ public class Framework {
             });
         } else {
             // deep copy files in jrt module to temp dir
-            Path temp = Files.createTempDirectory("temp");
+            Path temp = Files.createTempDirectory("diva-temp");
             Util.LOGGER.info("tempdir=" + temp);
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override

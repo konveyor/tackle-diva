@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -289,6 +290,21 @@ public class DivaIRGen {
                 }
 
                 @Override
+                public boolean visit(AnonymousClassDeclaration node) {
+                    System.out.println(node);
+                    ITypeBinding t = node.resolveBinding();
+                    ITypeBinding sup = t.getSuperclass();
+                    if (sup != null) {
+                        String superName = sup.getBinaryName();
+                        if (isClass == null) {
+                            isClass = new HashSet();
+                        }
+                        isClass.add(superName);
+                    }
+                    return true;
+                }
+
+                @Override
                 public boolean visit(MethodDeclaration node) {
                     IMethodBinding binding = node.resolveBinding();
                     if (binding != null) {
@@ -431,7 +447,7 @@ public class DivaIRGen {
         public static void exit(@Advice.Return(readOnly = false) ITypeBinding binding) {
             ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
             if (isBroken(b)) {
-                binding = findOrCreateUnknownPhantomType(b.getName());
+                binding = findOrCreateUnknownPhantomType(b);
             }
         }
     }
@@ -452,7 +468,7 @@ public class DivaIRGen {
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (b.isRecovered()) {
                     if (isBroken(b)) {
-                        b = findOrCreateUnknownPhantomType(b.getName());
+                        b = findOrCreateUnknownPhantomType(b);
                         binding = b;
                     }
                     findOrCreateDefaultCtor(b);
@@ -495,7 +511,7 @@ public class DivaIRGen {
                 ITypeBinding binding = parameterTypes[k];
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (isBroken(b)) {
-                    parameterTypes[k] = findOrCreateUnknownPhantomType(b.getName());
+                    parameterTypes[k] = findOrCreateUnknownPhantomType(b);
                 }
             }
         }
@@ -507,7 +523,7 @@ public class DivaIRGen {
             if (binding != null) {
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (isBroken(b)) {
-                    binding = findOrCreateUnknownPhantomType(b.getName());
+                    binding = findOrCreateUnknownPhantomType(b);
                 }
             }
         }
@@ -571,6 +587,15 @@ public class DivaIRGen {
     public static Map<String, ITypeBinding> phantomTypes;
     public static Map<Object, IMethodBinding> phantomMethods;
     public static Set<String> isClass;
+
+    public static ITypeBinding findOrCreateUnknownPhantomType(ITypeBinding b) {
+        // System.out.println(b + " name=" + b.getName() + " binary=" +
+        // b.getBinaryName() + " key=" + b.getKey());
+        if (b.getBinaryName() != null && b.getBinaryName().contains(".")) {
+            return findOrCreatePhantomType(b.getBinaryName());
+        }
+        return findOrCreateUnknownPhantomType(b.getName());
+    }
 
     public static ITypeBinding findOrCreateUnknownPhantomType(String name) {
         if (imports.containsKey(name)) {
