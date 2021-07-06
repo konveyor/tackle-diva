@@ -46,6 +46,16 @@ public interface Constants {
     Atom withTableName = Atom.findOrCreateUnicodeAtom("withTableName");
     Atom usingGeneratedKeyColumns = Atom.findOrCreateUnicodeAtom("usingGeneratedKeyColumns");
 
+    Atom findById = Atom.findOrCreateUnicodeAtom("findById");
+    Atom findAll = Atom.findOrCreateUnicodeAtom("findAll");
+    Atom findAllById = Atom.findOrCreateUnicodeAtom("findAllById");
+    Atom getById = Atom.findOrCreateUnicodeAtom("getById");
+    Atom existsById = Atom.findOrCreateUnicodeAtom("existsById");
+    Atom delete = Atom.findOrCreateUnicodeAtom("delete");
+    Atom deleteById = Atom.findOrCreateUnicodeAtom("deleteById");
+    Atom save = Atom.findOrCreateUnicodeAtom("save");
+    Atom saveAndFlush = Atom.findOrCreateUnicodeAtom("saveAndFlush");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
 
@@ -57,8 +67,29 @@ public interface Constants {
             .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
     TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
 
+    // Servlet
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
     TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");
     TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
+
+    // JPA
+    TypeName LJavaxPersistenceCascadeType = TypeName.findOrCreate("Ljavax/persistence/CascadeType");
+    TypeName LJavaxPersistenceColumn = TypeName.findOrCreate("Ljavax/persistence/Column");
+    TypeName LJavaxPersistenceEmbedded = TypeName.findOrCreate("Ljavax/persistence/Embedded");
+    TypeName LJavaxPersistenceEntity = TypeName.findOrCreate("Ljavax/persistence/Entity");
+    TypeName LJavaxPersistenceEntityListeners = TypeName.findOrCreate("Ljavax/persistence/EntityListeners");
+    TypeName LJavaxPersistenceFetchType = TypeName.findOrCreate("Ljavax/persistence/FetchType");
+    TypeName LJavaxPersistenceGeneratedValue = TypeName.findOrCreate("Ljavax/persistence/GeneratedValue");
+    TypeName LJavaxPersistenceGenerationType = TypeName.findOrCreate("Ljavax/persistence/GenerationType");
+    TypeName LJavaxPersistenceId = TypeName.findOrCreate("Ljavax/persistence/Id");
+    TypeName LJavaxPersistenceJoinColumn = TypeName.findOrCreate("Ljavax/persistence/JoinColumn");
+    TypeName LJavaxPersistenceManyToOne = TypeName.findOrCreate("Ljavax/persistence/ManyToOne");
+    TypeName LJavaxPersistenceOneToMany = TypeName.findOrCreate("Ljavax/persistence/OneToMany");
+    TypeName LJavaxPersistenceTable = TypeName.findOrCreate("Ljavax/persistence/Table");
+    TypeName LJavaxPersistenceTableGenerator = TypeName.findOrCreate("Ljavax/persistence/TableGenerator");
+    TypeName LJavaxPersistenceUniqueConstraint = TypeName.findOrCreate("Ljavax/persistence/UniqueConstraint");
+
+    TypeName LSpringJPARepository = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/JpaRepository");
+    TypeName LSpringJPAQuery = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/Query");
 
 }

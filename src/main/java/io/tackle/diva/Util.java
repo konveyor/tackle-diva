@@ -18,7 +18,6 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringBufferInputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -36,23 +35,24 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.IOUtils;
+
+import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.intset.BitVector;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.dynamic.DynamicType.Builder;
 import net.bytebuddy.matcher.ElementMatchers;
-
-import com.ibm.wala.types.annotations.Annotation;
-import com.ibm.wala.util.intset.BitVector;
 
 public class Util {
 
@@ -109,20 +109,35 @@ public class Util {
         }
         return res;
     }
-    
+
     public static List<Annotation> getAnnotations(IMethod m) {
         List<Annotation> res = new ArrayList<>();
-        Collection<Annotation> as = m.getAnnotations();
-        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-            res.add(a);
-        }
+
         String key = m.getDeclaringClass().getName() + " " + m.getName() + " " + m.getDescriptor().toString();
-        as = DivaIRGen.annotations.get(key);
+        Collection<Annotation> as = DivaIRGen.annotations.get(key);
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
+//        as = m.getAnnotations();
+//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+//            res.add(a);
+//        }
         return res;
-    }    
+    }
+
+    public static List<Annotation> getAnnotations(IField f) {
+        List<Annotation> res = new ArrayList<>();
+        String key = f.getDeclaringClass().getName() + " " + f.getName();
+        Collection<Annotation> as = DivaIRGen.annotations.get(key);
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
+//        as = f.getAnnotations();
+//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+//            res.add(a);
+//        }
+        return res;
+    }
 
     public static void injectedCall(Map<String, Class<?>> injectors, String name, Object... args) throws Exception {
 
