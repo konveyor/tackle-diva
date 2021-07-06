@@ -9,7 +9,7 @@
 #	See the License for the specific language governing permissions and
 #	limitations under the License.
 
-FROM gradle:jdk11 as build
+FROM gradle:jdk8 as build
 
 WORKDIR /home/gradle
 COPY . diva
@@ -18,7 +18,7 @@ WORKDIR /home/gradle/diva
 RUN gradle ziptask
 RUN jar xvf build/distributions/diva-all.zip
 
-FROM openjdk:11.0.11-jre
+FROM openjdk:8u282-jre-slim
 
 RUN mkdir -p /diva-distribution/lib
 COPY distrib/ /diva-distribution/
