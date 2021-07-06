@@ -77,6 +77,7 @@ import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
+import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
 
 public class Framework {
@@ -115,7 +116,7 @@ public class Framework {
             });
         } else {
             // deep copy files in jrt module to temp dir
-            Path temp = Files.createTempDirectory("temp");
+            Path temp = Files.createTempDirectory("diva-temp");
             Util.LOGGER.info("tempdir=" + temp);
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
@@ -442,8 +443,8 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, JDBCAnalysis.getTransactionAnalysis(this, cxt)
-                .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)), true);
+        traverse(entry, JDBCAnalysis.getTransactionAnalysis(this, cxt).with(SpringBootAnalysis
+                .getTransactionAnalysis(this, cxt).with(JPAAnalysis.getTransactionAnalysis(this, cxt))), true);
         if (txStarted()) {
             reportTxBoundary();
         }
