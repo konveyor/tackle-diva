@@ -9,6 +9,7 @@
 plugins {
     // Apply the java-library plugin to add support for Java Library
     id 'java-library'
+    id 'maven-publish'
     id 'com.cmgapps.licenses' version '2.1.0'
 }
 
@@ -33,20 +34,14 @@ dependencies {
     implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.13.100'
     implementation 'com.google.guava:guava:28.2-jre'
 
-    def walaVersion = '1.5.6'
+    def walaVersion = '1.5.7'
 
     implementation "com.ibm.wala:com.ibm.wala.shrike:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.util:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.core:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.cast:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.cast.js:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.cast.js.rhino:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.cast.js:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.cast.js.rhino:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.cast.java:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.cast.java.ecj:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.dalvik:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.scandroid:${walaVersion}"
  
     implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.10.21'
  
@@ -56,6 +51,24 @@ dependencies {
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
 }
+
+dependencies.constraints {
+    [
+            'org.eclipse.platform:org.eclipse.core.resources',
+            'org.eclipse.platform:org.eclipse.core.runtime',
+            'org.eclipse.platform:org.eclipse.equinox.common',
+    ].forEach {
+        implementation(it) {
+            version { strictly '(,3.15)' }
+            because 'Versions 3.15 and later of this artifact require Java 11.'
+        }
+    }
+    implementation('org.eclipse.platform:org.eclipse.core.commands') {
+            version { strictly '(,3.9.800)' }
+            because 'Versions 3.10.0 and later of this artifact require Java 11.'
+    }
+}
+
 
 jar {
     manifest {
