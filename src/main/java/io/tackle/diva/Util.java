@@ -65,7 +65,9 @@ public class Util {
     public static String CLASS_DUMP_LOCATION = null;
     // public static String CLASS_DUMP_LOCATION = "./logs/akihiko/"
     public static String[] INJECTION_PACKAGES = new String[] { "com.ibm.wala", "org.eclipse.jdt", "io.tackle.diva" };
+    public static String[] EXCLUSION_PACKAGES = new String[] { "io.tackle.diva.windup.model", "io.tackle.diva.windup.service" };
     public static Predicate<String> INJECTION_PREDICATE;
+    public static Predicate<String> EXCLUSION_PREDICATE;
     public static ObjectWriter JSON_SERIALIZER;
     public static ObjectMapper YAML_SERIALIZER;
 
@@ -79,6 +81,16 @@ public class Util {
             }
         }
         INJECTION_PREDICATE = Pattern.compile(pat).asPredicate();
+
+        pat = null;
+        for (String p : EXCLUSION_PACKAGES) {
+            if (pat == null) {
+                pat = "^" + p.replace(".", "\\.") + "\\..*";
+            } else {
+                pat += "|^" + p.replace(".", "\\.") + "\\..*";
+            }
+        }
+        EXCLUSION_PREDICATE = Pattern.compile(pat).asPredicate();
 
         DefaultPrettyPrinter.Indenter indenter = new DefaultIndenter("  ", DefaultIndenter.SYS_LF);
         DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
@@ -171,6 +183,7 @@ public class Util {
                 Class<?> c = delegate.loadClass(name);
                 byte[] bytes;
                 if (targetClasses.contains(name)) {
+                    // TODO: can't we just define it without original class? 
                     Builder<?> b = new ByteBuddy().redefine(c);
                     for (String target : injectors.keySet()) {
                         if (target.startsWith(name)) {
@@ -194,7 +207,7 @@ public class Util {
                         }
                     }
 
-                } else if (c.getClassLoader() == null || !INJECTION_PREDICATE.test(name)) {
+                } else if (c.getClassLoader() == null || !INJECTION_PREDICATE.test(name)  || EXCLUSION_PREDICATE.test(name)) {
                     return c;
                 } else {
                     String classAsPath = name.replace('.', '/') + ".class";

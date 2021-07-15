@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <version.windup>5.1.3.Final</version.windup>
+        <version.windup>5.1.5-SNAPSHOT</version.windup>
     </properties>
 
     <dependencyManagement>
@@ -38,6 +38,38 @@
             <groupId>io.tackle</groupId>
             <artifactId>diva-core</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.ibm.wala</groupId>
+            <artifactId>com.ibm.wala.util</artifactId>
+            <version>1.5.7</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.wala</groupId>
+            <artifactId>com.ibm.wala.core</artifactId>
+            <version>1.5.7</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.wala</groupId>
+            <artifactId>com.ibm.wala.cast</artifactId>
+            <version>1.5.7</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.wala</groupId>
+            <artifactId>com.ibm.wala.cast.java</artifactId>
+            <version>1.5.7</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.wala</groupId>
+            <artifactId>com.ibm.wala.cast.java.ecj</artifactId>
+            <version>1.5.7</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- Windup deps -->

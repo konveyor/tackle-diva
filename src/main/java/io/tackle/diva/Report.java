@@ -13,6 +13,8 @@ limitations under the License.
 
 package io.tackle.diva;
 
+import java.util.function.Function;
+
 public interface Report {
 
     void add(Named.Builder builder);
@@ -44,6 +46,10 @@ public interface Report {
         void put(String key, Named.Builder builder);
 
         void put(String key, Report.Builder builder);
+
+        default <T> void put(String key, T data, Function<T, Report.Builder> fun) {
+            put(key, fun.apply(data));
+        }
 
         @FunctionalInterface
         interface Builder {

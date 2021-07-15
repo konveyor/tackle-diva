@@ -16,6 +16,12 @@ public class DivaRuleProvider extends AbstractRuleProvider {
    @Override
    public Configuration getConfiguration(RuleLoaderContext ruleLoaderContext)
    {
+       ClassLoader cl = DivaRuleProvider.class.getClassLoader();
+       
+       
+       System.out.println(cl);       
+       
+       
        return ConfigurationBuilder.begin()
            .addRule()
            .perform(new DivaLauncher());

@@ -55,7 +55,7 @@ dependencies {
     implementation "org.eclipse.platform:org.eclipse.equinox.preferences:3.8.200"
     implementation "org.eclipse.platform:org.eclipse.equinox.registry:3.10.200"
     implementation "org.eclipse.platform:org.eclipse.osgi:3.16.300"
-    implementation "org.eclipse.platform:org.eclipse.text:3.12.0"
+    implementation "org.eclipse.platform:org.eclipse.text:3.11.0"
 
     implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.10.21'
  
