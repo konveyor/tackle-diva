@@ -8,6 +8,7 @@ import org.jboss.windup.graph.model.FileReferenceModel;
 import org.jboss.windup.graph.model.resource.FileModel;
 import org.jboss.windup.graph.service.FileService;
 import org.jboss.windup.graph.service.GraphService;
+import org.jboss.windup.rules.apps.java.model.JavaMethodModel;
 
 import io.tackle.diva.windup.model.DivaStackTraceModel;
 
@@ -25,14 +26,15 @@ public class DivaStackTraceService extends GraphService<DivaStackTraceModel> {
     }
 
     public DivaStackTraceModel getOrCreate(String filePath, int lineNumber, int columnNumber, int length,
-            DivaStackTraceModel parent) {
+            DivaStackTraceModel parent, JavaMethodModel method) {
+        FileModel fileModel = fileService.createByFilePath(filePath);
         GraphTraversal<?, ?> traversal = getQuery().getRawTraversal().has(FileLocationModel.COLUMN_NUMBER, columnNumber)
                 .has(FileLocationModel.LINE_NUMBER, lineNumber).has(FileLocationModel.LENGTH, length)
-                .filter(__.out(FileReferenceModel.FILE_MODEL).has(FileModel.FILE_PATH, filePath));
+                .filter(__.out(FileReferenceModel.FILE_MODEL).is(fileModel.getElement()));
         if (parent == null) {
             traversal = traversal.not(__.out(DivaStackTraceModel.PARENT));
         } else {
-            traversal = traversal.filter(__.out(DivaStackTraceModel.PARENT).is(parent));
+            traversal = traversal.filter(__.out(DivaStackTraceModel.PARENT).is(parent.getElement()));
         }
         DivaStackTraceModel model = getUnique(traversal);
         if (model == null) {
@@ -40,9 +42,12 @@ public class DivaStackTraceService extends GraphService<DivaStackTraceModel> {
             model.setColumnNumber(columnNumber);
             model.setLineNumber(lineNumber);
             model.setLength(length);
-            setFilePath(model, filePath);
+            model.setFile(fileModel);
             if (parent != null) {
                 model.setParent(parent);
+            }
+            if (method != null) {
+                model.setMethod(method);
             }
         }
         return model;

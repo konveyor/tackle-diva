@@ -22,11 +22,12 @@ public class DivaEntryMethodService extends GraphService<DivaEntryMethodModel> {
         methodService = new JavaMethodService(context);
     }
 
-    public DivaEntryMethodModel getOrCreate(String methodName, String className) {
+    public DivaEntryMethodModel getOrCreate(String className, String methodName) {
         JavaClassModel classModel = classService.create(className);
         JavaMethodModel methodModel = methodService.createJavaMethod(classModel, methodName, new JavaClassModel[] {});
+        classModel.addJavaMethod(methodModel); // currently we always get fresh method
         GraphTraversal<?, ?> traversal = getQuery().getRawTraversal()
-                .filter(__.out(DivaEntryMethodModel.METHOD).is(methodModel));
+                .filter(__.out(DivaEntryMethodModel.METHOD).is(methodModel.getElement()));
         DivaEntryMethodModel model = getUnique(traversal);
         if (model == null) {
             model = create();

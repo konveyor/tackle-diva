@@ -6,10 +6,15 @@ import java.util.function.Function;
 import org.jboss.windup.graph.GraphContext;
 import org.jboss.windup.graph.model.WindupVertexFrame;
 import org.jboss.windup.graph.service.GraphService;
+import org.jboss.windup.rules.apps.java.model.JavaClassModel;
+import org.jboss.windup.rules.apps.java.model.JavaMethodModel;
+import org.jboss.windup.rules.apps.java.service.JavaClassService;
+import org.jboss.windup.rules.apps.java.service.JavaMethodService;
 
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.IMethod.SourcePosition;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.util.strings.StringStuff;
 
 import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
@@ -97,7 +102,11 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
                 builder.build(
                         new JanusGraphReport<>(context, DivaTxModel.class, ((DivaContextModel) model)::addTransaction));
             } else if (model instanceof DivaTxModel && key.equals("transaction")) {
-                builder.build(new JanusGraphReport<>(context, DivaSqlOpModel.class, ((DivaTxModel) model)::addOp));
+                int[] counter = new int[] { 0 };
+                builder.build(new JanusGraphReport<>(context, DivaSqlOpModel.class, op -> {
+                    op.setOrdinal(counter[0]++);
+                    ((DivaTxModel) model).addOp(op);
+                }));
             }
         }
 
@@ -105,6 +114,8 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
         public <S> void put(String key, S data, Function<S, Report.Builder> fun) {
             if (model instanceof DivaOpModel && key.equals("stacktrace")) {
                 DivaStackTraceService service = new DivaStackTraceService(context);
+                JavaClassService classService = new JavaClassService(context);
+                JavaMethodService methodService = new JavaMethodService(context);
                 DivaStackTraceModel parent = null;
                 DivaStackTraceModel current = null;
                 for (Trace t : ((Trace) data).reversed()) {
@@ -115,12 +126,18 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
 
                     } catch (InvalidClassFileException | NullPointerException e) {
                     }
+                    JavaClassModel classModel = classService
+                            .create(StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()));
+                    JavaMethodModel methodModel = methodService.createJavaMethod(classModel,
+                            m.getName().toString());
+                    classModel.addJavaMethod(methodModel);
                     if (p != null) {
                         current = service.getOrCreate(m.getDeclaringClass().getSourceFileName(), p.getFirstLine(),
-                                p.getFirstCol(), p.getLastOffset() - p.getFirstOffset(), parent);
+                                p.getFirstCol(), p.getLastOffset() - p.getFirstOffset(), parent, methodModel);
                     } else {
                         current = service.create();
                         service.setFilePath(current, m.getDeclaringClass().getSourceFileName());
+                        current.setMethod(methodModel);
                         if (parent != null) {
                             current.setParent(parent);
                         }

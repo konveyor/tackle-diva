@@ -115,6 +115,8 @@ public class DivaLauncher extends GraphOperation {
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
         List<Context> contexts = Standalone.calculateDefaultContexts(fw);
+        // List<Context> contexts = Standalone.loadContexts(fw,
+        // "/Users/aki/git/tackle-diva/dt-contexts.yml");
 
         JanusGraphReport<DivaContextModel> report = new JanusGraphReport<>(event.getGraphContext(),
                 DivaContextModel.class);
@@ -132,28 +134,32 @@ public class DivaLauncher extends GraphOperation {
             }
             if (entry != null) {
                 CGNode n = entry;
-                report.add((Report.Named map) -> {
-                    map.put("constraints", (Report r) -> {
-                        JanusGraphReport<DivaConstraintModel> cs = (JanusGraphReport<DivaConstraintModel>) r;
-                        for (Context.Constraint c : cxt) {
-                            if (c.category().equals("entry")) {
-                                IMethod m = ((Standalone.EntryConstraint) c).node().getMethod();
-                                DivaEntryMethodModel model = entryMethodService.getOrCreate(
-                                        StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()),
-                                        m.getName().toString());
-                                cs.add(model);
-                            } else if (c.category().equals("http-param")) {
-                                DivaRequestParamModel model = requestParamService.getOrCreate(
-                                        DivaRequestParamModel.PARAM_NAME, c.type(), DivaRequestParamModel.PARAM_VALUE,
-                                        c.value());
-                                cs.add(model);
+                fw.calculateTransactions(entry, cxt, new Util.LazyReport(() -> {
+                    Report[] delegate = new Report[] { null };
+                    report.add((Report.Named map) -> {
+                        map.put("constraints", (Report r) -> {
+                            JanusGraphReport<DivaConstraintModel> cs = (JanusGraphReport<DivaConstraintModel>) r;
+                            for (Context.Constraint c : cxt) {
+                                if (c.category().equals("entry")) {
+                                    IMethod m = ((Standalone.EntryConstraint) c).node().getMethod();
+                                    DivaEntryMethodModel model = entryMethodService.getOrCreate(
+                                            StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()),
+                                            m.getName().toString());
+                                    cs.add(model);
+                                } else if (c.category().equals("http-param")) {
+                                    DivaRequestParamModel model = requestParamService.getOrCreate(
+                                            DivaRequestParamModel.PARAM_NAME, c.type(),
+                                            DivaRequestParamModel.PARAM_VALUE, c.value());
+                                    cs.add(model);
+                                }
                             }
-                        }
+                        });
+                        map.put("transactions", (Report txs) -> {
+                            delegate[0] = txs;
+                        });
                     });
-                    map.put("transactions", (Report txs) -> {
-                        fw.calculateTransactions(n, cxt, txs);
-                    });
-                });
+                    return delegate[0];
+                }));
             }
         }
 

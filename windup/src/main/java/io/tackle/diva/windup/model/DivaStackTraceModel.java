@@ -18,10 +18,13 @@ public interface DivaStackTraceModel extends FileLocationModel {
     @Adjacency(label = METHOD, direction = Direction.OUT)
     JavaMethodModel getMethod();
 
+    @Adjacency(label = METHOD, direction = Direction.OUT)
+    void setMethod(JavaMethodModel method);
+
     @Adjacency(label = PARENT, direction = Direction.OUT)
     DivaStackTraceModel getParent();
-    
+
     @Adjacency(label = PARENT, direction = Direction.OUT)
-    void setParent(DivaStackTraceModel parent);    
+    void setParent(DivaStackTraceModel parent);
 
 }

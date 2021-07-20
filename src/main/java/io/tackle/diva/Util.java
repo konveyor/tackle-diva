@@ -17,12 +17,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -31,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -65,7 +69,8 @@ public class Util {
     public static String CLASS_DUMP_LOCATION = null;
     // public static String CLASS_DUMP_LOCATION = "./logs/akihiko/"
     public static String[] INJECTION_PACKAGES = new String[] { "com.ibm.wala", "org.eclipse.jdt", "io.tackle.diva" };
-    public static String[] EXCLUSION_PACKAGES = new String[] { "io.tackle.diva.windup.model", "io.tackle.diva.windup.service" };
+    public static String[] EXCLUSION_PACKAGES = new String[] { "io.tackle.diva.windup.model",
+            "io.tackle.diva.windup.service" };
     public static Predicate<String> INJECTION_PREDICATE;
     public static Predicate<String> EXCLUSION_PREDICATE;
     public static ObjectWriter JSON_SERIALIZER;
@@ -183,7 +188,7 @@ public class Util {
                 Class<?> c = delegate.loadClass(name);
                 byte[] bytes;
                 if (targetClasses.contains(name)) {
-                    // TODO: can't we just define it without original class? 
+                    // TODO: can't we just define it without original class?
                     Builder<?> b = new ByteBuddy().redefine(c);
                     for (String target : injectors.keySet()) {
                         if (target.startsWith(name)) {
@@ -207,7 +212,8 @@ public class Util {
                         }
                     }
 
-                } else if (c.getClassLoader() == null || !INJECTION_PREDICATE.test(name)  || EXCLUSION_PREDICATE.test(name)) {
+                } else if (c.getClassLoader() == null || !INJECTION_PREDICATE.test(name)
+                        || EXCLUSION_PREDICATE.test(name)) {
                     return c;
                 } else {
                     String classAsPath = name.replace('.', '/') + ".class";
@@ -218,6 +224,21 @@ public class Util {
                     }
                 }
                 return defineClass(name, bytes, 0, bytes.length);
+            }
+
+            @Override
+            public URL getResource(String name) {
+                return delegate.getResource(name);
+            }
+
+            @Override
+            public InputStream getResourceAsStream(String name) {
+                return delegate.getResourceAsStream(name);
+            }
+
+            @Override
+            public Enumeration<URL> getResources(String name) throws IOException {
+                return delegate.getResources(name);
             }
         };
 
@@ -511,6 +532,42 @@ public class Util {
                 builder.build(new JsonReport(value));
             }
         }
+    }
+
+    public static class LazyReport implements Report {
+
+        Supplier<Report> supplier;
+        public LazyReport(Supplier<Report> supplier) {
+            super();
+            this.supplier = supplier;
+        }
+
+        Report delegate;
+
+        @Override
+        public void add(Report.Named.Builder builder) {
+            if (delegate == null) {
+                delegate = supplier.get();
+            }
+            delegate.add(builder);
+        }
+
+        @Override
+        public void add(Builder builder) {
+            if (delegate == null) {
+                delegate = supplier.get();
+            }
+            delegate.add(builder);
+        }
+
+        @Override
+        public void add(String data) {
+            if (delegate == null) {
+                delegate = supplier.get();
+            }
+            delegate.add(data);
+        }
+
     }
 
 }
