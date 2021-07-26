@@ -1,0 +1,45 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.jboss.windup</groupId>
+        <artifactId>windup-openshift-parent</artifactId>
+        <version>5.1.4.Final</version>
+    </parent>
+
+    <properties>
+        <version.windup.cli>${project.version}</version.windup.cli>
+    </properties>
+    
+    <artifactId>windup-cli-openshift</artifactId>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.jboss.windup</groupId>
+                                    <artifactId>mta-cli</artifactId>
+                                    <classifier>offline</classifier>
+                                    <type>zip</type>
+                                    <version>${version.windup.cli}</version>
+                                    <outputDirectory>${project.build.directory}/mta-cli</outputDirectory>
+                                    <overWrite>true</overWrite>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
