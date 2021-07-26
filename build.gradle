@@ -31,7 +31,6 @@ dependencies {
     implementation group: 'commons-cli', name: 'commons-cli', version: '1.4'
 
     implementation 'commons-io:commons-io:2.8.0'
-    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.13.100'
     implementation 'com.google.guava:guava:28.2-jre'
 
     def walaVersion = '1.5.7'
@@ -42,7 +41,22 @@ dependencies {
     implementation "com.ibm.wala:com.ibm.wala.cast:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.cast.java:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.cast.java.ecj:${walaVersion}"
- 
+
+    implementation "org.eclipse.jdt:org.eclipse.jdt.core:3.21.0"
+    implementation "org.eclipse.platform:org.eclipse.core.commands:3.9.700"
+    implementation "org.eclipse.platform:org.eclipse.core.contenttype:3.7.1000"
+    implementation "org.eclipse.platform:org.eclipse.core.expressions:3.7.100"
+    implementation "org.eclipse.platform:org.eclipse.core.filesystem:1.9.0"
+    implementation "org.eclipse.platform:org.eclipse.core.jobs:3.11.0"
+    implementation "org.eclipse.platform:org.eclipse.core.resources:3.14.0"
+    implementation "org.eclipse.platform:org.eclipse.core.runtime:3.17.100"
+    implementation "org.eclipse.platform:org.eclipse.equinox.app:1.5.100"
+    implementation "org.eclipse.platform:org.eclipse.equinox.common:3.14.100"
+    implementation "org.eclipse.platform:org.eclipse.equinox.preferences:3.8.200"
+    implementation "org.eclipse.platform:org.eclipse.equinox.registry:3.10.200"
+    implementation "org.eclipse.platform:org.eclipse.osgi:3.16.300"
+    implementation "org.eclipse.platform:org.eclipse.text:3.11.0"
+
     implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.10.21'
  
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.10.1'
@@ -52,23 +66,17 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
-dependencies.constraints {
-    [
-            'org.eclipse.platform:org.eclipse.core.resources',
-            'org.eclipse.platform:org.eclipse.core.runtime',
-            'org.eclipse.platform:org.eclipse.equinox.common',
-    ].forEach {
-        implementation(it) {
-            version { strictly '(,3.15)' }
-            because 'Versions 3.15 and later of this artifact require Java 11.'
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'io.tackle'
+            artifactId = 'diva-core'
+            version = '0.0.1-SNAPSHOT'
+            from components.java
         }
     }
-    implementation('org.eclipse.platform:org.eclipse.core.commands') {
-            version { strictly '(,3.9.800)' }
-            because 'Versions 3.10.0 and later of this artifact require Java 11.'
-    }
 }
-
 
 jar {
     manifest {

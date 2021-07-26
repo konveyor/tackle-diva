@@ -1,0 +1,66 @@
+FROM maven:3.6-jdk-8-slim as build
+
+WORKDIR /root
+
+ENV MTA_CLI_BUILD_PATH=/root/target/mta-cli/mta-cli-5.1.4.Final
+
+COPY windup/unpack-mta-cli.xml ./
+RUN mvn compile -f unpack-mta-cli.xml
+
+COPY build.gradle ./
+COPY gradlew ./
+COPY src src
+COPY gradle gradle
+
+RUN ./gradlew publishToMavenLocal
+
+COPY windup windup
+RUN mvn install -DskipTests -f windup/pom.xml
+
+RUN ${MTA_CLI_BUILD_PATH}/bin/mta-cli --batchMode --install io.tackle:diva-windup:0.0.1-SNAPSHOT
+
+RUN curl -k -L -o janusgraph-0.3.2-hadoop2.zip https://github.com/JanusGraph/janusgraph/releases/download/v0.3.2/janusgraph-0.3.2-hadoop2.zip
+RUN jar xvf janusgraph-0.3.2-hadoop2.zip
+
+FROM openjdk:8u282-jre-slim
+
+ENV UID=185
+
+RUN useradd -m -u ${UID} diva
+USER ${UID}
+
+ENV HOME=/home/diva
+
+WORKDIR ${HOME}
+
+COPY windup/TitanConfiguration.properties ./
+COPY windup/start-windup.sh ./
+
+ENV MTA_CLI_BUILD_PATH=/root/target/mta-cli/mta-cli-5.1.4.Final
+
+ENV JANUSGRAPH_PATH=${HOME}/janusgraph-0.3.2-hadoop2
+ENV TCD_APPLICATION_PATH=${HOME}/app
+ENV MTA_CLI_PATH=${HOME}/mta-cli
+
+COPY --from=build /root/.mta ${HOME}/.mta
+COPY --from=build ${MTA_CLI_BUILD_PATH} ${MTA_CLI_PATH}
+COPY --from=build /root/janusgraph-0.3.2-hadoop2 janusgraph-0.3.2-hadoop2
+
+USER root
+
+RUN apt-get update
+RUN apt-get install -y git
+
+RUN chown -R ${UID} ${HOME}
+
+USER ${UID}
+
+RUN sed -i janusgraph-0.3.2-hadoop2/conf/gremlin-server/gremlin-server.yaml -e 's/conf\/gremlin-server\/janusgraph-cql-es-server\.properties/\/home\/diva\/TitanConfiguration\.properties/g'
+RUN sed -i janusgraph-0.3.2-hadoop2/conf/gremlin-server/gremlin-server.yaml -e 's/scripts\/empty-sample\.groovy/\/home\/diva\/janusgraph-0\.3\.2-hadoop2\/scripts\/empty-sample\.groovy/g'
+
+RUN chmod a+x ${HOME}/start-windup.sh
+RUN chmod a+x ${JANUSGRAPH_PATH}/bin/*.sh
+
+ENTRYPOINT ["./start-windup.sh"]
+
+

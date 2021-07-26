@@ -410,8 +410,8 @@ public class Framework {
             });
         }
         transaction.add((Report.Named map) -> {
-            map.put("stacktrace", (Report stacktrace) -> {
-                for (Trace t : trace.reversed()) {
+            map.put("stacktrace", trace, _trace -> (Report stacktrace) -> {
+                for (Trace t : _trace.reversed()) {
                     IMethod m = t.node().getMethod();
                     SourcePosition p = null;
                     try {
@@ -420,9 +420,9 @@ public class Framework {
                     }
                     SourcePosition pos = p;
                     stacktrace.add((Report.Named site) -> {
-                        site.put("method", m.toString());
-                        site.put("file", m.getDeclaringClass().getSourceFileName());
-                        site.put("position", "" + pos);
+                            site.put("method", m.toString());
+                            site.put("file", m.getDeclaringClass().getSourceFileName());
+                            site.put("position", "" + pos);
                     });
                 }
             });

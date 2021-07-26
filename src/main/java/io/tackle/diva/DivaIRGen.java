@@ -1354,6 +1354,12 @@ public class DivaIRGen {
                 // TODO Auto-generated method stub
                 return false;
             }
+
+            @Override
+            public IVariableBinding[] getSyntheticOuterLocals() {
+                // TODO Auto-generated method stub
+                return null;
+            }
         };
         lazyData[0] = binding;
         return binding;
