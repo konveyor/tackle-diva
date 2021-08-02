@@ -56,8 +56,15 @@ public interface Constants {
     Atom save = Atom.findOrCreateUnicodeAtom("save");
     Atom saveAndFlush = Atom.findOrCreateUnicodeAtom("saveAndFlush");
 
+    Atom createQuery = Atom.findOrCreateUnicodeAtom("createQuery");
+
+    Atom toString = Atom.findOrCreateUnicodeAtom("toString");
+    Atom append = Atom.findOrCreateUnicodeAtom("append");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
+    TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
+    TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
     TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
     TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
@@ -88,6 +95,9 @@ public interface Constants {
     TypeName LJavaxPersistenceTable = TypeName.findOrCreate("Ljavax/persistence/Table");
     TypeName LJavaxPersistenceTableGenerator = TypeName.findOrCreate("Ljavax/persistence/TableGenerator");
     TypeName LJavaxPersistenceUniqueConstraint = TypeName.findOrCreate("Ljavax/persistence/UniqueConstraint");
+
+    TypeName LJavaxPersistenceEntityManager = TypeName.findOrCreate("Ljavax/persistence/EntityManager");
+    TypeName LJavaxPersistenceQuery = TypeName.findOrCreate("Ljavax/persistence/QUery");
 
     TypeName LSpringJPARepository = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/JpaRepository");
     TypeName LSpringJPAQuery = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/Query");

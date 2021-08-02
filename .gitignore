@@ -31,3 +31,4 @@ hs_err_pid*
 .gradle
 .project
 .settings
+/build/

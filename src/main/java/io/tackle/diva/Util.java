@@ -32,9 +32,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -534,20 +534,16 @@ public class Util {
         }
     }
 
-    public static class LazyReport implements Report {
-
-        Supplier<Report> supplier;
-        public LazyReport(Supplier<Report> supplier) {
-            super();
-            this.supplier = supplier;
-        }
+    public static abstract class LazyReport implements Report, Consumer<Report.Builder> {
 
         Report delegate;
 
         @Override
         public void add(Report.Named.Builder builder) {
             if (delegate == null) {
-                delegate = supplier.get();
+                accept(r -> {
+                    delegate = r;
+                });
             }
             delegate.add(builder);
         }
@@ -555,7 +551,9 @@ public class Util {
         @Override
         public void add(Builder builder) {
             if (delegate == null) {
-                delegate = supplier.get();
+                accept(r -> {
+                    delegate = r;
+                });
             }
             delegate.add(builder);
         }
@@ -563,7 +561,9 @@ public class Util {
         @Override
         public void add(String data) {
             if (delegate == null) {
-                delegate = supplier.get();
+                accept(r -> {
+                    delegate = r;
+                });
             }
             delegate.add(data);
         }
