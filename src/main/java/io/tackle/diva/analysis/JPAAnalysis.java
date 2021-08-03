@@ -2,9 +2,13 @@ package io.tackle.diva.analysis;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 import java.util.logging.Logger;
 
@@ -22,12 +26,14 @@ import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
+import io.tackle.diva.DivaIRGen;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
@@ -52,10 +58,16 @@ public class JPAAnalysis {
 
     }
 
-    public static Map<FieldReference, TableColumn> columnDefinitions = new LinkedHashMap();
-    public static Map<MethodReference, String> queryDefinitions = new LinkedHashMap();
+    public static Map<FieldReference, TableColumn> columnDefinitions = new LinkedHashMap<>();
+    public static Map<MethodReference, String> queryDefinitions = new LinkedHashMap<>();
+
+    public static Set<IClass> customIfaces = new LinkedHashSet<>();
 
     public static void getEntities(IClassHierarchy cha) throws IOException {
+
+        Set<IClass> repositoryIfaces = new LinkedHashSet<>();
+        Map<IClass, IClass> nonRepositoryIfaces = new LinkedHashMap<>();
+
         for (IClass c : cha) {
             for (Annotation a : Util.getAnnotations(c)) {
                 if (a.getType().getName() != Constants.LJavaxPersistenceTable)
@@ -91,16 +103,69 @@ public class JPAAnalysis {
                 }
             }
             if (Util.any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository)) {
-                System.out.println(c);
+                repositoryIfaces.add(c);
                 for (IMethod m : c.getDeclaredMethods()) {
                     for (Annotation a : Util.getAnnotations(m)) {
-                        if (a.getType().getName() != Constants.LSpringJPAQuery) 
+                        if (a.getType().getName() != Constants.LSpringJPAQuery)
                             continue;
                         String query = ((ConstantElementValue) a.getNamedArguments().get("value")).val.toString();
                         queryDefinitions.put(m.getReference(), query);
                     }
                 }
+                // handling custom repositories
+            } else if (!c.isInterface()) {
+                for (IClass i : c.getAllImplementedInterfaces()) {
+                    nonRepositoryIfaces.put(i, c);
+                }
             }
+        }
+        for (IClass c : repositoryIfaces) {
+            if (c.getName() == Constants.LSpringJPARepository) {
+                continue;
+            }
+            Util.LOGGER.info(c.toString());
+            IClass p = null;
+            for (IClass i : c.getAllImplementedInterfaces()) {
+                if (nonRepositoryIfaces.containsKey(i)) {
+                    p = nonRepositoryIfaces.get(i);
+                    customIfaces.add(i);
+                }
+            }
+            IClass impl = p;
+            TypeReference tref = TypeReference.findOrCreate(c.getReference().getClassLoader(),
+                    TypeName.findOrCreate(c.getName().toString() + "$DivaImpl"));
+            Util.LOGGER.info("Adding " + tref);
+            cha.addClass(new DivaIRGen.DivaPhantomClass(tref, cha) {
+
+                @Override
+                public Collection<IClass> getAllImplementedInterfaces() {
+                    Collection<IClass> ifaces = new LinkedHashSet<>();
+                    ifaces.add(c);
+                    if (impl != null) {
+                        ifaces.addAll(impl.getAllImplementedInterfaces());
+                    }
+                    return ifaces;
+                }
+
+                @Override
+                public IClass getSuperclass() {
+                    if (impl != null) {
+                        return impl;
+                    }
+                    return super.getSuperclass();
+                }
+
+                @Override
+                public IMethod getMethod(Selector selector) {
+                    if (impl != null) {
+                        IMethod m = impl.getMethod(selector);
+                        if (m != null) {
+                            return m;
+                        }
+                    }
+                    return super.getMethod(selector);
+                }
+            });
         }
     }
 
@@ -114,19 +179,80 @@ public class JPAAnalysis {
                 CGNode node = trace.node();
                 CallSiteReference site = trace.site();
                 MethodReference ref = site.getDeclaredTarget();
-                IClass c = fw.classHierarchy().lookupClass(ref.getDeclaringClass());
+                TypeReference tref = ref.getDeclaringClass();
+                IClass c = null;
 
-                if (c != null && (c.getName() == Constants.LSpringJPARepository || Util
-                        .any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository))) {
+                if (tref.getName() == Constants.LSpringJPARepository
+                        || (c = fw.classHierarchy().lookupClass(tref)) != null
+                                && Util.any(c.getAllImplementedInterfaces(),
+                                        c2 -> c2.getName() == Constants.LSpringJPARepository)) {
                     if (ref.getName() == Constants.save || ref.getName() == Constants.saveAndFlush) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         populateInsertOrUpdate(fw, trace, instr);
+
+                    } else if (ref.getName() == Constants.delete) {
+                        SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                        String table = null;
+                        String id = null;
+                        IClass typ = trace.inferType(fw, instr.getUse(1));
+                        if (typ != null) {
+                            for (IField f : typ.getAllFields()) {
+                                FieldReference fref = f.getReference();
+                                if (columnDefinitions.containsKey(fref)) {
+                                    TableColumn col = columnDefinitions.get(fref);
+                                    table = col.tableName;
+                                    if (col.tags.contains(Constants.LJavaxPersistenceId)) {
+                                        id = col.colName;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (table != null) {
+                            fw.reportSqlStatement(trace, "delete from " + table + " where " + id + " = ?");
+                        } else {
+                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                        }
+
                     } else if (queryDefinitions.containsKey(ref)) {
                         fw.reportSqlStatement(trace, queryDefinitions.get(ref));
+
+                    } else if (ref.getName().toString().startsWith("findBy")) {
+                        String key = ref.getName().toString().substring("findBy".length()).toLowerCase();
+                        IClass typ = fw.classHierarchy().lookupClass(ref.getReturnType());
+                        TableColumn tcol = null;
+                        for (IField f : typ.getDeclaredInstanceFields()) {
+                            if (f.getName().toString().equalsIgnoreCase(key)) {
+                                if (columnDefinitions.containsKey(f.getReference())) {
+                                    tcol = columnDefinitions.get(f.getReference());
+                                    break;
+                                }
+                            }
+                        }
+                        if (tcol != null) {
+                            fw.reportSqlStatement(trace,
+                                    "select * from " + tcol.tableName + " where " + tcol.colName + " = ?");
+                        } else {
+                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                        }
+                    } else {
+                        Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                    }
+                }
+
+                if (tref.getName() == Constants.LJavaxPersistenceEntityManager) {
+                    if (ref.getName() == Constants.createQuery) {
+                        SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                        Trace.Val v = trace.getDef(instr.getUse(1));
+                        if (v.isConstant()) {
+                            fw.reportSqlStatement(trace, (String) v.constant());
+                        } else {
+                            fw.reportSqlStatement(trace, JDBCAnalysis.calculateReachingString(fw, v, new HashSet<>()));
+
+                        }
                     }
                 }
             }
-
         };
     }
 
@@ -156,7 +282,7 @@ public class JPAAnalysis {
         }
         if (v == null)
             return;
-        System.out.println(p + ": " + instr + ": " + v);
+        // System.out.println(p + ": " + instr + ": " + v);
         if (v.instr() instanceof SSANewInstruction) {
             populateInsert(fw, trace, v);
         } else if (v.instr() instanceof SSAAbstractInvokeInstruction) {

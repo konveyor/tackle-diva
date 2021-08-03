@@ -41,6 +41,7 @@ import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.client.impl.ZeroCFABuilderFactory;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.IMethod.SourcePosition;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
@@ -64,6 +65,7 @@ import com.ibm.wala.ipa.callgraph.propagation.cfa.DelegatingSSAContextInterprete
 import com.ibm.wala.ipa.callgraph.propagation.rta.BasicRTABuilder;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAOptions;
@@ -369,11 +371,27 @@ public class Framework {
             visitor.visitCallSite(trace);
 
             Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
+            Iterable<CGNode> ts = targets;
 
             if (targets.isEmpty())
                 continue;
 
-            for (CGNode n : targets) {
+            if (targets.size() > 1) {
+                // should be virtual
+                SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                IClass self = trace.inferType(this, instr.getUse(0));
+                if (self != null) {
+                    ts = Util.filter(targets, n -> {
+                        IClass c = n.getMethod().getDeclaringClass();
+                        return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                                i -> i == self);
+                    });
+                } else {
+                    Util.LOGGER.info("Failing to determine target for " + site);
+                }
+            }
+
+            for (CGNode n : ts) {
                 if (n.getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/")) {
                     continue;
                 }
@@ -420,9 +438,9 @@ public class Framework {
                     }
                     SourcePosition pos = p;
                     stacktrace.add((Report.Named site) -> {
-                            site.put("method", m.toString());
-                            site.put("file", m.getDeclaringClass().getSourceFileName());
-                            site.put("position", "" + pos);
+                        site.put("method", m.toString());
+                        site.put("file", m.getDeclaringClass().getSourceFileName());
+                        site.put("position", "" + pos);
                     });
                 }
             });

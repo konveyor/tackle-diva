@@ -19,14 +19,18 @@ import java.util.logging.Logger;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
+import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
+import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.IntPair;
 
@@ -106,7 +110,7 @@ public class JDBCAnalysis {
             SSABinaryOpInstruction bin = (SSABinaryOpInstruction) instr;
             if (bin.getOperator() == BinaryOpInstruction.Operator.ADD) {
                 return calculateReachingString(fw, value.getDef(bin.getUse(0)), visited)
-                        + calculateReachingString(fw, value.getDef(bin.getUse(1)), visited);
+                        + calculateReachingString(fw, value.getDef(bin.getUse(1)), new HashSet<>());
             }
 
         } else if (instr instanceof SSAGetInstruction) {
@@ -119,20 +123,98 @@ public class JDBCAnalysis {
             SSAPhiInstruction phi = (SSAPhiInstruction) instr;
             Trace.Val lhs = value.getDef(phi.getUse(0));
             Trace.Val rhs = value.getDef(phi.getUse(1));
+
             if (lhs.isConstant()) {
                 return calculateReachingString(fw, lhs, visited);
             } else if (rhs.isConstant()) {
                 return calculateReachingString(fw, rhs, visited);
             }
-            IntPair key = IntPair.make(value.trace().node().getGraphNodeId(), lhs.instr().iIndex());
+            IR ir = value.trace().node().getIR();
+            int bbid = ir.getBasicBlockForInstruction(lhs.instr()).getNumber();
+            IntPair key = IntPair.make(value.trace().node().getGraphNodeId(), bbid);
             if (visited.contains(key)) {
                 return calculateReachingString(fw, rhs, visited);
             }
             visited.add(key);
             return calculateReachingString(fw, lhs, visited);
+
+        } else if (instr instanceof SSAAbstractInvokeInstruction) {
+            MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
+            if (mref.getDeclaringClass().getName() == Constants.LJavaLangStringBuffer
+                    || mref.getDeclaringClass().getName() == Constants.LJavaLangStringBuilder) {
+
+                if (mref.getName() == Constants.toString) {
+                    IR ir = value.trace().node().getIR();
+                    Trace.Val lastVal = getLastValue(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
+                            instr.getUse(0), visited);
+                    return calculateReachingString(fw, lastVal, visited);
+                } else if (mref.getName() == Constants.append) {
+                    IR ir = value.trace().node().getIR();
+                    Trace.Val lastVal = getLastValue(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
+                            instr.getUse(0), visited);
+                    return calculateReachingString(fw, lastVal, visited)
+                            + calculateReachingString(fw, value.getDef(instr.getUse(1)), new HashSet<>());
+                } else if (mref.getName() == Constants.theInit) {
+                    if (mref.getNumberOfParameters() == 0) {
+                        return "";
+                    }
+                    return calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
+                }
+
+            } else if (!fw.classHierarchy().getPossibleTargets(mref).isEmpty()) {
+                IMethod m = fw.classHierarchy().getPossibleTargets(mref).iterator().next();
+                CGNode n = fw.callgraph().getNode(m, value.trace().node().getContext());
+                SSAInstruction[] instrs = n.getIR().getInstructions();
+                for (int i = instrs.length - 1; i >= 0; i--) {
+                    if (instrs[i] == null)
+                        continue;
+                    if (instrs[i] instanceof SSAReturnInstruction) {
+                        Trace.Val v = new Trace(n, value.trace()).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
+                        return calculateReachingString(fw, v, visited);
+                    }
+                }
+
+            }
         }
 
         return "??";
+    }
+
+    public static Trace.Val getLastValue(ISSABasicBlock bb, Trace trace, SSAInstruction instr, int number,
+            Set<IntPair> visited) {
+        IR ir = trace.node().getIR();
+        int i = bb.getFirstInstructionIndex() <= instr.iIndex() && instr.iIndex() <= bb.getLastInstructionIndex()
+                ? instr.iIndex() - 1
+                : bb.getLastInstructionIndex();
+        for (; i >= bb.getFirstInstructionIndex(); i--) {
+            SSAInstruction s = ir.getInstructions()[i];
+            if (s == null)
+                continue;
+            if (s.hasDef() && s.getDef() == number) {
+                return trace.new Val(s);
+            }
+            if (s instanceof SSAAbstractInvokeInstruction) {
+                SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
+                if (invoke.getUse(0) == number) {
+                    return trace.new Val(s);
+                }
+            }
+        }
+        for (SSAPhiInstruction phi : (Iterable<SSAPhiInstruction>) () -> bb.iteratePhis()) {
+            if (phi.getDef() == number) {
+                return trace.new Val(phi);
+            }
+        }
+        for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
+            int bbid = pred.getNumber();
+            IntPair key = IntPair.make(trace.node().getGraphNodeId(), bbid);
+            if (visited.contains(key)) {
+                continue;
+            }
+            visited.add(key);
+            return getLastValue(pred, trace, instr, number, visited);
+        }
+        return null;
     }
 
     public static class Escape extends RuntimeException {
