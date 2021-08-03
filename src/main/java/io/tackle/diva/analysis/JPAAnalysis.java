@@ -189,10 +189,54 @@ public class JPAAnalysis {
                     if (ref.getName() == Constants.save || ref.getName() == Constants.saveAndFlush) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         populateInsertOrUpdate(fw, trace, instr);
+
+                    } else if (ref.getName() == Constants.delete) {
+                        SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                        String table = null;
+                        String id = null;
+                        IClass typ = trace.inferType(fw, instr.getUse(1));
+                        if (typ != null) {
+                            for (IField f : typ.getAllFields()) {
+                                FieldReference fref = f.getReference();
+                                if (columnDefinitions.containsKey(fref)) {
+                                    TableColumn col = columnDefinitions.get(fref);
+                                    table = col.tableName;
+                                    if (col.tags.contains(Constants.LJavaxPersistenceId)) {
+                                        id = col.colName;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (table != null) {
+                            fw.reportSqlStatement(trace, "delete from " + table + " where " + id + " = ?");
+                        } else {
+                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                        }
+
                     } else if (queryDefinitions.containsKey(ref)) {
                         fw.reportSqlStatement(trace, queryDefinitions.get(ref));
+
+                    } else if (ref.getName().toString().startsWith("findBy")) {
+                        String key = ref.getName().toString().substring("findBy".length()).toLowerCase();
+                        IClass typ = fw.classHierarchy().lookupClass(ref.getReturnType());
+                        TableColumn tcol = null;
+                        for (IField f : typ.getDeclaredInstanceFields()) {
+                            if (f.getName().toString().equalsIgnoreCase(key)) {
+                                if (columnDefinitions.containsKey(f.getReference())) {
+                                    tcol = columnDefinitions.get(f.getReference());
+                                    break;
+                                }
+                            }
+                        }
+                        if (tcol != null) {
+                            fw.reportSqlStatement(trace,
+                                    "select * from " + tcol.tableName + " where " + tcol.colName + " = ?");
+                        } else {
+                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                        }
                     } else {
-                        Util.LOGGER.info("=>" + ref);
+                        Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
                     }
                 }
 
@@ -238,7 +282,7 @@ public class JPAAnalysis {
         }
         if (v == null)
             return;
-        System.out.println(p + ": " + instr + ": " + v);
+        // System.out.println(p + ": " + instr + ": " + v);
         if (v.instr() instanceof SSANewInstruction) {
             populateInsert(fw, trace, v);
         } else if (v.instr() instanceof SSAAbstractInvokeInstruction) {

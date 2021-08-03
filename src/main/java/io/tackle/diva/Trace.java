@@ -229,9 +229,11 @@ public class Trace extends Util.Chain<Trace> {
             Trace callerTrace = this.next;
             if (callerTrace != null) {
                 SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                IClass res = callerTrace.inferType(fw, caller.getUse((Integer) ud[number]));
-                if (res != null) {
-                    return res;
+                if (caller != null) {
+                    IClass res = callerTrace.inferType(fw, caller.getUse((Integer) ud[number]));
+                    if (res != null) {
+                        return res;
+                    }
                 }
             }
             ref = node.getMethod().getParameterType((Integer) ud[number]);
