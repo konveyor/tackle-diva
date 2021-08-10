@@ -33,10 +33,10 @@ import com.ibm.wala.types.annotations.Annotation;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
-import io.tackle.diva.DivaIRGen;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
+import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class JPAAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
@@ -135,7 +135,7 @@ public class JPAAnalysis {
             TypeReference tref = TypeReference.findOrCreate(c.getReference().getClassLoader(),
                     TypeName.findOrCreate(c.getName().toString() + "$DivaImpl"));
             Util.LOGGER.info("Adding " + tref);
-            cha.addClass(new DivaIRGen.DivaPhantomClass(tref, cha) {
+            cha.addClass(new DivaPhantomClass(tref, cha) {
 
                 @Override
                 public Collection<IClass> getAllImplementedInterfaces() {

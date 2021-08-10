@@ -59,6 +59,8 @@ import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.analysis.ServletAnalysis;
+import io.tackle.diva.irgen.DivaIRGen;
+import io.tackle.diva.irgen.DivaSourceLoaderImpl;
 
 public class DaytraderTest {
 
@@ -109,7 +111,8 @@ public class DaytraderTest {
                     @Override
                     protected JavaSourceLoaderImpl makeSourceLoader(ClassLoaderReference classLoaderReference,
                             IClassHierarchy cha, IClassLoader parent) {
-                        return DivaIRGen.makeNewSourceLoader(sourceDirs, stdlibs, classLoaderReference, cha, parent);
+                        return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, false, classLoaderReference,
+                                stdlibs);
                     }
                 });
         System.out.println(cha.getNumberOfClasses() + " classes");

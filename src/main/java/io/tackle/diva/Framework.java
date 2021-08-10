@@ -81,6 +81,7 @@ import com.ibm.wala.util.intset.MutableIntSet;
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
+import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class Framework {
 
@@ -169,7 +170,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
@@ -214,7 +215,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
@@ -314,7 +315,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
