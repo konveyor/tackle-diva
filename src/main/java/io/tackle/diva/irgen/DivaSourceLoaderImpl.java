@@ -1,6 +1,8 @@
 package io.tackle.diva.irgen;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -17,24 +19,27 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 
 public class DivaSourceLoaderImpl extends ECJSourceLoaderImpl {
-    private final ClassLoaderReference classLoaderReference;
     private final String[] stdlibs;
     Map<String, ModuleEntry> sourceMap = HashMapFactory.make();
     int countdown;
-    String[] srcDirs;
+    String[] jdtDirs;
 
-    public DivaSourceLoaderImpl(ClassLoaderReference loaderRef, IClassLoader parent, IClassHierarchy cha, boolean dump,
-            ClassLoaderReference classLoaderReference, String[] stdlibs) {
-        super(loaderRef, parent, cha, dump);
-        this.classLoaderReference = classLoaderReference;
+    public DivaSourceLoaderImpl(ClassLoaderReference loaderRef, IClassLoader parent, IClassHierarchy cha,
+            String[] stdlibs) {
+        super(loaderRef, parent, cha, false);
         this.stdlibs = stdlibs;
-        Collection<Module> modules = cha.getScope().getModules(classLoaderReference);
-        countdown = modules.size();
-        srcDirs = new String[modules.size()];
-        int k = 0;
-        for (Module m : modules) {
-            srcDirs[k++] = ((SourceDirectoryTreeModule) m).getPath();
+        countdown = cha.getScope().getModules(loaderRef).size();
+
+        ClassLoaderReference clref = loaderRef;
+        List<String> jdtDirList = new ArrayList<>();
+        while (clref != ClassLoaderReference.Application) {
+            Collection<Module> modules = cha.getScope().getModules(loaderRef);
+            for (Module m : modules) {
+                jdtDirList.add(((SourceDirectoryTreeModule) m).getPath());
+            }
+            clref = clref.getParent();
         }
+        jdtDirs = jdtDirList.toArray(new String[jdtDirList.size()]);
     }
 
     @Override
@@ -43,9 +48,9 @@ public class DivaSourceLoaderImpl extends ECJSourceLoaderImpl {
         return new ECJSourceModuleTranslator(cha.getScope(), this, false) {
 
             @Override
-            public void loadAllSources(Set<ModuleEntry> srcFiles) {
+            public void loadAllSources(Set<ModuleEntry> sourceFiles) {
 
-                for (ModuleEntry m : srcFiles) {
+                for (ModuleEntry m : sourceFiles) {
                     if (m.isSourceFile()) {
                         SourceFileModule s = (SourceFileModule) m;
                         sourceMap.put(s.getAbsolutePath(), s);
@@ -56,7 +61,8 @@ public class DivaSourceLoaderImpl extends ECJSourceLoaderImpl {
                     return;
 
                 DivaIRGen irgen = new DivaIRGen(DivaSourceLoaderImpl.this, c -> loadedClasses.put(c.getName(), c));
-                irgen.genIR(cha, sourceMap, stdlibs, srcDirs, this::makeCAstTranslator, this::makeIRTranslator);
+                irgen.genIR(cha, sourceMap, stdlibs, jdtDirs, this::makeCAstTranslator,
+                        this::makeIRTranslator);
             }
 
         };

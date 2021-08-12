@@ -103,7 +103,7 @@ public class DivaIRGen {
     public IClassLoader cl;
     public Consumer<IClass> addClass;
 
-    public void genIR(IClassHierarchy cha, Map<String, ModuleEntry> sourceMap, String[] stdlibs, String[] srcDirs,
+    public void genIR(IClassHierarchy cha, Map<String, ModuleEntry> sourceMap, String[] stdlibs, String[] jdtDirs,
             BiFunction<CompilationUnit, String, JDTJava2CAstTranslator<Position>> makeCAstTranslator,
             Supplier<Java2IRTranslator> makeIRTranslator) {
 
@@ -114,7 +114,7 @@ public class DivaIRGen {
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true); // recover
         parser.setStatementsRecovery(true); // recover
-        parser.setEnvironment(stdlibs, srcDirs, null, true);
+        parser.setEnvironment(stdlibs, jdtDirs, null, true);
         Hashtable<String, String> options = JavaCore.getOptions();
         options.put(JavaCore.COMPILER_SOURCE, "1.8");
         options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, "1.8");
@@ -327,9 +327,9 @@ public class DivaIRGen {
 
     }
 
-    public static Map<String, List<Annotation>> annotations;
+    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
 
-    public void processAnnotations(IClassHierarchy cha, BodyDeclaration node, String name) {
+    public static void processAnnotations(IClassHierarchy cha, BodyDeclaration node, String name) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
                 org.eclipse.jdt.core.dom.Annotation annot = (org.eclipse.jdt.core.dom.Annotation) prop;
@@ -367,9 +367,6 @@ public class DivaIRGen {
                 TypeReference t1 = c != null ? c.getReference()
                         : TypeReference.findOrCreate(ClassLoaderReference.Extension, annotType);
                 Annotation a = Annotation.makeWithNamed(t1, namedParams);
-                if (annotations == null) {
-                    annotations = new LinkedHashMap<>();
-                }
                 if (!annotations.containsKey(name)) {
                     annotations.put(name, new ArrayList<>());
                 }
