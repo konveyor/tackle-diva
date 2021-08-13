@@ -25,7 +25,10 @@ public class ModularAnalysisScope extends AnalysisScope {
 
     Set<ClassLoaderReference> moduleRefs = new LinkedHashSet<>();
 
-    public ClassLoaderReference addModuleLoader(String name, Module module, ClassLoaderReference parent) {
+    public ClassLoaderReference findOrCreateModuleLoader(String name, Module module, ClassLoaderReference parent) {
+        if (loadersByName.containsKey(name)) {
+            return loadersByName.get(name);
+        }
         ClassLoaderReference clref = new ClassLoaderReference(Atom.findOrCreateAsciiAtom("Source:" + name),
                 Atom.findOrCreateAsciiAtom("Java"), parent);
         loadersByName.put(clref.getName(), clref);

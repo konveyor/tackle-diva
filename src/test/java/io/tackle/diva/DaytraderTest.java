@@ -111,8 +111,7 @@ public class DaytraderTest {
                     @Override
                     protected JavaSourceLoaderImpl makeSourceLoader(ClassLoaderReference classLoaderReference,
                             IClassHierarchy cha, IClassLoader parent) {
-                        return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, false, classLoaderReference,
-                                stdlibs);
+                        return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, stdlibs);
                     }
                 });
         System.out.println(cha.getNumberOfClasses() + " classes");

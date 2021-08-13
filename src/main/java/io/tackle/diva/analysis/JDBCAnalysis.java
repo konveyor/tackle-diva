@@ -145,12 +145,12 @@ public class JDBCAnalysis {
 
                 if (mref.getName() == Constants.toString) {
                     IR ir = value.trace().node().getIR();
-                    Trace.Val lastVal = getLastValue(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
+                    Trace.Val lastVal = getReceiverUseOrDef(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
                             instr.getUse(0), visited);
                     return calculateReachingString(fw, lastVal, visited);
                 } else if (mref.getName() == Constants.append) {
                     IR ir = value.trace().node().getIR();
-                    Trace.Val lastVal = getLastValue(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
+                    Trace.Val lastVal = getReceiverUseOrDef(ir.getBasicBlockForInstruction(instr), value.trace(), instr,
                             instr.getUse(0), visited);
                     return calculateReachingString(fw, lastVal, visited)
                             + calculateReachingString(fw, value.getDef(instr.getUse(1)), new HashSet<>());
@@ -180,7 +180,7 @@ public class JDBCAnalysis {
         return "??";
     }
 
-    public static Trace.Val getLastValue(ISSABasicBlock bb, Trace trace, SSAInstruction instr, int number,
+    public static Trace.Val getReceiverUseOrDef(ISSABasicBlock bb, Trace trace, SSAInstruction instr, int number,
             Set<IntPair> visited) {
         IR ir = trace.node().getIR();
         int i = bb.getFirstInstructionIndex() <= instr.iIndex() && instr.iIndex() <= bb.getLastInstructionIndex()
@@ -212,7 +212,7 @@ public class JDBCAnalysis {
                 continue;
             }
             visited.add(key);
-            return getLastValue(pred, trace, instr, number, visited);
+            return getReceiverUseOrDef(pred, trace, instr, number, visited);
         }
         return null;
     }

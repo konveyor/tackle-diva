@@ -465,16 +465,21 @@ public class Framework {
         return transaction != null;
     }
 
-    public void calculateTransactions(CGNode entry, Context cxt, Report report) {
+    public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, JDBCAnalysis.getTransactionAnalysis(this, cxt)
-                .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt).with(JPAAnalysis
-                        .getTransactionAnalysis(this, cxt).with(QuarkusAnalysis.getTransactionAnalysis(this, cxt)))),
-                true);
+        traverse(entry, visitor, true);
         if (txStarted()) {
             reportTxBoundary();
         }
+    }
+
+    public void calculateTransactions(CGNode entry, Context cxt, Report report) {
+        calculateTransactions(entry, cxt, report,
+                JDBCAnalysis.getTransactionAnalysis(this, cxt)
+                        .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)
+                                .with(JPAAnalysis.getTransactionAnalysis(this, cxt))));
+
     }
 
     public void recordContraint(Context.Constraint c) {

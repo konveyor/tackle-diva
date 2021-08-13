@@ -27,6 +27,8 @@ public class QuarkusAnalysis {
         List<IMethod> entries = new ArrayList<>();
 
         for (IClass c : cha) {
+            if (c.isInterface())
+                continue;
             if (Util.any(Util.getAnnotations(c), a -> a.getType().getName() == Constants.LJavaxWsRsPath)) {
                 for (IMethod m : c.getDeclaredMethods()) {
                     if (Util.any(Util.getAnnotations(m), a -> a.getType().getName() == Constants.LJavaxWsRsPath)) {
@@ -79,12 +81,13 @@ public class QuarkusAnalysis {
                         fw.reportOperation(trace, (Report.Named named) -> {
                             named.put("rest-call", (Report.Named map) -> {
                                 map.put("http-method", httpMethod);
-                                map.put("http-path", httpPath);
+                                map.put("url-path", httpPath);
                                 map.put("client-class", c.getName().toString());
                             });
                         });
-                        // Util.LOGGER.info("method = " + method + ", path = " + path + ", client = " + c + ", module = "
-                        //  + c.getClassLoader().getReference());
+                        // Util.LOGGER.info("method = " + method + ", path = " + path + ", client = " +
+                        // c + ", module = "
+                        // + c.getClassLoader().getReference());
                     }
                 }
             }

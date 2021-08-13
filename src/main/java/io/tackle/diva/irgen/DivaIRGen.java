@@ -395,6 +395,13 @@ public class DivaIRGen {
     //
     // }
 
+    /**
+     * ---------------------------------------
+     *
+     * Patching eclipse JDT using bytebuddy for enabling best-effort type resolution
+     *
+     */
+
     public static class DoMethodBinding {
         @Advice.OnMethodExit
         public static void exit(@Advice.This MethodInvocation node,
@@ -615,6 +622,12 @@ public class DivaIRGen {
             }
         });
     }
+
+    /**
+     * -----------------------------------------------
+     *
+     * per-module instance methods
+     */
 
     public Function<String, ITypeBinding> wellKnownType;
 
