@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Stack;
+
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -42,10 +44,13 @@ import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntPair;
+import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
+import com.ibm.wala.util.intset.MutableSparseIntSet;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
+import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
@@ -119,6 +124,7 @@ public class ServletAnalysis {
     public static Trace.NodeVisitor getContextualAnalysis(Framework fw) {
 
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
+        Map<Integer, MutableIntSet> reachingNodesCache = new LinkedHashMap<>();
 
         return (Trace trace) -> {
 
@@ -257,7 +263,36 @@ public class ServletAnalysis {
                 }
                 coveringBranches.get(key).get(val).add(branchId);
 
+                MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
+                if (reached == null) {
+                    reached = MutableSparseIntSet.makeEmpty();
+                    Stack<CGNode> stack = new Stack<>();
+                    stack.push(node);
+                    while (!stack.isEmpty()) {
+                        CGNode next = stack.pop();
+                        if (reached.contains(next.getGraphNodeId()))
+                            continue;
+                        reached.add(next.getGraphNodeId());
+                        for (CGNode n : (Iterable<CGNode>) () -> fw.callgraph().getPredNodes(next)) {
+                            stack.push(n);
+                        }
+                    }
+                    reachingNodesCache.put(node.getGraphNodeId(), reached);
+                }
+                IntSet reachingNodes = reached;
+
                 fw.recordContraint(new HttpParameterConstraint(key, val) {
+
+                    @Override
+                    public boolean forbids(Constraint other) {
+                        if (other instanceof Context.EntryConstraint) {
+                            return !reachingNodes.contains(((Context.EntryConstraint) other).node().getGraphNodeId());
+                        }
+                        if (other instanceof HttpParameterConstraint) {
+                            return key.equals(((HttpParameterConstraint) other).key);
+                        }
+                        return false;
+                    }
 
                     @Override
                     public Iterable<IntPair> fallenThruBranches() {
@@ -273,7 +308,6 @@ public class ServletAnalysis {
                         res.removeAll(coveringBranches.get(key).get(val));
                         return res;
                     }
-
                 });
 
                 LOGGER.info(v4 + "=" + v3);

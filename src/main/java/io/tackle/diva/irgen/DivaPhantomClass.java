@@ -59,6 +59,8 @@ public class DivaPhantomClass extends PhantomClass {
         // AT: workaround ..
         // if (selector.getName().toString().equals("finalize"))
         // return null;
+        if (selector.getName().toString().equals("<clinit>"))
+            return null;
         TypeName[] params = selector.getDescriptor().getParameters();
 
         Collection<CAstQualifier> qualifiers = Collections.EMPTY_SET;

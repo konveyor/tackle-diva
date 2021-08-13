@@ -15,12 +15,14 @@ import java.util.Stack;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.jboss.windup.config.GraphRewrite;
 import org.jboss.windup.config.operation.GraphOperation;
 import org.jboss.windup.graph.GraphContext;
 import org.jboss.windup.graph.model.ProjectDependencyModel;
 import org.jboss.windup.graph.model.ProjectModel;
 import org.jboss.windup.graph.model.WindupConfigurationModel;
+import org.jboss.windup.graph.model.WindupFrame;
 import org.jboss.windup.graph.model.resource.FileModel;
 import org.jboss.windup.graph.model.resource.SourceFileModel;
 import org.jboss.windup.graph.service.FileService;
@@ -54,10 +56,10 @@ import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
+import io.tackle.diva.Context.EntryConstraint;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
 import io.tackle.diva.Standalone;
-import io.tackle.diva.Standalone.EntryConstraint;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -93,8 +95,10 @@ public class DivaLauncher extends GraphOperation {
         GraphRewrite event = (GraphRewrite) arg0;
         EvaluationContext context = (EvaluationContext) arg1;
 
-        List<? extends ProjectModel> projects = event.getGraphContext().getQuery(SourceFileModel.class)
-                .traverse(g -> g.in("projectModelToFile").dedup()).toList(ProjectModel.class);
+        List<? extends ProjectModel> projects = event.getGraphContext().getQuery(ProjectModel.class)
+                .traverse(g -> g.filter(
+                        __.out(ProjectModel.PROJECT_MODEL_TO_FILE).has(WindupFrame.TYPE_PROP, SourceFileModel.TYPE)))
+                .toList(ProjectModel.class);
         List<? extends ProjectModel> notMaven = Util
                 .makeList(Util.filter(projects, p -> !(p instanceof MavenProjectModel)));
 
@@ -180,7 +184,7 @@ public class DivaLauncher extends GraphOperation {
         Util.LOGGER.info(Warnings.asString());
 
         List<IMethod> entries = new ArrayList<>();
-        // entries.addAll(ServletAnalysis.getEntries(cha));
+        entries.addAll(ServletAnalysis.getEntries(cha));
         entries.addAll(SpringBootAnalysis.getEntries(cha));
         entries.addAll(QuarkusAnalysis.getEntries(cha));
 
@@ -200,13 +204,13 @@ public class DivaLauncher extends GraphOperation {
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
-                fw.recordContraint(new EntryConstraint(n));
+                fw.recordContraint(new Context.EntryConstraint(n));
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
-        List<Context> contexts = Standalone.calculateDefaultContexts(fw);
-        // List<Context> contexts = Standalone.loadContexts(fw,
+        List<Context> contexts = Context.calculateDefaultContexts(fw);
+        // List<Context> contexts = Context.loadContexts(fw,
         // "/Users/aki/git/tackle-diva/dt-contexts.yml");
 
         JanusGraphReport<DivaContextModel> report = new JanusGraphReport<>(event.getGraphContext(),
@@ -220,8 +224,8 @@ public class DivaLauncher extends GraphOperation {
 
             CGNode entry = null;
             for (Context.Constraint c : cxt) {
-                if (c instanceof EntryConstraint) {
-                    entry = ((EntryConstraint) c).node();
+                if (c instanceof Context.EntryConstraint) {
+                    entry = ((Context.EntryConstraint) c).node();
                 }
             }
             if (entry != null) {
@@ -239,7 +243,7 @@ public class DivaLauncher extends GraphOperation {
                                 JanusGraphReport<DivaConstraintModel> cs = (JanusGraphReport<DivaConstraintModel>) r;
                                 for (Context.Constraint c : cxt) {
                                     if (c.category().equals("entry")) {
-                                        IMethod m = ((Standalone.EntryConstraint) c).node().getMethod();
+                                        IMethod m = ((EntryConstraint) c).node().getMethod();
                                         DivaEntryMethodModel model = entryMethodService.getOrCreate(
                                                 StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()),
                                                 m.getName().toString());
@@ -288,7 +292,7 @@ public class DivaLauncher extends GraphOperation {
         for (int i = 0; i < s.length(); i++) {
             b.append(s.charAt(i));
             if (s.charAt(i) == '{') {
-                while (s.charAt(i++) != '}')
+                for (; s.charAt(i) != '}'; i++)
                     ;
                 b.append('}');
             }
@@ -369,8 +373,10 @@ public class DivaLauncher extends GraphOperation {
                     .traverse(g -> g.out(DivaContextModel.CONSTRAINTS).in(JavaClassModel.JAVA_METHOD)
                             .out(JavaClassModel.ORIGINAL_SOURCE).in(ProjectModel.PROJECT_MODEL_TO_FILE))
                     .next(ProjectModel.class);
-            DivaAppModel app = toApp.apply(p);
-            app.addContext(cxt);
+            if (p != null) {
+                DivaAppModel app = toApp.apply(p);
+                app.addContext(cxt);
+            }
         }
 
         // 4) Mapping each rest-call operation to its endpoint
