@@ -53,6 +53,7 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.intset.BitVector;
 
+import io.tackle.diva.irgen.DivaIRGen;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.dynamic.DynamicType.Builder;

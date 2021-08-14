@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
@@ -80,7 +81,9 @@ import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
+import io.tackle.diva.analysis.QuarkusAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
+import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class Framework {
 
@@ -169,7 +172,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
@@ -214,7 +217,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
@@ -314,7 +317,7 @@ public class Framework {
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
                     System.out.println("adding: " + m.getParameterType(i));
-                    cha.addClass(new DivaIRGen.DivaPhantomClass(m.getParameterType(i), cha));
+                    cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
         }
@@ -418,7 +421,7 @@ public class Framework {
     public Report transaction;
     public int transactionId;
 
-    public void reportSqlStatement(Trace trace, String stmt) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put("txid", transactionId++);
@@ -444,8 +447,12 @@ public class Framework {
                     });
                 }
             });
-            map.put("sql", stmt);
+            named.accept(map);
         });
+    }
+
+    public void reportSqlStatement(Trace trace, String stmt) {
+        reportOperation(trace, map -> map.put("sql", stmt));
     }
 
     public void reportTxBoundary() {
@@ -458,14 +465,21 @@ public class Framework {
         return transaction != null;
     }
 
-    public void calculateTransactions(CGNode entry, Context cxt, Report report) {
+    public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, JDBCAnalysis.getTransactionAnalysis(this, cxt).with(SpringBootAnalysis
-                .getTransactionAnalysis(this, cxt).with(JPAAnalysis.getTransactionAnalysis(this, cxt))), true);
+        traverse(entry, visitor, true);
         if (txStarted()) {
             reportTxBoundary();
         }
+    }
+
+    public void calculateTransactions(CGNode entry, Context cxt, Report report) {
+        calculateTransactions(entry, cxt, report,
+                JDBCAnalysis.getTransactionAnalysis(this, cxt)
+                        .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)
+                                .with(JPAAnalysis.getTransactionAnalysis(this, cxt))));
+
     }
 
     public void recordContraint(Context.Constraint c) {

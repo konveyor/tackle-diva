@@ -14,6 +14,7 @@ import org.jboss.windup.rules.apps.java.service.JavaMethodService;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.IMethod.SourcePosition;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.strings.StringStuff;
 
 import io.tackle.diva.Report;
@@ -21,6 +22,7 @@ import io.tackle.diva.Trace;
 import io.tackle.diva.windup.model.DivaConstraintModel;
 import io.tackle.diva.windup.model.DivaContextModel;
 import io.tackle.diva.windup.model.DivaOpModel;
+import io.tackle.diva.windup.model.DivaRestCallOpModel;
 import io.tackle.diva.windup.model.DivaSqlOpModel;
 import io.tackle.diva.windup.model.DivaStackTraceModel;
 import io.tackle.diva.windup.model.DivaTxModel;
@@ -29,7 +31,7 @@ import io.tackle.diva.windup.service.DivaStackTraceService;
 public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
 
     GraphService<T> service = null;
-    GraphContext context;
+    GraphContext gc;
     Consumer<T> addEdge = null;
 
     public JanusGraphReport(GraphContext context, Class<T> model) {
@@ -37,7 +39,7 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
     }
 
     public JanusGraphReport(GraphContext context, Class<T> model, Consumer<T> addEdge) {
-        this.context = context;
+        this.gc = context;
         this.service = new GraphService<T>(context, model);
         this.addEdge = addEdge;
     }
@@ -48,7 +50,7 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
         if (addEdge != null) {
             addEdge.accept(model);
         }
-        builder.build(new Named<>(context, model));
+        builder.build(new Named<>(gc, model));
     }
 
     public void add(T model) {
@@ -71,11 +73,11 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
 
     public static class Named<T extends WindupVertexFrame> implements Report.Named {
 
-        GraphContext context;
+        GraphContext gc;
         T model;
 
         public Named(GraphContext context, T model) {
-            this.context = context;
+            this.gc = context;
             this.model = model;
         }
 
@@ -83,27 +85,42 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
         public void putPrimitive(String key, Object value) {
             if (model instanceof DivaTxModel && key.equals("txid")) {
                 ((DivaTxModel) model).setTxid((int) value);
-            }
-            if (model instanceof DivaSqlOpModel && key.equals("sql")) {
-                ((DivaSqlOpModel) model).setSql((String) value);
+
+            } else if (model instanceof DivaOpModel && key.equals("sql")) {
+                DivaSqlOpModel m = GraphService.addTypeToModel(gc, model, DivaSqlOpModel.class);
+                this.model = (T) m;
+                m.setSql((String) value);
+
+            } else if (model instanceof DivaRestCallOpModel && key.equals("http-method")) {
+                ((DivaRestCallOpModel) model).setHttpMethod((String) value);
+
+            } else if (model instanceof DivaRestCallOpModel && key.equals("url-path")) {
+                ((DivaRestCallOpModel) model).setUrlPath(DivaLauncher.stripBraces((String) value));
             }
         }
 
         @Override
         public void put(String key, Builder builder) {
+            if (model instanceof DivaOpModel && key.equals("rest-call")) {
+                DivaRestCallOpModel m = GraphService.addTypeToModel(gc, model, DivaRestCallOpModel.class);
+                this.model = (T) m;
+                builder.build(new Named<DivaRestCallOpModel>(gc, m));
+            }
         }
 
         @Override
         public void put(String key, io.tackle.diva.Report.Builder builder) {
             if (model instanceof DivaContextModel && key.equals("constraints")) {
-                builder.build(new JanusGraphReport<>(context, DivaConstraintModel.class,
+                builder.build(new JanusGraphReport<>(gc, DivaConstraintModel.class,
                         ((DivaContextModel) model)::addConstraint));
+
             } else if (model instanceof DivaContextModel && key.equals("transactions")) {
                 builder.build(
-                        new JanusGraphReport<>(context, DivaTxModel.class, ((DivaContextModel) model)::addTransaction));
+                        new JanusGraphReport<>(gc, DivaTxModel.class, ((DivaContextModel) model)::addTransaction));
+
             } else if (model instanceof DivaTxModel && key.equals("transaction")) {
                 int[] counter = new int[] { 0 };
-                builder.build(new JanusGraphReport<>(context, DivaSqlOpModel.class, op -> {
+                builder.build(new JanusGraphReport<>(gc, DivaOpModel.class, op -> {
                     op.setOrdinal(counter[0]++);
                     ((DivaTxModel) model).addOp(op);
                 }));
@@ -113,9 +130,9 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
         @Override
         public <S> void put(String key, S data, Function<S, Report.Builder> fun) {
             if (model instanceof DivaOpModel && key.equals("stacktrace")) {
-                DivaStackTraceService service = new DivaStackTraceService(context);
-                JavaClassService classService = new JavaClassService(context);
-                JavaMethodService methodService = new JavaMethodService(context);
+                DivaStackTraceService service = new DivaStackTraceService(gc);
+                JavaClassService classService = new JavaClassService(gc);
+                JavaMethodService methodService = new JavaMethodService(gc);
                 DivaStackTraceModel parent = null;
                 DivaStackTraceModel current = null;
                 for (Trace t : ((Trace) data).reversed()) {
@@ -128,12 +145,12 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
                     }
                     JavaClassModel classModel = classService
                             .create(StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()));
-                    JavaMethodModel methodModel = methodService.createJavaMethod(classModel,
-                            m.getName().toString());
+                    JavaMethodModel methodModel = methodService.createJavaMethod(classModel, m.getName().toString());
                     classModel.addJavaMethod(methodModel);
                     if (p != null) {
                         current = service.getOrCreate(m.getDeclaringClass().getSourceFileName(), p.getFirstLine(),
                                 p.getFirstCol(), p.getLastOffset() - p.getFirstOffset(), parent, methodModel);
+
                     } else {
                         current = service.create();
                         service.setFilePath(current, m.getDeclaringClass().getSourceFileName());
@@ -145,7 +162,15 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
                     parent = current;
                 }
                 ((DivaOpModel) model).setStackTrace(current);
+                if (((Trace) data).site() != null) {
+                    MethodReference mref = ((Trace) data).site().getDeclaredTarget();
+                    JavaClassModel classModel = classService
+                            .create(StringStuff.jvmToBinaryName(mref.getDeclaringClass().getName().toString()));
+                    JavaMethodModel methodModel = methodService.createJavaMethod(classModel, mref.getName().toString());
+                    classModel.addJavaMethod(methodModel);
+                    ((DivaOpModel) model).setMethod(methodModel);
 
+                }
             } else {
                 put(key, fun.apply(data));
             }
