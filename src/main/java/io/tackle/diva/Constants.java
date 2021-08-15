@@ -20,6 +20,7 @@ public interface Constants {
 
     Atom theInit = Atom.findOrCreateUnicodeAtom("<init>");
     Atom theClinit = Atom.findOrCreateUnicodeAtom("<clinit>");
+    Atom Java = Atom.findOrCreateUnicodeAtom("Java");
 
     Atom getParameter = Atom.findOrCreateUnicodeAtom("getParameter");
     Atom prepareStatement = Atom.findOrCreateUnicodeAtom("prepareStatement");
