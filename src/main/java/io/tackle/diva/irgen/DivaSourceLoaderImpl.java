@@ -2,6 +2,7 @@ package io.tackle.diva.irgen;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +34,7 @@ public class DivaSourceLoaderImpl extends ECJSourceLoaderImpl {
         ClassLoaderReference clref = loaderRef;
         List<String> jdtDirList = new ArrayList<>();
         while (clref != ClassLoaderReference.Application) {
-            Collection<Module> modules = cha.getScope().getModules(loaderRef);
+            Collection<Module> modules = cha.getScope().getModules(clref);
             for (Module m : modules) {
                 jdtDirList.add(((SourceDirectoryTreeModule) m).getPath());
             }

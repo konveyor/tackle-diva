@@ -12,6 +12,8 @@ import com.ibm.wala.ipa.callgraph.AnalysisScope;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.util.strings.Atom;
 
+import io.tackle.diva.Constants;
+
 public class ModularAnalysisScope extends AnalysisScope {
 
     public ModularAnalysisScope() {
@@ -26,11 +28,11 @@ public class ModularAnalysisScope extends AnalysisScope {
     Set<ClassLoaderReference> moduleRefs = new LinkedHashSet<>();
 
     public ClassLoaderReference findOrCreateModuleLoader(String name, Module module, ClassLoaderReference parent) {
-        if (loadersByName.containsKey(name)) {
-            return loadersByName.get(name);
+        Atom key = Atom.findOrCreateAsciiAtom("Source:" + name);
+        if (loadersByName.containsKey(key)) {
+            return loadersByName.get(key);
         }
-        ClassLoaderReference clref = new ClassLoaderReference(Atom.findOrCreateAsciiAtom("Source:" + name),
-                Atom.findOrCreateAsciiAtom("Java"), parent);
+        ClassLoaderReference clref = new ClassLoaderReference(key, Constants.Java, parent);
         loadersByName.put(clref.getName(), clref);
         addToScope(clref, module);
         moduleRefs.add(clref);

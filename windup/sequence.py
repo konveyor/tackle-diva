@@ -14,7 +14,9 @@ def get_opts(argv=[]):
 def wrapline(sql):
     res = ''
     while len(sql) > 60:
-        i = sql.index(' ', 60)
+        i = sql.find(' ', 60)
+        if i < 0:
+            break
         res += sql[:i] + ' <br> '
         sql = sql[i+1:]
     return res + sql
