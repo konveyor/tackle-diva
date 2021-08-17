@@ -1,0 +1,22 @@
+#	Copyright IBM Corporation 2021
+#	
+#	Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+#	you may not use this file except in compliance with the License.
+#	
+#	Unless required by applicable law or agreed to in writing, software
+#	distributed under the License is distributed on an "AS IS" BASIS,
+#	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#	See the License for the specific language governing permissions and
+#	limitations under the License.
+
+# FROM openjdk:8u282-jre
+FROM openjdk:8u282-jre-slim
+
+RUN apt-get update \
+    && apt-get install -y git python2 python-pip graphviz \
+    python3.7 python3-pip curl \
+    # make build-essential libssl-dev zlib1g-dev \
+    # libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+    # libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
+    && apt-get clean \ 
+    && rm -rf /var/lib/apt/lists/*

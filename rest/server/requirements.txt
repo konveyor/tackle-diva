@@ -1,0 +1,3 @@
+# requirements.txt for both Python 2 and 3.7
+PyYAML
+connexion[swagger-ui]
