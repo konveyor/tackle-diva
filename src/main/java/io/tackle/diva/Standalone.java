@@ -22,8 +22,6 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 import org.apache.commons.cli.CommandLine;
@@ -32,8 +30,6 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
@@ -49,14 +45,13 @@ import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.util.CancelException;
-import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
-import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
-import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
+import io.tackle.diva.irgen.DivaIRGen;
+import io.tackle.diva.irgen.DivaSourceLoaderImpl;
 
 public class Standalone {
 
@@ -105,7 +100,7 @@ public class Standalone {
                     @Override
                     protected JavaSourceLoaderImpl makeSourceLoader(ClassLoaderReference classLoaderReference,
                             IClassHierarchy cha, IClassLoader parent) {
-                        return DivaIRGen.makeNewSourceLoader(sourceDirs, stdlibs, classLoaderReference, cha, parent);
+                        return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, stdlibs);
                     }
                 });
         Util.LOGGER.info(cha.getNumberOfClasses() + " classes");
@@ -127,16 +122,16 @@ public class Standalone {
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
-                fw.recordContraint(new EntryConstraint(n));
+                fw.recordContraint(new Context.EntryConstraint(n));
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
         List<Context> contexts;
         if (!cmd.hasOption("contexts")) {
-            contexts = calculateDefaultContexts(fw);
+            contexts = Context.calculateDefaultContexts(fw);
         } else {
-            contexts = loadContexts(fw, cmd.getOptionValue("contexts"));
+            contexts = Context.loadContexts(fw, cmd.getOptionValue("contexts"));
         }
 
         List<Object> res = new ArrayList<>();
@@ -145,8 +140,8 @@ public class Standalone {
         for (Context cxt : contexts) {
             CGNode entry = null;
             for (Context.Constraint c : cxt) {
-                if (c instanceof EntryConstraint) {
-                    entry = ((EntryConstraint) c).node();
+                if (c instanceof Context.EntryConstraint) {
+                    entry = ((Context.EntryConstraint) c).node();
                 }
             }
             if (entry != null) {
@@ -168,83 +163,6 @@ public class Standalone {
         try (Writer f = new FileWriter("transaction.yml")) {
             f.write(Util.YAML_SERIALIZER.writeValueAsString(res));
         }
-    }
-
-    public static List<Context> calculateDefaultContexts(Framework fw) throws IOException {
-        // calculate cross product of constraint groups
-        List<Context> result = new ArrayList<>();
-
-        int[] counter = new int[fw.constraints.size()];
-        List<Context.Constraint>[] cs = new List[fw.constraints.size()];
-
-        int k = 0;
-        for (List<Context.Constraint> c : fw.constraints.values()) {
-            counter[k] = 0;
-            cs[k] = c;
-            k++;
-        }
-
-        outer: while (true) {
-            Context cxt = new Context();
-
-            for (k = 0; k < cs.length; k++) {
-                cxt.add(cs[k].get(counter[k]));
-            }
-
-            result.add(cxt);
-
-            counter[cs.length - 1] += 1;
-            for (k = cs.length - 1; k >= 0; k--) {
-                if (counter[k] < cs[k].size()) {
-                    break;
-                }
-                if (k == 0)
-                    break outer;
-                counter[k] = 0;
-                counter[k - 1] += 1;
-            }
-        }
-
-        List<Object> json = new ArrayList<>();
-        Report report = new Util.JsonReport(json);
-        for (Context cxt : result) {
-            report.add((Report.Named map) -> {
-                for (Context.Constraint c : cxt) {
-                    c.report(map);
-                }
-            });
-
-        }
-        try (Writer f = new FileWriter("contexts.yml")) {
-            f.write(Util.YAML_SERIALIZER.writeValueAsString(json));
-        }
-
-        return result;
-    }
-
-    public static List<Context> loadContexts(Framework fw, String file)
-            throws JsonParseException, JsonMappingException, IOException {
-
-        List<Map<String, Map<String, List<String>>>> data = (List<Map<String, Map<String, List<String>>>>) Util.YAML_SERIALIZER
-                .readValue(new File(file), Object.class);
-
-        List<Context> result = new ArrayList<>();
-
-        for (Map<String, Map<String, List<String>>> e : data) {
-            Context cxt = new Context();
-            for (Entry<String, Map<String, List<String>>> e2 : e.entrySet()) {
-                for (Entry<String, List<String>> e3 : e2.getValue().entrySet()) {
-                    for (Constraint c : fw.constraints.get(Pair.make(e2.getKey(), e3.getKey()))) {
-                        if (e3.getValue().contains(c.value())) {
-                            cxt.add(c);
-                        }
-                    }
-                }
-            }
-            result.add(cxt);
-        }
-
-        return result;
     }
 
     public static CallGraph gengraph(AnalysisScope scope, IClassHierarchy cha, IClassLoader apploader,
@@ -272,36 +190,5 @@ public class Standalone {
             + "org\\/omg\\/.*\n" + "java\\/security\\/.*\n" + "java\\/beans\\/.*\n" + "java\\/time\\/.*\n"
             + "java\\/text\\/.*\n" + "java\\/net\\/.*\n" + "java\\/nio\\/.*\n" /* + "java\\/io\\/.*\n" */
             + "java\\/math\\/.*\n" + "java\\/applet\\/.*\n" + "java\\/rmi\\/.*\n" + "";
-
-    public static class EntryConstraint implements Context.Constraint {
-
-        public EntryConstraint(CGNode node) {
-            super();
-            this.node = node;
-        }
-
-        CGNode node;
-
-        @Override
-        public String category() {
-            return "entry";
-        }
-
-        @Override
-        public String type() {
-            return "methods";
-        }
-
-        @Override
-        public String value() {
-            IMethod method = node.getMethod();
-            return StringStuff.jvmToBinaryName(method.getDeclaringClass().getName().toString()) + "."
-                    + method.getName().toString();
-        }
-
-        public CGNode node() {
-            return node;
-        }
-    }
 
 }

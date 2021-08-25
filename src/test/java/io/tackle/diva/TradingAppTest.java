@@ -37,6 +37,8 @@ import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.analysis.ServletAnalysis;
+import io.tackle.diva.irgen.DivaIRGen;
+import io.tackle.diva.irgen.DivaSourceLoaderImpl;
 
 public class TradingAppTest {
 
@@ -75,7 +77,7 @@ public class TradingAppTest {
                     @Override
                     protected JavaSourceLoaderImpl makeSourceLoader(ClassLoaderReference classLoaderReference,
                             IClassHierarchy cha, IClassLoader parent) {
-                        return DivaIRGen.makeNewSourceLoader(sourceDirs, stdlibs, classLoaderReference, cha, parent);
+                        return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, stdlibs);
                     }
                 });
         System.out.println(cha.getNumberOfClasses() + " classes");

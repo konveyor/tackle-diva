@@ -11,13 +11,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-package io.tackle.diva;
+package io.tackle.diva.irgen;
 
 import static io.tackle.diva.Util.LOGGER;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -26,7 +24,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IJavaElement;
@@ -68,141 +69,106 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.Java2IRTranslator;
-import com.ibm.wala.cast.java.translator.SourceModuleTranslator;
 import com.ibm.wala.cast.java.translator.jdt.JDT2CAstUtils;
 import com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator;
-import com.ibm.wala.cast.java.translator.jdt.ecj.ECJSourceLoaderImpl;
-import com.ibm.wala.cast.java.translator.jdt.ecj.ECJSourceModuleTranslator;
-import com.ibm.wala.cast.loader.AstMethod;
 import com.ibm.wala.cast.tree.CAst;
 import com.ibm.wala.cast.tree.CAstNode;
-import com.ibm.wala.cast.tree.CAstQualifier;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
-import com.ibm.wala.classLoader.IField;
-import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.ModuleEntry;
-import com.ibm.wala.classLoader.PhantomClass;
-import com.ibm.wala.classLoader.SourceFileModule;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
-import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.types.ClassLoaderReference;
-import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
-import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.strings.StringStuff;
 
+import io.tackle.diva.Util;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 
 public class DivaIRGen {
 
-    public static JavaSourceLoaderImpl makeNewSourceLoader(String[] sourceDirs, String[] stdlibs,
-            ClassLoaderReference classLoaderReference, IClassHierarchy cha, IClassLoader parent) {
-        return new ECJSourceLoaderImpl(classLoaderReference, parent, cha, false) {
-
-            Map<String, ModuleEntry> sourceMap = HashMapFactory.make();
-            int countdown = sourceDirs.length;
-
-            public void addClass(IClass c) {
-                loadedClasses.put(c.getName(), c);
-            }
-
-            @Override
-            protected SourceModuleTranslator getTranslator() {
-
-                return new ECJSourceModuleTranslator(cha.getScope(), this, false) {
-
-                    @Override
-                    public void loadAllSources(Set<ModuleEntry> modules) {
-
-                        for (ModuleEntry m : modules) {
-                            if (m.isSourceFile()) {
-                                SourceFileModule s = (SourceFileModule) m;
-                                sourceMap.put(s.getAbsolutePath(), s);
-                            }
-                        }
-
-                        if (--countdown > 0)
-                            return;
-
-                        String[] sourceFiles = sourceMap.keySet().toArray(new String[0]);
-
-                        @SuppressWarnings("deprecation")
-                        final ASTParser parser = ASTParser.newParser(AST.JLS8);
-                        parser.setResolveBindings(true);
-                        parser.setBindingsRecovery(true); // recover
-                        parser.setStatementsRecovery(true); // recover
-                        parser.setEnvironment(stdlibs, sourceDirs, null, true);
-                        Hashtable<String, String> options = JavaCore.getOptions();
-                        options.put(JavaCore.COMPILER_SOURCE, "1.8");
-                        options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, "1.8");
-                        parser.setCompilerOptions(options);
-
-                        Map<String, CompilationUnit> units = new LinkedHashMap<>();
-
-                        parser.createASTs(sourceFiles, null, new String[0], new FileASTRequestor() {
-                            @Override
-                            public void acceptAST(String source, CompilationUnit unit) {
-                                units.put(source, unit);
-                            }
-                        }, new NullProgressMonitor());
-
-                        recoverBindings(parser, units, cha);
-
-                        for (String source : units.keySet()) {
-                            CompilationUnit unit = units.get(source);
-                            try {
-                                JDTJava2CAstTranslator<Position> jdt2cast = makeCAstTranslator(unit, source);
-                                final Java2IRTranslator java2ir = makeIRTranslator();
-                                java2ir.translate(sourceMap.get(source), jdt2cast.translateToCAst());
-                                LOGGER.info("Done wala IR: " + source);
-                            } catch (Throwable e) {
-                                LOGGER.info(e.getMessage());
-                                ;
-                                for (StackTraceElement s : e.getStackTrace()) {
-                                    LOGGER.info(s.toString());
-                                }
-                                LOGGER.info("Failed wala IR: " + source + ", reason: " + e.getMessage());
-                            }
-
-                        }
-                        if (knownAsClasses != null) {
-                            for (String klazz : knownAsClasses) {
-                                TypeName t = TypeName
-                                        .string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
-                                if (lookupClass(t) == null) {
-                                    TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension,
-                                            t);
-                                    addClass(new DivaPhantomClass(classRef, cha));
-                                }
-                            }
-                        }
-                        if (knownAsInterfaces != null) {
-                            for (String klazz : knownAsInterfaces) {
-                                TypeName t = TypeName
-                                        .string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
-                                if (lookupClass(t) == null) {
-                                    TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension,
-                                            t);
-                                    addClass(new DivaPhantomClass(classRef, cha, true));
-                                }
-                            }
-                        }
-                    }
-                };
-            }
-        };
+    public DivaIRGen(IClassLoader cl, Consumer<IClass> addClass) {
+        current = this;
+        this.cl = cl;
+        this.addClass = addClass;
     }
 
-    public static void recoverBindings(ASTParser parser, Map<String, CompilationUnit> units, IClassHierarchy cha) {
+    public static DivaIRGen current;
+
+    public IClassLoader cl;
+    public Consumer<IClass> addClass;
+
+    public void genIR(IClassHierarchy cha, Map<String, ModuleEntry> sourceMap, String[] stdlibs, String[] jdtDirs,
+            BiFunction<CompilationUnit, String, JDTJava2CAstTranslator<Position>> makeCAstTranslator,
+            Supplier<Java2IRTranslator> makeIRTranslator) {
+
+        String[] sourceFiles = sourceMap.keySet().toArray(new String[0]);
+
+        @SuppressWarnings("deprecation")
+        final ASTParser parser = ASTParser.newParser(AST.JLS8);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true); // recover
+        parser.setStatementsRecovery(true); // recover
+        parser.setEnvironment(stdlibs, jdtDirs, null, true);
+        Hashtable<String, String> options = JavaCore.getOptions();
+        options.put(JavaCore.COMPILER_SOURCE, "1.8");
+        options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, "1.8");
+        parser.setCompilerOptions(options);
+
+        Map<String, CompilationUnit> units = new LinkedHashMap<>();
+
+        parser.createASTs(sourceFiles, null, new String[0], new FileASTRequestor() {
+            @Override
+            public void acceptAST(String source, CompilationUnit unit) {
+                units.put(source, unit);
+            }
+        }, new NullProgressMonitor());
+
+        recoverBindings(parser, units, cha);
+
+        for (String source : units.keySet()) {
+            CompilationUnit unit = units.get(source);
+            try {
+                JDTJava2CAstTranslator<Position> jdt2cast = makeCAstTranslator.apply(unit, source);
+                final Java2IRTranslator java2ir = makeIRTranslator.get();
+                java2ir.translate(sourceMap.get(source), jdt2cast.translateToCAst());
+                LOGGER.info("Done wala IR: " + source);
+            } catch (Throwable e) {
+                LOGGER.info(e.getMessage());
+                ;
+                for (StackTraceElement s : e.getStackTrace()) {
+                    LOGGER.info(s.toString());
+                }
+                LOGGER.info("Failed wala IR: " + source + ", reason: " + e.getMessage());
+            }
+
+        }
+        if (knownAsClasses != null) {
+            for (String klazz : knownAsClasses) {
+                TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+                if (cl.lookupClass(t) == null) {
+                    TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
+                    addClass.accept(new DivaPhantomClass(classRef, cha));
+                }
+            }
+        }
+        if (knownAsInterfaces != null) {
+            for (String klazz : knownAsInterfaces) {
+                TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+                if (cl.lookupClass(t) == null) {
+                    TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
+                    addClass.accept(new DivaPhantomClass(classRef, cha, true));
+                }
+            }
+        }
+    }
+
+    public void recoverBindings(ASTParser parser, Map<String, CompilationUnit> units, IClassHierarchy cha) {
 
         for (String source : units.keySet()) {
             CompilationUnit unit = units.get(source);
@@ -361,7 +327,7 @@ public class DivaIRGen {
 
     }
 
-    public static Map<String, List<Annotation>> annotations;
+    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
 
     public static void processAnnotations(IClassHierarchy cha, BodyDeclaration node, String name) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
@@ -401,9 +367,6 @@ public class DivaIRGen {
                 TypeReference t1 = c != null ? c.getReference()
                         : TypeReference.findOrCreate(ClassLoaderReference.Extension, annotType);
                 Annotation a = Annotation.makeWithNamed(t1, namedParams);
-                if (annotations == null) {
-                    annotations = new LinkedHashMap<>();
-                }
                 if (!annotations.containsKey(name)) {
                     annotations.put(name, new ArrayList<>());
                 }
@@ -432,12 +395,19 @@ public class DivaIRGen {
     //
     // }
 
+    /**
+     * ---------------------------------------
+     *
+     * Patching eclipse JDT using bytebuddy for enabling best-effort type resolution
+     *
+     */
+
     public static class DoMethodBinding {
         @Advice.OnMethodExit
         public static void exit(@Advice.This MethodInvocation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
             if (binding == null) {
-                binding = findOrCreatePhantomMethod(node);
+                binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
             }
         }
     }
@@ -447,7 +417,7 @@ public class DivaIRGen {
         public static void exit(@Advice.This SuperMethodInvocation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
             if (binding == null) {
-                binding = findOrCreatePhantomMethod(node);
+                binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
             }
         }
     }
@@ -457,7 +427,7 @@ public class DivaIRGen {
         public static void exit(@Advice.This ClassInstanceCreation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
             if (binding == null) {
-                binding = findOrCreatePhantomMethod(node);
+                binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
             }
         }
     }
@@ -466,14 +436,14 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void exit(@Advice.This Name node, @Advice.Return(readOnly = false) IBinding binding) {
             if (binding == null) {
-                binding = findOrCreateUnknownPhantomType(node.toString());
+                binding = DivaIRGen.current.findOrCreateUnknownPhantomType(node.toString());
             } else if (binding.isRecovered()) {
                 String key = binding.getKey();
                 if (key.startsWith("Recovered#typeBindingL")) {
                     key = key.substring("Recovered#typeBindingL".length());
                     key = key.substring(0, key.lastIndexOf(';'));
                     if (Character.isUpperCase(key.charAt(0))) {
-                        binding = findOrCreateUnknownPhantomType(key);
+                        binding = DivaIRGen.current.findOrCreateUnknownPhantomType(key);
                     }
                 }
             }
@@ -484,7 +454,7 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void exit(@Advice.This Type node, @Advice.Return(readOnly = false) ITypeBinding binding) {
             if (node instanceof SimpleType && (binding == null || isBroken(binding))) {
-                binding = findOrCreateUnknownPhantomType(((SimpleType) node).getName().toString());
+                binding = DivaIRGen.current.findOrCreateUnknownPhantomType(((SimpleType) node).getName().toString());
             }
         }
     }
@@ -494,7 +464,7 @@ public class DivaIRGen {
         public static void exit(@Advice.Return(readOnly = false) ITypeBinding binding) {
             ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
             if (isBroken(b)) {
-                binding = findOrCreateUnknownPhantomType(b);
+                binding = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
             }
         }
     }
@@ -503,7 +473,7 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void exit(@Advice.This Expression node, @Advice.Return(readOnly = false) ITypeBinding binding) {
             if (binding == null) {
-                binding = findOrCreateType(node, false);
+                binding = DivaIRGen.current.findOrCreateType(node, false);
             }
         }
     }
@@ -515,10 +485,10 @@ public class DivaIRGen {
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (b.isRecovered()) {
                     if (isBroken(b)) {
-                        b = findOrCreateUnknownPhantomType(b);
+                        b = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
                         binding = b;
                     }
-                    findOrCreateDefaultCtor(b);
+                    DivaIRGen.current.findOrCreateDefaultCtor(b);
                 }
             }
         }
@@ -558,7 +528,7 @@ public class DivaIRGen {
                 ITypeBinding binding = parameterTypes[k];
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (isBroken(b)) {
-                    parameterTypes[k] = findOrCreateUnknownPhantomType(b);
+                    parameterTypes[k] = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
                 }
             }
         }
@@ -570,7 +540,7 @@ public class DivaIRGen {
             if (binding != null) {
                 ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
                 if (isBroken(b)) {
-                    binding = findOrCreateUnknownPhantomType(b);
+                    binding = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
                 }
             }
         }
@@ -653,16 +623,22 @@ public class DivaIRGen {
         });
     }
 
-    public static Function<String, ITypeBinding> wellKnownType;
+    /**
+     * -----------------------------------------------
+     *
+     * per-module instance methods
+     */
 
-    public static Map<String, String> imports = new HashMap<>();
+    public Function<String, ITypeBinding> wellKnownType;
 
-    public static Map<String, ITypeBinding> phantomTypes;
-    public static Map<Object, IMethodBinding> phantomMethods;
-    public static Set<String> knownAsClasses;
-    public static Set<String> knownAsInterfaces;
+    public Map<String, String> imports = new HashMap<>();
 
-    public static ITypeBinding findOrCreateUnknownPhantomType(ITypeBinding b) {
+    public Map<String, ITypeBinding> phantomTypes;
+    public Map<Object, IMethodBinding> phantomMethods;
+    public Set<String> knownAsClasses;
+    public Set<String> knownAsInterfaces;
+
+    public ITypeBinding findOrCreateUnknownPhantomType(ITypeBinding b) {
         // System.out.println(b + " name=" + b.getName() + " binary=" +
         // b.getBinaryName() + " key=" + b.getKey());
         if (b.isParameterizedType()) {
@@ -674,14 +650,14 @@ public class DivaIRGen {
         return findOrCreateUnknownPhantomType(b.getName());
     }
 
-    public static ITypeBinding findOrCreateUnknownPhantomType(String name) {
+    public ITypeBinding findOrCreateUnknownPhantomType(String name) {
         if (imports.containsKey(name)) {
             return findOrCreatePhantomType(imports.get(name));
         }
         return findOrCreatePhantomType("unknown." + name);
     }
 
-    public static ITypeBinding findOrCreatePhantomType(String name) {
+    public ITypeBinding findOrCreatePhantomType(String name) {
         if (phantomTypes == null) {
             phantomTypes = new HashMap<>();
         }
@@ -1065,7 +1041,7 @@ public class DivaIRGen {
         return binding;
     }
 
-    public static ITypeBinding findOrCreateType(Expression exp) {
+    public ITypeBinding findOrCreateType(Expression exp) {
         return findOrCreateType(exp, true);
     }
 
@@ -1073,7 +1049,7 @@ public class DivaIRGen {
         return type.isRecovered() && !type.getKey().startsWith("PHANTOM:");
     }
 
-    public static ITypeBinding findOrCreateType(Expression exp, boolean resolve) {
+    public ITypeBinding findOrCreateType(Expression exp, boolean resolve) {
         if (exp == null) {
             return findOrCreatePhantomType("unknown.Unknown");
         }
@@ -1090,7 +1066,7 @@ public class DivaIRGen {
         return findOrCreatePhantomType("unknown.Unknown");
     }
 
-    public static IMethodBinding findOrCreatePhantomMethod(Expression node) {
+    public IMethodBinding findOrCreatePhantomMethod(Expression node) {
 
         if (phantomMethods == null) {
             phantomMethods = new IdentityHashMap<>();
@@ -1153,7 +1129,7 @@ public class DivaIRGen {
         return binding;
     }
 
-    public static IMethodBinding findOrCreateDefaultCtor(ITypeBinding klazz) {
+    public IMethodBinding findOrCreateDefaultCtor(ITypeBinding klazz) {
         if (phantomMethods == null) {
             phantomMethods = new IdentityHashMap<>();
         }
@@ -1166,7 +1142,7 @@ public class DivaIRGen {
         return binding;
     }
 
-    public static IMethodBinding findOrCreateCloseable(ITypeBinding klazz) {
+    public IMethodBinding findOrCreateCloseable(ITypeBinding klazz) {
         if (phantomMethods == null) {
             phantomMethods = new IdentityHashMap<>();
         }
@@ -1180,7 +1156,7 @@ public class DivaIRGen {
         return binding;
     }
 
-    public static IMethodBinding findOrCreatePhantomMethod0(ITypeBinding klazz, String name, ITypeBinding[] params,
+    public IMethodBinding findOrCreatePhantomMethod0(ITypeBinding klazz, String name, ITypeBinding[] params,
             ITypeBinding returnType, boolean isCtor) {
         ITypeBinding[] exceptionTypes = new ITypeBinding[0];
 
@@ -1376,105 +1352,6 @@ public class DivaIRGen {
         k += ")" + (returnType.isPrimitive() ? returnType.getBinaryName()
                 : StringStuff.deployment2CanonicalTypeString(returnType.getBinaryName()) + ";");
         return k;
-    }
-
-    public static class DivaPhantomClass extends PhantomClass {
-        public TypeReference classRef;
-        public IClassHierarchy cha;
-        public boolean isInterface;
-
-        public DivaPhantomClass(TypeReference classRef, IClassHierarchy cha) {
-            this(classRef, cha, false);
-        }
-
-        public DivaPhantomClass(TypeReference classRef, IClassHierarchy cha, boolean isInterface) {
-            super(classRef, cha);
-            this.classRef = classRef;
-            this.cha = cha;
-            this.isInterface = isInterface;
-        }
-
-        @Override
-        public Collection<IField> getDeclaredInstanceFields() {
-            return Collections.EMPTY_SET;
-        }
-
-        @Override
-        public Collection<IMethod> getDeclaredMethods() {
-            return Collections.EMPTY_SET;
-        }
-
-        @Override
-        public IMethod getClassInitializer() {
-            return getMethod(Selector.make("<clinit>()V"));
-        }
-
-        @Override
-        public boolean isInterface() {
-            return isInterface;
-        }
-
-        @Override
-        public IMethod getMethod(Selector selector) {
-            // AT: workaround ..
-            // if (selector.getName().toString().equals("finalize"))
-            // return null;
-            TypeName[] params = selector.getDescriptor().getParameters();
-
-            Collection<CAstQualifier> qualifiers = Collections.EMPTY_SET;
-            Collection<Annotation> annotations = Collections.EMPTY_SET;
-            MethodReference methodRef = MethodReference.findOrCreate(classRef, selector);
-
-            return new AstMethod(DivaPhantomClass.this, qualifiers, methodRef, annotations) {
-
-                @Override
-                public boolean isAbstract() {
-                    return true;
-                }
-
-                @Override
-                public boolean isStatic() {
-                    return false;
-                }
-
-                @Override
-                public IClassHierarchy getClassHierarchy() {
-                    return cha;
-                }
-
-                @Override
-                public boolean hasLocalVariableTable() {
-                    return false;
-                }
-
-                @Override
-                public TypeReference getParameterType(int i) {
-                    return TypeReference.findOrCreate(ClassLoaderReference.Extension, params[i]);
-                }
-
-                @Override
-                public String getLocalVariableName(int bcIndex, int localNumber) {
-                    return null;
-                }
-
-                @Override
-                public TypeReference[] getDeclaredExceptions()
-                        throws InvalidClassFileException, UnsupportedOperationException {
-                    return null;
-                }
-
-                @Override
-                public LexicalParent[] getParents() {
-                    return null;
-                }
-
-                @Override
-                public int getNumberOfParameters() {
-                    return params == null ? 0 : params.length;
-                }
-
-            };
-        }
     }
 
 }

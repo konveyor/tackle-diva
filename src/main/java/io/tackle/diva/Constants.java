@@ -20,6 +20,7 @@ public interface Constants {
 
     Atom theInit = Atom.findOrCreateUnicodeAtom("<init>");
     Atom theClinit = Atom.findOrCreateUnicodeAtom("<clinit>");
+    Atom Java = Atom.findOrCreateUnicodeAtom("Java");
 
     Atom getParameter = Atom.findOrCreateUnicodeAtom("getParameter");
     Atom prepareStatement = Atom.findOrCreateUnicodeAtom("prepareStatement");
@@ -101,5 +102,17 @@ public interface Constants {
 
     TypeName LSpringJPARepository = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/JpaRepository");
     TypeName LSpringJPAQuery = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/Query");
+
+    // JAX-RS
+    TypeName LJavaxWsRsGET = TypeName.findOrCreate("Ljavax/ws/rs/GET");
+    TypeName LJavaxWsRsPUT = TypeName.findOrCreate("Ljavax/ws/rs/PUT");
+    TypeName LJavaxWsRsPOST = TypeName.findOrCreate("Ljavax/ws/rs/POST");
+    TypeName LJavaxWsRsPATCH = TypeName.findOrCreate("Ljavax/ws/rs/PATCH");
+    TypeName LJavaxWsRsDELETE = TypeName.findOrCreate("Ljavax/ws/rs/DELETE");
+    TypeName LJavaxWsRsPath = TypeName.findOrCreate("Ljavax/ws/rs/Path");
+
+    // RestEasy
+    TypeName LMicroprofileReigsterRestClient = TypeName
+            .findOrCreate("Lorg/eclipse/microprofile/rest/client/inject/RegisterRestClient");
 
 }
