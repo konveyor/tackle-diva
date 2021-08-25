@@ -12,3 +12,6 @@ run.shell:
 
 run.base:
 	docker run --rm -it diva-rest-base:latest bash
+
+run.local:
+	poetry run connexion run -p 8080 --mock=notimplemented --debug spec/openapi.yaml

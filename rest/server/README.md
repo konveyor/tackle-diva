@@ -13,10 +13,16 @@ Since `diva-rest-base` does not change so frequently, so you need not rebuild it
 
 # Run a server container
 
-Run this command to run the server on port 8080:
+Run this command to run a server container on port 8080:
 
 ```
 make run
+```
+
+Or you can run the server locally (with debug mode):
+
+```
+make run.local
 ```
 
 Alternatively, if you just want to enter a sever container with bash:
@@ -26,6 +32,18 @@ make run.shell
 ```
 
 # Test server
+
+## Unit test
+
+This test runs an web server locally (which does not involve Java part) and tests.
+
+If you use poetry,
+
+```
+poetry run pytest test // or test/test_local_server.py
+```
+
+## Deprecated: If you want to test at low-level 
 
 > These will be moved to [../client](../client) later
 

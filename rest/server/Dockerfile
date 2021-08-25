@@ -23,4 +23,4 @@ RUN python3.7 -m pip install -r requirements.txt
 
 # CMD [ "python3.7", "src/server.py" ]
 # use connexion CLI instead. to add other options for validation, etc.
-CMD [ "connexion", "run", "-p", "8080", "--mock=notimplemented", "--debug", "spec/swagger.yaml" ]
+CMD [ "connexion", "run", "-p", "8080", "--mock=notimplemented", "--debug", "spec/openapi.yaml" ]

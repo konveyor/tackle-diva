@@ -1,0 +1,318 @@
+openapi: 3.0.3
+
+info:
+  title: "Tackle-DiVA (Data-intensive Validity Analyzer)"
+  description: "Data-centric application code analysis that import a set of application codes and provides database/transaction analysis results."
+  version: 0.1.0
+  contact:
+    name: Shin Saito
+    email: shinsa@jp.ibm.com
+  license:
+    name: "Eclipse Public License 2.0"
+    url: "https://github.com/konveyor/tackle-diva/blob/main/LICENSE"
+
+externalDocs:
+  description: "README in repository of the code"
+  url: "https://github.com/shinsa82-sgi-2021/tackle-diva/tree/main/rest/server"
+
+tags:
+  - name: "analysis"
+    description: "Code Analysis"
+  - name: "database"
+    description: "Database"
+  - name: "transaction"
+    description: "Transaction"
+
+# to be changed to valid public endpoints
+servers:
+  - url: http://localhost:8080
+  - url: https://localhost:8080
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - "general"
+      summary: Health check
+      description: Health check. It returns 200 if it's working.
+      operationId: diva_server.health_check
+      responses:
+        "200":
+          description: If this endpoint is working.
+          content:
+            "application/json":
+              example:
+                status_code: 0
+                detail: Server is working
+                version: 0.0.0
+
+  /analysis/{applicationName}:
+    post:
+      tags:
+        - "analysis"
+      summary: "Request data-centric application code analysis."
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: "GitHub URL of source application codes."
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/GithubURL"
+      responses:
+        200:
+          description: "Successful operation"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+    put:
+      tags:
+        - "analysis"
+      summary: "Update an existing application code analysis result."
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        description: "GitHub URL of source application codes."
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/GithubURL"
+      responses:
+        200:
+          description: "Successful operation"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+    get:
+      tags:
+        - "analysis"
+      summary: "Query application analysis status"
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name."
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Analysis"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+    delete:
+      tags:
+        - "analysis"
+      summary: "Delete application analysis results"
+      description: "Delete application analysis results"
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Analysis"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+
+  /database/{applicationName}:
+    get:
+      tags:
+        - "database"
+      summary: "Get a list of database tables"
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Database"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+
+  /transaction/{applicationName}:
+    get:
+      tags:
+        - "transaction"
+      summary: "Get a list of transactions"
+      parameters:
+        - name: "applicationName"
+          in: "path"
+          description: "Target application name"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        400:
+          description: "Invalid {applicationName}"
+        405:
+          description: "Validation exception"
+
+components:
+  schemas:
+    Status:
+      type: "object"
+      properties:
+        code: {}
+        detail: {}
+
+    Analysis:
+      type: "object"
+      required:
+        - "name"
+        - "githubURL"
+        - "status"
+      properties:
+        name:
+          type: "string"
+          example: "daytrader"
+        githubURL:
+          type: "string"
+          example: "https://github.com/WASdev/sample.daytrader7"
+        status:
+          type: "string"
+          enum:
+            - "available"
+            - "pending"
+            - "none"
+          default: "available"
+
+    Database:
+      type: "object"
+      required:
+        - "databases"
+      properties:
+        databases:
+          type: "array"
+          items:
+            type: "string"
+
+    Transaction:
+      type: "object"
+      required:
+        - "entry"
+        - "http-param"
+        - "transactions"
+      properties:
+        entry:
+          $ref: "#/components/schemas/Entry"
+        http-param:
+          $ref: "#/components/schemas/HttpParam"
+        transactions:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Tx"
+
+    Entry:
+      type: "object"
+      required:
+        - "methods"
+      properties:
+        methods:
+          type: "array"
+          items:
+            type: "string"
+
+    HttpParam:
+      type: "object"
+      required:
+        - "action"
+      properties:
+        action:
+          type: "array"
+          items:
+            type: "string"
+
+    Tx:
+      type: "object"
+      required:
+        - "txid"
+        - "transaction"
+      properties:
+        txid:
+          type: "integer"
+        transaction:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Operation"
+
+    Operation:
+      type: "object"
+      required:
+        - "stacktrace"
+        - "sql"
+      properties:
+        stacktrace:
+          $ref: "#/components/schemas/StackTrace"
+        sql:
+          type: "string"
+
+    StackTrace:
+      type: "array"
+      items:
+        $ref: "#/components/schemas/Stack"
+
+    Stack:
+      type: "object"
+      required:
+        - "method"
+        - "file"
+        - "position"
+      properties:
+        method:
+          type: "string"
+        file:
+          type: "string"
+        position:
+          type: "string"
+
+    GithubURL:
+      type: "object"
+      required:
+        - "githubURL"
+      properties:
+        githubURL:
+          type: "string"
