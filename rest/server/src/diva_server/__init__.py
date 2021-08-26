@@ -9,7 +9,7 @@ def health_check():
     return {
         "status_code": 0,
         "detail": "Server is working",
-        "version": version(__name__)
+        "version": version(__name__),
     }
 
 

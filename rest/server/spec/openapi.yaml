@@ -16,7 +16,9 @@ externalDocs:
   url: "https://github.com/shinsa82-sgi-2021/tackle-diva/tree/main/rest/server"
 
 tags:
-  - name: "analysis"
+  - name: "General"
+    description: "General"
+  - name: "Analysis"
     description: "Code Analysis"
   - name: "database"
     description: "Database"
@@ -32,25 +34,48 @@ paths:
   /healthz:
     get:
       tags:
-        - "general"
+        - General
       summary: Health check
       description: Health check. It returns 200 if it's working.
       operationId: diva_server.health_check
       responses:
         "200":
-          description: If this endpoint is working.
+          description: This REST endpoint is working.
           content:
             "application/json":
+              schema:
+                $ref: "#/components/schemas/Status"
               example:
                 status_code: 0
                 detail: Server is working
                 version: 0.0.0
 
+  /apps:
+    post:
+      tags:
+        - Application
+      summary: "Request code analysis for an application"
+      description: |-
+        Request data-centric code analysis for specified application.
+        Currently URL for a Git repository is allowed as application source code.
+        If successful, new resource for the analysis result will be created and its URL will be returned.
+        If failed, a Bad Request error (400) will be returned with its reason.
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema: {}
+      responses:
+        "201":
+          description: Analysis is successfully completed and its results are generated.
+        "400":
+          description: Analysis failed.
+
   /analysis/{applicationName}:
     post:
       tags:
         - "analysis"
-      summary: "Request data-centric application code analysis."
+      summary: "ç"
       parameters:
         - name: "applicationName"
           in: "path"
@@ -196,8 +221,24 @@ components:
     Status:
       type: "object"
       properties:
-        code: {}
-        detail: {}
+        status_code:
+          type: integer
+          description: |-
+            Server status code. 0 means normal status and positive number means an error.
+          minimum: 0
+        detail:
+          type: string
+          description: "Human readable text of server status."
+        version:
+          type: string
+          description: |-
+            Server version text, in format of `<major>.<minor>.<patch>`.
+          format: version
+      required:
+        - status_code
+        - detail
+        - version
+      additionalProperties: false
 
     Analysis:
       type: "object"
@@ -309,10 +350,15 @@ components:
         position:
           type: "string"
 
+    AppSource:
+      oneOf:
+        - $ref: "#/components/schemas/GithubURL"
+
     GithubURL:
       type: "object"
       required:
-        - "githubURL"
+        - github_url
       properties:
-        githubURL:
-          type: "string"
+        github_url:
+          type: string
+          format: uri

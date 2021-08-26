@@ -18,7 +18,8 @@ def is_json(r: Response) -> bool:
 def server_process() -> Popen:
     """start a server via CLI using subprocess."""
     p = Popen(args=["connexion", "run", "-p", "8080",
-                    "--mock=notimplemented", "--strict-validation", "--debug", "spec/openapi.yaml"])
+                    "--mock=notimplemented", "--strict-validation", "--validate-responses",
+                    "--debug", "spec/openapi.yaml"])
     sleep(2)  # wait until server is ready
     yield p
     p.terminate()  # send SIGINT
@@ -38,7 +39,7 @@ def test_basepath_fails(server_process: Popen):
 
 
 class TestAPI:
-    """check implemented APIs."""
+    """Test implemented APIs."""
 
     def test_healthcheck(self, server_process: Popen) -> None:
         """accessing health check API."""
@@ -53,6 +54,8 @@ class TestAPI:
 
 
 class TestGenerated:
+    """Test automatically-generated APIs."""
+
     def test_swagger_ui(self, server_process: Popen) -> None:
         """accessing `/ui` returns a generated Swagger UI page."""
         assert server_process.poll() is None
