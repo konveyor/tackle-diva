@@ -335,8 +335,9 @@ public class DivaIRGen {
                 public boolean visit(MethodDeclaration node) {
                     IMethodBinding binding = node.resolveBinding();
                     if (binding != null) {
-                        String name = methodSignature(binding.getDeclaringClass(), binding.getName(),
-                                binding.getParameterTypes(), binding.getReturnType());
+                        String mname = binding.isConstructor() ? "<init>" : binding.getName();
+                        String name = methodSignature(binding.getDeclaringClass(), mname, binding.getParameterTypes(),
+                                binding.getReturnType());
                         processAnnotations(cha, node, name);
                     }
                     return true;
@@ -1143,7 +1144,7 @@ public class DivaIRGen {
             isCtor = true;
             Type type = method.getType();
             if (type.isParameterizedType()) {
-                type = ((ParameterizedType)type).getType(); //erasure
+                type = ((ParameterizedType) type).getType(); // erasure
             }
             klazz = type.resolveBinding();
             if (type instanceof SimpleType && (klazz == null || klazz.isRecovered())) {
