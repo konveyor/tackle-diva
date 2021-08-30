@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
@@ -30,7 +31,8 @@ public class SpringBootAnalysis {
         List<IMethod> entries = new ArrayList<>();
 
         for (IClass c : cha) {
-            if (!Util.any(Util.getAnnotations(c), a -> a.getType().getName() == Constants.LSpringController))
+            if (!Util.any(Util.getAnnotations(c), a -> a.getType().getName() == Constants.LSpringController
+                    || a.getType().getName() == Constants.LSpringRestController))
                 continue;
             for (IMethod m : c.getDeclaredMethods()) {
                 if (m.isStatic())

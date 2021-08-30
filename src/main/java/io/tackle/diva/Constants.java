@@ -67,6 +67,9 @@ public interface Constants {
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
+    TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+
+    // Spring
     TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
     TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
     TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
@@ -74,6 +77,8 @@ public interface Constants {
     TypeName LSpringBeanSource = TypeName
             .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
     TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
+    TypeName LSpringRestController = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RestController");
+    TypeName LSpringScheduled = TypeName.findOrCreate("Lorg/springframework/scheduling/annotation/Scheduled");
 
     // Servlet
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
