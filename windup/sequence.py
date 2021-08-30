@@ -32,6 +32,7 @@ def getapp(g, r, ps):
 
 def translate(g, k, r, ps):
     for tx in g.V(r).out('transactions').order().by('txid'):
+        print ('activate P{}'.format(k))
         for op in g.V(tx).out('transaction').order().by('ordinal'):
             d = g.V(op).valueMap().next()
             if 'DivaSqlOpModel' in d['w:winduptype']:
@@ -47,6 +48,7 @@ def translate(g, k, r, ps):
                     print ('P{}->>P{}: '.format(k2, k))
                 else:
                     print ('P{}->>P{}: {}'.format(k, k, g.V(op).out('method').methodName.next()))
+        print ('deactivate P{}'.format(k))
 
 
 def proc(opts):

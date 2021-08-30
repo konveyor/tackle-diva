@@ -3,6 +3,7 @@ package io.tackle.diva.analysis;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,6 +23,7 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.FieldReference;
@@ -36,6 +38,7 @@ import io.tackle.diva.Context;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
+import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class JPAAnalysis {
@@ -96,8 +99,10 @@ public class JPAAnalysis {
                             }
                         }
                     }
-                    if (colName == null)
+                    if (tags.isEmpty())
                         continue;
+                    if (colName == null)
+                        colName = f.getName().toString();
                     columnDefinitions.put(f.getReference(), new TableColumn(tableName, colName, tags, null));
                     System.out.println(f + "->" + Util.getAnnotations(f));
                 }
@@ -169,6 +174,16 @@ public class JPAAnalysis {
         }
     }
 
+    public static IClass getRepoParamterType(Framework fw, TypeReference tref) {
+        List<TypeName> paramTypes = DivaIRGen.instantiations.getOrDefault(tref.getName(), Collections.emptyMap())
+                .getOrDefault(Constants.LSpringJPARepository, null);
+        if (paramTypes != null) {
+            return fw.classHierarchy()
+                    .lookupClass(TypeReference.findOrCreate(tref.getClassLoader(), paramTypes.get(0)));
+        }
+        return null;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -220,12 +235,17 @@ public class JPAAnalysis {
                     } else if (ref.getName().toString().startsWith("findBy")) {
                         String key = ref.getName().toString().substring("findBy".length()).toLowerCase();
                         IClass typ = fw.classHierarchy().lookupClass(ref.getReturnType());
+                        if (typ == null || typ.getName() == Constants.LJavaUtilList) {
+                            typ = getRepoParamterType(fw, tref);
+                        }
                         TableColumn tcol = null;
-                        for (IField f : typ.getDeclaredInstanceFields()) {
-                            if (f.getName().toString().equalsIgnoreCase(key)) {
-                                if (columnDefinitions.containsKey(f.getReference())) {
-                                    tcol = columnDefinitions.get(f.getReference());
-                                    break;
+                        if (typ != null) {
+                            for (IField f : typ.getDeclaredInstanceFields()) {
+                                if (f.getName().toString().equalsIgnoreCase(key)) {
+                                    if (columnDefinitions.containsKey(f.getReference())) {
+                                        tcol = columnDefinitions.get(f.getReference());
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -256,6 +276,10 @@ public class JPAAnalysis {
         };
     }
 
+    public static void parseQueryCreation() {
+
+    }
+
     public static void populateInsertOrUpdate(Framework fw, Trace trace, SSAAbstractInvokeInstruction instr) {
         Trace.Val v = trace.getDef(instr.getUse(1));
         SourcePosition p = null;
@@ -278,22 +302,43 @@ public class JPAAnalysis {
                 v = null;
                 continue;
             }
+            if (v.instr() instanceof SSACheckCastInstruction) {
+                v = v.getDef(v.instr().getUse(0));
+            }
             break;
         }
         if (v == null)
             return;
         // System.out.println(p + ": " + instr + ": " + v);
         if (v.instr() instanceof SSANewInstruction) {
-            populateInsert(fw, trace, v);
+            TypeReference tref = ((SSANewInstruction) v.instr()).getConcreteType();
+            IClass c = fw.classHierarchy().lookupClass(tref);
+            populateInsert(fw, trace, c);
+
         } else if (v.instr() instanceof SSAAbstractInvokeInstruction) {
-            populateUpdate(fw, trace, v);
+            IClass repo = trace.inferType(fw, instr.getUse(0));
+            if (repo == null) {
+                repo = fw.classHierarchy().lookupClass(instr.getDeclaredTarget().getDeclaringClass());
+            }
+            IClass c = getRepoParamterType(fw, repo.getReference());
+            if (c == null) {
+                c = trace.inferType(fw, instr.getUse(1));
+                if (c == null) {
+                    MethodReference mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget();
+                    c = fw.classHierarchy().lookupClass(mref.getReturnType());
+                }
+            }
+            if (c != null) {
+                populateUpdate(fw, trace, c);
+            } else {
+                Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+            }
+        } else {
+            Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
         }
     }
 
-    public static void populateInsert(Framework fw, Trace trace, Trace.Val v) {
-        TypeReference tref = ((SSANewInstruction) v.instr()).getConcreteType();
-        IClass c = fw.classHierarchy().lookupClass(tref);
-
+    public static void populateInsert(Framework fw, Trace trace, IClass c) {
         String table = null;
         String s = null;
         String t = null;
@@ -310,11 +355,7 @@ public class JPAAnalysis {
         fw.reportSqlStatement(trace, sql);
     }
 
-    public static void populateUpdate(Framework fw, Trace trace, Trace.Val v) {
-        MethodReference mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget();
-        TypeReference tref = mref.getReturnType();
-        IClass c = fw.classHierarchy().lookupClass(tref);
-
+    public static void populateUpdate(Framework fw, Trace trace, IClass c) {
         String table = null;
         String s = null;
         for (IField f : c.getAllFields()) {

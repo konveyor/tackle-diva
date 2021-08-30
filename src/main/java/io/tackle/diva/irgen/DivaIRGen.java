@@ -15,6 +15,7 @@ package io.tackle.diva.irgen;
 
 import static io.tackle.diva.Util.LOGGER;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +59,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
@@ -79,6 +81,7 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.ModuleEntry;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.shrikeBT.Constants;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.TypeName;
@@ -163,6 +166,21 @@ public class DivaIRGen {
                 if (cl.lookupClass(t) == null) {
                     TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
                     addClass.accept(new DivaPhantomClass(classRef, cha, true));
+                }
+            }
+        }
+    }
+
+    public static Map<String, String> importsKnownToDiva = new HashMap<>();
+
+    static {
+        for (Field f : Constants.class.getDeclaredFields()) {
+            if (f.getType() == TypeName.class) {
+                try {
+                    String t = ((TypeName) f.get(null)).toString();
+                    String name = t.substring(t.toString().lastIndexOf('.') + 1);
+                    importsKnownToDiva.put(name, t);
+                } catch (IllegalArgumentException | IllegalAccessException e) {
                 }
             }
         }
@@ -256,6 +274,7 @@ public class DivaIRGen {
 
                 @Override
                 public boolean visit(TypeDeclaration node) {
+                    ITypeBinding t = node.resolveBinding();
                     Type sup = node.getSuperclassType();
                     if (sup != null) {
                         String superName = sup.resolveBinding().getBinaryName();
@@ -271,8 +290,26 @@ public class DivaIRGen {
                             knownAsInterfaces = new HashSet();
                         }
                         knownAsInterfaces.add(ifaceName);
+                        if (t != null && i.isParameterizedType()) {
+                            ParameterizedType pt = (ParameterizedType) i;
+                            for (Type p : (List<Type>) pt.typeArguments()) {
+                                String pname = StringStuff
+                                        .deployment2CanonicalTypeString(p.resolveBinding().getBinaryName());
+                                String iname = StringStuff.deployment2CanonicalTypeString(ifaceName);
+                                String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
+                                Map<TypeName, List<TypeName>> map = instantiations
+                                        .getOrDefault(TypeName.findOrCreate(name), null);
+                                if (map == null) {
+                                    instantiations.put(TypeName.findOrCreate(name), map = new LinkedHashMap<>());
+                                }
+                                List<TypeName> list = map.getOrDefault(TypeName.findOrCreate(iname), null);
+                                if (list == null) {
+                                    map.put(TypeName.findOrCreate(iname), list = new ArrayList<>());
+                                }
+                                list.add(TypeName.findOrCreate(pname));
+                            }
+                        }
                     }
-                    ITypeBinding t = node.resolveBinding();
                     if (t != null) {
                         String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
                         processAnnotations(cha, node, name);
@@ -328,6 +365,7 @@ public class DivaIRGen {
     }
 
     public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
+    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
 
     public static void processAnnotations(IClassHierarchy cha, BodyDeclaration node, String name) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
@@ -653,6 +691,8 @@ public class DivaIRGen {
     public ITypeBinding findOrCreateUnknownPhantomType(String name) {
         if (imports.containsKey(name)) {
             return findOrCreatePhantomType(imports.get(name));
+        } else if (importsKnownToDiva.containsKey(name)) {
+            return findOrCreatePhantomType(importsKnownToDiva.get(name));
         }
         return findOrCreatePhantomType("unknown." + name);
     }
@@ -1102,6 +1142,9 @@ public class DivaIRGen {
             arguments = method.arguments();
             isCtor = true;
             Type type = method.getType();
+            if (type.isParameterizedType()) {
+                type = ((ParameterizedType)type).getType(); //erasure
+            }
             klazz = type.resolveBinding();
             if (type instanceof SimpleType && (klazz == null || klazz.isRecovered())) {
                 klazz = findOrCreateUnknownPhantomType(((SimpleType) type).getName().toString());
