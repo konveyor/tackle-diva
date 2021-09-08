@@ -180,6 +180,7 @@ public class Standalone {
         CallGraph cg = builder.get();
         Util.LOGGER.info("done");
         Util.LOGGER.info(CallGraphStats.getStats(cg));
+        // Util.dumpCallGraph(cg);
         return cg;
     }
 
