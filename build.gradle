@@ -66,6 +66,9 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
+java {
+    withSourcesJar()
+}
 
 publishing {
     publications {
@@ -74,6 +77,16 @@ publishing {
             artifactId = 'diva-core'
             version = '0.0.1-SNAPSHOT'
             from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/akihikot/tackle-diva"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }

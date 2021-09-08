@@ -55,7 +55,7 @@ public class DaytraderQuarkusTest {
             String app = "../../daytrader-quarkus/";
 
             wc.addInputPath(Paths.get(app));
-            wc.setOutputDirectory(Paths.get("target/WindupReport"));
+            wc.setOutputDirectory(Paths.get("target/WindupReport/daytrader-quarkus"));
             wc.setOptionValue(SourceModeOption.NAME, true);
 
             processor.execute(wc);

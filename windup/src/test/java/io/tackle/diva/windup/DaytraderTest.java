@@ -55,7 +55,7 @@ public class DaytraderTest {
             String app = "../../sample.daytrader7/";
 
             wc.addInputPath(Paths.get(app));
-            wc.setOutputDirectory(Paths.get("target/WindupReport"));
+            wc.setOutputDirectory(Paths.get("target/WindupReport/sample.daytrader7"));
             wc.setOptionValue(SourceModeOption.NAME, true);
 
             processor.execute(wc);
