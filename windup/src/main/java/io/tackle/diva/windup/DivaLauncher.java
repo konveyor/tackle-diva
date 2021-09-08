@@ -59,7 +59,6 @@ import io.tackle.diva.Context;
 import io.tackle.diva.Context.EntryConstraint;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
-import io.tackle.diva.Standalone;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -134,8 +133,8 @@ public class DivaLauncher extends GraphOperation {
                 ClassLoaderReference parent = ClassLoaderReference.Application;
                 while (!todo.isEmpty()) {
                     p = todo.pop();
-                    parent = mods.findOrCreateModuleLoader(p.getName(),
-                            new SourceDirectoryTreeModule(new File(p.getRootFileModel().getFilePath() + "/src/main/java")), parent);
+                    parent = mods.findOrCreateModuleLoader(p.getName(), new SourceDirectoryTreeModule(
+                            new File(p.getRootFileModel().getFilePath() + "/src/main/java")), parent);
                 }
             }
 
@@ -324,10 +323,12 @@ public class DivaLauncher extends GraphOperation {
                 app = (DivaAppModel) p;
             } else {
                 app = GraphService.addTypeToModel(gc, p, DivaAppModel.class);
-                String datasource = (String) appProps.get(p.getName()).getOrDefault("quarkus.datasource.jdbc.url",
-                        null);
-                if (datasource != null) {
-                    app.setDatasource(datasource);
+                if (appProps.containsKey(p.getName())) {
+                    String datasource = (String) appProps.get(p.getName()).getOrDefault("quarkus.datasource.jdbc.url",
+                            null);
+                    if (datasource != null) {
+                        app.setDatasource(datasource);
+                    }
                 }
             }
             return app;
