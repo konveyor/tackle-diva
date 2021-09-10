@@ -133,8 +133,10 @@ public class DivaLauncher extends GraphOperation {
                 ClassLoaderReference parent = ClassLoaderReference.Application;
                 while (!todo.isEmpty()) {
                     p = todo.pop();
-                    parent = mods.findOrCreateModuleLoader(p.getName(), new SourceDirectoryTreeModule(
-                            new File(p.getRootFileModel().getFilePath() + "/src/main/java")), parent);
+                    File f = new File(p.getRootFileModel().getFilePath() + "/src/main/java");
+                    if (f.exists()) {
+                        parent = mods.findOrCreateModuleLoader(p.getName(), new SourceDirectoryTreeModule(f), parent);
+                    }
                 }
             }
 

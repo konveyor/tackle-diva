@@ -6,7 +6,7 @@
 
     <groupId>io.tackle</groupId>
     <artifactId>diva-windup</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <name>diva-windup</name>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>io.tackle</groupId>
             <artifactId>diva-core</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1</version>
             <optional>true</optional>
         </dependency>
 
