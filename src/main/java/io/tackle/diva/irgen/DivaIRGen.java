@@ -74,9 +74,11 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import com.ibm.wala.cast.java.translator.Java2IRTranslator;
 import com.ibm.wala.cast.java.translator.jdt.JDT2CAstUtils;
 import com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator;
+import com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary;
 import com.ibm.wala.cast.tree.CAst;
 import com.ibm.wala.cast.tree.CAstNode;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
+import com.ibm.wala.cast.tree.CAstType;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.ModuleEntry;
@@ -501,9 +503,8 @@ public class DivaIRGen {
     public static class DoVariableBinding {
         @Advice.OnMethodExit
         public static void exit(@Advice.Return(readOnly = false) ITypeBinding binding) {
-            ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
-            if (isBroken(b)) {
-                binding = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
+            if (isBroken(binding)) {
+                binding = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
             }
         }
     }
@@ -521,13 +522,11 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void exit(@Advice.This ITypeBinding type, @Advice.Return(readOnly = false) ITypeBinding binding) {
             if (binding != null) {
-                ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
-                if (b.isRecovered()) {
-                    if (isBroken(b)) {
-                        b = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
-                        binding = b;
+                if (binding.isRecovered()) {
+                    if (isBroken(binding)) {
+                        binding = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
                     }
-                    DivaIRGen.current.findOrCreateDefaultCtor(b);
+                    DivaIRGen.current.findOrCreateDefaultCtor(binding);
                 }
             }
         }
@@ -565,9 +564,8 @@ public class DivaIRGen {
         public static void exit(@Advice.Return(readOnly = true) ITypeBinding[] parameterTypes) {
             for (int k = 0; k < parameterTypes.length; k++) {
                 ITypeBinding binding = parameterTypes[k];
-                ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
-                if (isBroken(b)) {
-                    parameterTypes[k] = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
+                if (isBroken(binding)) {
+                    parameterTypes[k] = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
                 }
             }
         }
@@ -577,9 +575,8 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void enter(@Advice.Return(readOnly = false) ITypeBinding binding) {
             if (binding != null) {
-                ITypeBinding b = binding.isParameterizedType() ? binding.getErasure() : binding;
-                if (isBroken(b)) {
-                    binding = DivaIRGen.current.findOrCreateUnknownPhantomType(b);
+                if (isBroken(binding)) {
+                    binding = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
                 }
             }
         }
@@ -636,6 +633,25 @@ public class DivaIRGen {
         }
     }
 
+    public static class DoGetCAstTypeFor {
+
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter(@Advice.Argument(value = 0) Object o) {
+            ITypeBinding astType = (ITypeBinding) o;
+            return astType.isNullType();
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.Enter boolean skip, @Advice.This JDTTypeDictionary self,
+                @Advice.FieldValue("fAst") AST fAst, @Advice.Return(readOnly = false) CAstType res) {
+            if (skip) {
+                Util.LOGGER.info("resolving nullType");
+                res = self.getCAstTypeFor(fAst.resolveWellKnownType("java.lang.Object"));
+            }
+        }
+
+    }
+
     @SuppressWarnings("serial")
     public static Map<String, Class<?>> advices() {
         return (new HashMap<String, Class<?>>() {
@@ -658,6 +674,7 @@ public class DivaIRGen {
                 // DoGetDirectInterfaces.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
+                put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
             }
         });
     }
