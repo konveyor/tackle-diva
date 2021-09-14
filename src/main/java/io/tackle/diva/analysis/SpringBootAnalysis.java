@@ -8,6 +8,7 @@ import java.util.Set;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -58,6 +59,12 @@ public class SpringBootAnalysis {
                     continue;
                 entries.add(m);
             }
+//            for (IField f : c.getDeclaredInstanceFields()) {
+//                if (!Util.any(Util.getAnnotations(f), a -> a.getType().getName() == Constants.LSpringAutowired))
+//                    continue;
+//                for (IClass sub : cha.computeSubClasses(f.getReference().getDeclaringClass())) {
+//                }
+//            }
         }
         return entries;
 
