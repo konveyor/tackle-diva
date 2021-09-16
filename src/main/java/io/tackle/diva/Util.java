@@ -51,6 +51,7 @@ import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
 
 import io.tackle.diva.irgen.DivaIRGen;
@@ -121,7 +122,7 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
-        as = DivaIRGen.annotations.get(c.getName().toString());
+        as = DivaIRGen.annotations.get(c.getReference());
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
@@ -131,8 +132,9 @@ public class Util {
     public static List<Annotation> getAnnotations(IMethod m) {
         List<Annotation> res = new ArrayList<>();
 
-        String key = m.getDeclaringClass().getName() + " " + m.getName() + " " + m.getDescriptor().toString();
-        Collection<Annotation> as = DivaIRGen.annotations.get(key);
+        // String key = m.getDeclaringClass().getName() + " " + m.getName() + " " +
+        // m.getDescriptor().toString();
+        Collection<Annotation> as = DivaIRGen.annotations.get(m.getReference());
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
@@ -143,10 +145,20 @@ public class Util {
         return res;
     }
 
+    public static List<Annotation> getAnnotations(IMethod m, int param) {
+        List<Annotation> res = new ArrayList<>();
+        Collection<Annotation> as = DivaIRGen.annotations.get(Pair.make(m.getReference(), param));
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
+        return res;
+    }
+
     public static List<Annotation> getAnnotations(IField f) {
         List<Annotation> res = new ArrayList<>();
-        String key = f.getDeclaringClass().getName() + " " + f.getName();
-        Collection<Annotation> as = DivaIRGen.annotations.get(key);
+        // String key = f.getDeclaringClass().getName() + " " + f.getName();
+        Collection<Annotation> as = DivaIRGen.annotations
+                .get(Pair.make(f.getDeclaringClass().getReference(), f.getName()));
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }

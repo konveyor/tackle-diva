@@ -64,6 +64,7 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
@@ -86,9 +87,13 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.Constants;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
 import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.strings.Atom;
 import com.ibm.wala.util.strings.StringStuff;
 
 import io.tackle.diva.Util;
@@ -97,15 +102,15 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 
 public class DivaIRGen {
 
-    public DivaIRGen(IClassLoader cl, Consumer<IClass> addClass) {
+    public DivaIRGen(IClassLoader loader, Consumer<IClass> addClass) {
         current = this;
-        this.cl = cl;
+        this.loader = loader;
         this.addClass = addClass;
     }
 
     public static DivaIRGen current;
 
-    public IClassLoader cl;
+    public IClassLoader loader;
     public Consumer<IClass> addClass;
 
     public void genIR(IClassHierarchy cha, Map<String, ModuleEntry> sourceMap, String[] stdlibs, String[] jdtDirs,
@@ -156,7 +161,7 @@ public class DivaIRGen {
         if (knownAsClasses != null) {
             for (String klazz : knownAsClasses) {
                 TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
-                if (cl.lookupClass(t) == null) {
+                if (loader.lookupClass(t) == null) {
                     TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
                     addClass.accept(new DivaPhantomClass(classRef, cha));
                 }
@@ -165,7 +170,7 @@ public class DivaIRGen {
         if (knownAsInterfaces != null) {
             for (String klazz : knownAsInterfaces) {
                 TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
-                if (cl.lookupClass(t) == null) {
+                if (loader.lookupClass(t) == null) {
                     TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
                     addClass.accept(new DivaPhantomClass(classRef, cha, true));
                 }
@@ -285,6 +290,11 @@ public class DivaIRGen {
                         }
                         knownAsClasses.add(superName);
                     }
+                    TypeReference tref = null;
+                    if (t != null) {
+                        tref = TypeReference.findOrCreate(loader.getReference(),
+                                StringStuff.deployment2CanonicalTypeString(t.getBinaryName()));
+                    }
                     List<Type> ifaces = node.superInterfaceTypes();
                     for (Type i : ifaces) {
                         String ifaceName = i.resolveBinding().getBinaryName();
@@ -292,18 +302,16 @@ public class DivaIRGen {
                             knownAsInterfaces = new HashSet();
                         }
                         knownAsInterfaces.add(ifaceName);
-                        if (t != null && i.isParameterizedType()) {
+                        if (tref != null && i.isParameterizedType()) {
                             ParameterizedType pt = (ParameterizedType) i;
                             for (Type p : (List<Type>) pt.typeArguments()) {
+                                Map<TypeName, List<TypeName>> map = instantiations.getOrDefault(tref, null);
+                                if (map == null) {
+                                    instantiations.put(tref, map = new LinkedHashMap<>());
+                                }
                                 String pname = StringStuff
                                         .deployment2CanonicalTypeString(p.resolveBinding().getBinaryName());
                                 String iname = StringStuff.deployment2CanonicalTypeString(ifaceName);
-                                String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
-                                Map<TypeName, List<TypeName>> map = instantiations
-                                        .getOrDefault(TypeName.findOrCreate(name), null);
-                                if (map == null) {
-                                    instantiations.put(TypeName.findOrCreate(name), map = new LinkedHashMap<>());
-                                }
                                 List<TypeName> list = map.getOrDefault(TypeName.findOrCreate(iname), null);
                                 if (list == null) {
                                     map.put(TypeName.findOrCreate(iname), list = new ArrayList<>());
@@ -312,9 +320,8 @@ public class DivaIRGen {
                             }
                         }
                     }
-                    if (t != null) {
-                        String name = StringStuff.deployment2CanonicalTypeString(t.getBinaryName());
-                        processAnnotations(cha, node, name);
+                    if (tref != null) {
+                        processAnnotations(cha, tref, node);
                     }
                     return true;
                 }
@@ -338,9 +345,18 @@ public class DivaIRGen {
                     IMethodBinding binding = node.resolveBinding();
                     if (binding != null) {
                         String mname = binding.isConstructor() ? "<init>" : binding.getName();
-                        String name = methodSignature(binding.getDeclaringClass(), mname, binding.getParameterTypes(),
-                                binding.getReturnType());
-                        processAnnotations(cha, node, name);
+                        // String name = methodSignature(binding.getDeclaringClass(), mname,
+                        // binding.getParameterTypes(),
+                        // binding.getReturnType());
+                        TypeReference tref = TypeReference.findOrCreate(loader.getReference(), StringStuff
+                                .deployment2CanonicalTypeString(binding.getDeclaringClass().getBinaryName()));
+                        MethodReference mref = MethodReference.findOrCreate(tref, Selector
+                                .make(methodSignatureAux(mname, binding.getParameterTypes(), binding.getReturnType())));
+                        processAnnotations(cha, mref, node);
+                        int k = 0;
+                        for (SingleVariableDeclaration var : (Iterable<SingleVariableDeclaration>) node.parameters()) {
+                            processAnnotations(cha, Pair.make(mref, k++), var);
+                        }
                     }
                     return true;
                 }
@@ -354,9 +370,15 @@ public class DivaIRGen {
                             return true;
                         }
                         VariableDeclarationFragment vdecl = (VariableDeclarationFragment) node.fragments().get(0);
-                        String name = StringStuff.deployment2CanonicalTypeString(klazz.getBinaryName()) + " "
-                                + vdecl.getName().toString();
-                        processAnnotations(cha, node, name);
+                        // String name =
+                        // StringStuff.deployment2CanonicalTypeString(klazz.getBinaryName()) + " "
+                        // + vdecl.getName().toString();
+                        // Note: won't use field reference as field type isn't necessary
+                        TypeReference tref = TypeReference.findOrCreate(loader.getReference(),
+                                StringStuff.deployment2CanonicalTypeString(klazz.getBinaryName()));
+                        Pair<TypeReference, Atom> fref = Pair.make(tref,
+                                Atom.findOrCreateUnicodeAtom(vdecl.getName().toString()));
+                        processAnnotations(cha, fref, node);
                     }
                     return true;
                 }
@@ -367,54 +389,72 @@ public class DivaIRGen {
 
     }
 
-    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
-    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
+//    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
+//    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
 
-    public static void processAnnotations(IClassHierarchy cha, BodyDeclaration node, String name) {
+    public static Map<Object, List<Annotation>> annotations = new LinkedHashMap<>();
+//    public static Map<TypeReference, List<Annotation>> classAnnotations = new LinkedHashMap<>();
+//    public static Map<MethodReference, List<Annotation>> methodAnnotations = new LinkedHashMap<>();
+//    public static Map<FieldReference, List<Annotation>> fieldAnnotations = new LinkedHashMap<>();
+//    public static Map<Pair<MethodReference, Integer>, List<Annotation>> paramAnnotations = new LinkedHashMap<>();
+    public static Map<TypeReference, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
+
+    public static void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
-                org.eclipse.jdt.core.dom.Annotation annot = (org.eclipse.jdt.core.dom.Annotation) prop;
-                String annotType = StringStuff.deployment2CanonicalTypeString(
-                        annot.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
-                Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
-                if (annot instanceof NormalAnnotation) {
-                    NormalAnnotation a1 = (NormalAnnotation) annot;
-                    for (MemberValuePair kv : (List<MemberValuePair>) a1.values()) {
-                        AnnotationsReader.ElementValue ev = null;
-                        Object v = kv.getValue().resolveConstantExpressionValue();
-                        if (v != null) {
-                            ev = new AnnotationsReader.ConstantElementValue(v);
-                        } else if (v == null && kv.getValue() instanceof ArrayInitializer) {
-                            ArrayInitializer i = (ArrayInitializer) kv.getValue();
-                            AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions()
-                                    .size()];
-                            int k = 0;
-                            for (Expression e : (List<Expression>) i.expressions()) {
-                                vs[k] = new AnnotationsReader.ConstantElementValue(i.expressions().get(k));
-                            }
-                            ev = new AnnotationsReader.ArrayElementValue(vs);
-                        }
-                        namedParams.put(kv.getName().toString(), ev);
-                        // System.out.println("HERE:" + name + "/" + kv.getName().toString() + "=" + v);
-                    }
-                } else if (annot instanceof SingleMemberAnnotation) {
-                    SingleMemberAnnotation a2 = (SingleMemberAnnotation) annot;
-                    Expression e = a2.getValue();
-                    Object v = e.resolveConstantExpressionValue();
-                    AnnotationsReader.ElementValue ev = new AnnotationsReader.ConstantElementValue(v);
-                    namedParams.put("value", ev);
-                }
-                IClass c = cha.getLoader(ClassLoaderReference.Extension).lookupClass(TypeName.findOrCreate(annotType));
-                TypeReference t1 = c != null ? c.getReference()
-                        : TypeReference.findOrCreate(ClassLoaderReference.Extension, annotType);
-                Annotation a = Annotation.makeWithNamed(t1, namedParams);
-                if (!annotations.containsKey(name)) {
-                    annotations.put(name, new ArrayList<>());
-                }
-                annotations.get(name).add(a);
-
+                processAnnotationsAux(cha, ref, (org.eclipse.jdt.core.dom.Annotation) prop);
             }
         }
+    }
+
+    public static void processAnnotations(IClassHierarchy cha, Pair<MethodReference, Integer> ref,
+            SingleVariableDeclaration node) {
+        for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
+            if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
+                processAnnotationsAux(cha, ref, (org.eclipse.jdt.core.dom.Annotation) prop);
+            }
+        }
+    }
+
+    private static void processAnnotationsAux(IClassHierarchy cha, Object ref,
+            org.eclipse.jdt.core.dom.Annotation annot) {
+        String annotType = StringStuff.deployment2CanonicalTypeString(
+                annot.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
+        Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
+        if (annot instanceof NormalAnnotation) {
+            NormalAnnotation a1 = (NormalAnnotation) annot;
+            for (MemberValuePair kv : (List<MemberValuePair>) a1.values()) {
+                AnnotationsReader.ElementValue ev = null;
+                Object v = kv.getValue().resolveConstantExpressionValue();
+                if (v != null) {
+                    ev = new AnnotationsReader.ConstantElementValue(v);
+                } else if (v == null && kv.getValue() instanceof ArrayInitializer) {
+                    ArrayInitializer i = (ArrayInitializer) kv.getValue();
+                    AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions().size()];
+                    int k = 0;
+                    for (Expression e : (List<Expression>) i.expressions()) {
+                        vs[k] = new AnnotationsReader.ConstantElementValue(i.expressions().get(k));
+                    }
+                    ev = new AnnotationsReader.ArrayElementValue(vs);
+                }
+                namedParams.put(kv.getName().toString(), ev);
+                // System.out.println("HERE:" + name + "/" + kv.getName().toString() + "=" + v);
+            }
+        } else if (annot instanceof SingleMemberAnnotation) {
+            SingleMemberAnnotation a2 = (SingleMemberAnnotation) annot;
+            Expression e = a2.getValue();
+            Object v = e.resolveConstantExpressionValue();
+            AnnotationsReader.ElementValue ev = new AnnotationsReader.ConstantElementValue(v);
+            namedParams.put("value", ev);
+        }
+        IClass c = cha.getLoader(ClassLoaderReference.Extension).lookupClass(TypeName.findOrCreate(annotType));
+        TypeReference t1 = c != null ? c.getReference()
+                : TypeReference.findOrCreate(ClassLoaderReference.Extension, annotType);
+        Annotation a = Annotation.makeWithNamed(t1, namedParams);
+        if (!annotations.containsKey(ref)) {
+            annotations.put(ref, new ArrayList<>());
+        }
+        annotations.get(ref).add(a);
     }
 
     // public static void processAnnotations(IBinding binding) {
@@ -1405,14 +1445,27 @@ public class DivaIRGen {
     public static String methodSignature(ITypeBinding klazz, String name, ITypeBinding[] params,
             ITypeBinding returnType) {
         String k = StringStuff.deployment2CanonicalTypeString(klazz.getBinaryName());
-        k += " " + name + " (";
-        for (ITypeBinding p : params) {
-            k += p.isPrimitive() ? p.getBinaryName()
-                    : StringStuff.deployment2CanonicalTypeString(p.getBinaryName()) + ";";
-        }
-        k += ")" + (returnType.isPrimitive() ? returnType.getBinaryName()
-                : StringStuff.deployment2CanonicalTypeString(returnType.getBinaryName()) + ";");
+        k += " " + methodSignatureAux(name, params, returnType);
         return k;
     }
 
+    public static String methodSignatureAux(String name, ITypeBinding[] params, ITypeBinding returnType) {
+        String k = name + "(";
+        for (ITypeBinding p : params) {
+            k += canonicalTypeString(p);
+        }
+        k += ")" + canonicalTypeString(returnType);
+        return k;
+    }
+
+    public static String canonicalTypeString(ITypeBinding p) {
+        if (p.isPrimitive()) {
+            return p.getBinaryName();
+        } else if (p.isArray()) {
+            // remove unnecessary 'L'
+            return StringStuff.deployment2CanonicalTypeString(p.getBinaryName()).substring(1);
+        } else {
+            return StringStuff.deployment2CanonicalTypeString(p.getBinaryName()) + ";";
+        }
+    }
 }
