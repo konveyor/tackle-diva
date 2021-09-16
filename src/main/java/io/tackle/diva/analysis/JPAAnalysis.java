@@ -175,7 +175,7 @@ public class JPAAnalysis {
     }
 
     public static IClass getRepoParamterType(Framework fw, TypeReference tref) {
-        List<TypeName> paramTypes = DivaIRGen.instantiations.getOrDefault(tref.getName(), Collections.emptyMap())
+        List<TypeName> paramTypes = DivaIRGen.instantiations.getOrDefault(tref, Collections.emptyMap())
                 .getOrDefault(Constants.LSpringJPARepository, null);
         if (paramTypes != null) {
             return fw.classHierarchy()
