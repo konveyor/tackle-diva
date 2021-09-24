@@ -1,0 +1,7 @@
+{
+    "id": "day_trader",
+    "name": "Day Trader (WAS)",
+    "source": {
+        "github_url": "https://github.com/WASdev/sample.daytrader7.git"
+    }
+}

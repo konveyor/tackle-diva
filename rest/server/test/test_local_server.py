@@ -11,7 +11,7 @@ from requests import Response
 
 def is_json(r: Response) -> bool:
     """returns if contentn type of the response would be JSON or not."""
-    return r.headers['content-type'].split(';')[0] == 'application/json'
+    return r.headers['content-type'].split(';')[0] in ['application/json', 'application/problem+json']
 
 
 @pytest.fixture(scope="module")
@@ -51,6 +51,32 @@ class TestAPI:
         j = r.json()
         assert j == {'status_code': 0,
                      'detail': 'Server is working', 'version': version('diva_server')}
+
+    def test_new_app(self, server_process: Popen) -> None:
+        """accessing new app API with bad request."""
+        assert server_process.poll() is None
+        data = {"id": "day_trader", "name": "Day Trader (WAS)",
+                "source": {"github_url": "https://github.com/WASdev/sample.daytrader7.git"}}
+        r = requests.post('http://localhost:8080/apps',
+                          json=data)
+        print(r.headers)
+        assert r.status_code == requests.codes.no_content
+        # assert is_json(r)
+        # j = r.json()
+
+    def test_new_app_bad_request(self, server_process: Popen) -> None:
+        """accessing new app API with bad request."""
+        assert server_process.poll() is None
+        r = requests.post('http://localhost:8080/apps',
+                          json={"bad": "format"})
+        print(r.headers)
+        print(r.json())
+        assert r.status_code == requests.codes.bad_request
+        assert is_json(r)
+        j = r.json()
+        assert 'detail' in j
+        assert j['status'] == 400
+        assert j['title'] == 'Bad Request'
 
 
 class TestGenerated:

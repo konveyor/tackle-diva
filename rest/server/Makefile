@@ -16,3 +16,8 @@ run.base:
 run.local:
 	poetry run connexion run -p 8080 --mock=notimplemented --strict-validation --validate-responses \
 	--debug spec/openapi.yaml
+
+# remove python caches under source code dir.
+# it does not remove them under the virtual env (= ".venv/")
+clean:
+	find src -name '__pycache__' -type d | xargs rm -r

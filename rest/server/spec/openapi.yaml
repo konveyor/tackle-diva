@@ -16,14 +16,17 @@ externalDocs:
   url: "https://github.com/shinsa82-sgi-2021/tackle-diva/tree/main/rest/server"
 
 tags:
-  - name: "General"
-    description: "General"
+  - name: General
+    description: General operations
+  - name: Application
+    description: Operations on application(s)
+  - name: Database
+    description: Database information
+  - name: Transaction
+    description: Transaction information
+
   - name: "Analysis"
     description: "Code Analysis"
-  - name: "database"
-    description: "Database"
-  - name: "transaction"
-    description: "Transaction"
 
 # to be changed to valid public endpoints
 servers:
@@ -60,126 +63,57 @@ paths:
         Currently URL for a Git repository is allowed as application source code.
         If successful, new resource for the analysis result will be created and its URL will be returned.
         If failed, a Bad Request error (400) will be returned with its reason.
+      operationId: diva_server.new_app
       requestBody:
         required: true
         content:
           "application/json":
-            schema: {}
+            schema:
+              $ref: "#/components/schemas/NewApp"
+            example: {}
       responses:
-        "201":
+        "204":
           description: Analysis is successfully completed and its results are generated.
         "400":
           description: Analysis failed.
-
-  /analysis/{applicationName}:
-    post:
+  /apps/{id}:
+    get:
       tags:
-        - "analysis"
-      summary: "ç"
+        - Application
+      summary: "Query status of application code analysis"
+      description: to be written.
+      operationId: diva_server.get_app
       parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name"
+        - name: id
+          in: path
+          description: Target application ID.
           required: true
           schema:
             type: string
-      requestBody:
-        description: "GitHub URL of source application codes."
-        required: true
-        content:
-          "application/json":
-            schema:
-              $ref: "#/components/schemas/GithubURL"
-      responses:
-        200:
-          description: "Successful operation"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
-    put:
-      tags:
-        - "analysis"
-      summary: "Update an existing application code analysis result."
-      parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name"
-          required: true
-          schema:
-            type: "string"
-      requestBody:
-        description: "GitHub URL of source application codes."
-        required: true
-        content:
-          "application/json":
-            schema:
-              $ref: "#/components/schemas/GithubURL"
-      responses:
-        200:
-          description: "Successful operation"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
-    get:
-      tags:
-        - "analysis"
-      summary: "Query application analysis status"
-      parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name."
-          required: true
-          schema:
-            type: "string"
       responses:
         200:
           description: "Successful operation"
           content:
             "application/json":
               schema:
-                $ref: "#/components/schemas/Analysis"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
-    delete:
-      tags:
-        - "analysis"
-      summary: "Delete application analysis results"
-      description: "Delete application analysis results"
-      parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name"
-          required: true
-          schema:
-            type: "string"
-      responses:
-        200:
-          description: "Successful operation"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/Analysis"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
+                $ref: "#/components/schemas/AppStatus"
+        404:
+          description: "Application ID not found."
 
-  /database/{applicationName}:
+  /apps/{id}/database:
     get:
       tags:
-        - "database"
-      summary: "Get a list of database tables"
+        - "Database"
+      summary: Get a list of database tables for an app
+      description: to be written.
+      operationId: diva_server.get_database
       parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name"
+        - name: id
+          in: path
+          description: Target application ID.
           required: true
           schema:
-            type: "string"
+            type: string
       responses:
         200:
           description: "Successful operation"
@@ -187,23 +121,23 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/Database"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
+        404:
+          description: "Application ID not found."
 
-  /transaction/{applicationName}:
+  /apps/{id}/transaction:
     get:
       tags:
-        - "transaction"
-      summary: "Get a list of transactions"
+        - Transaction
+      summary: "Get a list of transactions for an app"
+      description: to be written.
+      operationId: diva_server.get_transaction
       parameters:
-        - name: "applicationName"
-          in: "path"
-          description: "Target application name"
+        - name: id
+          in: path
+          description: Target application ID.
           required: true
           schema:
-            type: "string"
+            type: string
       responses:
         200:
           description: "Successful operation"
@@ -211,10 +145,105 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/Transaction"
-        400:
-          description: "Invalid {applicationName}"
-        405:
-          description: "Validation exception"
+        404:
+          description: "Application ID not found."
+
+  # /analysis/{applicationName}:
+  #   post:
+  #     tags:
+  #       - "analysis"
+  #     summary: "ç"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: string
+  #     requestBody:
+  #       description: "GitHub URL of source application codes."
+  #       required: true
+  #       content:
+  #         "application/json":
+  #           schema:
+  #             $ref: "#/components/schemas/GithubURL"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   put:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Update an existing application code analysis result."
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     requestBody:
+  #       description: "GitHub URL of source application codes."
+  #       required: true
+  #       content:
+  #         "application/json":
+  #           schema:
+  #             $ref: "#/components/schemas/GithubURL"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   get:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Query application analysis status"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name."
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #         content:
+  #           "application/json":
+  #             schema:
+  #               $ref: "#/components/schemas/AppStatus"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   delete:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Delete application analysis results"
+  #     description: "Delete application analysis results"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #         content:
+  #           "application/json":
+  #             schema:
+  #               $ref: "#/components/schemas/AppStatus"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
 
 components:
   schemas:
@@ -240,19 +269,32 @@ components:
         - version
       additionalProperties: false
 
-    Analysis:
-      type: "object"
-      required:
-        - "name"
-        - "githubURL"
-        - "status"
+    NewApp:
+      type: object
       properties:
+        id:
+          type: string
+          description: Unique key for identifying each app.
+        name:
+          type: string
+          description: Display name for the app, which does not need to be unique.
+        source:
+          $ref: "#/components/schemas/AppSource"
+      required:
+        - id
+        - source
+
+    AppStatus:
+      type: "object"
+      properties:
+        id:
+          type: string
+          description: Unique key for identifying each app.
         name:
           type: "string"
           example: "daytrader"
-        githubURL:
-          type: "string"
-          example: "https://github.com/WASdev/sample.daytrader7"
+        source:
+          $ref: "#/components/schemas/AppSource"
         status:
           type: "string"
           enum:
@@ -260,32 +302,35 @@ components:
             - "pending"
             - "none"
           default: "available"
+      required:
+        - id
+        - name
+        - source
+        - status
 
     Database:
       type: "object"
-      required:
-        - "databases"
-      properties:
-        databases:
-          type: "array"
-          items:
-            type: "string"
+      additionalProperties:
+        type: array
+        items:
+          type: string
 
     Transaction:
-      type: "object"
-      required:
-        - "entry"
-        - "http-param"
-        - "transactions"
-      properties:
-        entry:
-          $ref: "#/components/schemas/Entry"
-        http-param:
-          $ref: "#/components/schemas/HttpParam"
-        transactions:
-          type: "array"
-          items:
-            $ref: "#/components/schemas/Tx"
+      type: array
+      items:
+        type: object
+        properties:
+          entry:
+            $ref: "#/components/schemas/Entry"
+          http-param:
+            $ref: "#/components/schemas/HttpParam"
+          transactions:
+            type: "array"
+            items:
+              $ref: "#/components/schemas/Tx"
+        required:
+          - "entry"
+          - "transactions"
 
     Entry:
       type: "object"
@@ -353,9 +398,11 @@ components:
     AppSource:
       oneOf:
         - $ref: "#/components/schemas/GithubURL"
+      description: application source
 
     GithubURL:
       type: "object"
+      description: Application source info that points to GitHub repository.
       required:
         - github_url
       properties:
