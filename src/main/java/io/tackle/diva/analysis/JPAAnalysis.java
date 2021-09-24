@@ -3,6 +3,7 @@ package io.tackle.diva.analysis;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,6 +23,7 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.FieldReference;
@@ -36,6 +38,7 @@ import io.tackle.diva.Context;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
+import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class JPAAnalysis {
@@ -96,8 +99,10 @@ public class JPAAnalysis {
                             }
                         }
                     }
-                    if (colName == null)
+                    if (tags.isEmpty())
                         continue;
+                    if (colName == null)
+                        colName = f.getName().toString();
                     columnDefinitions.put(f.getReference(), new TableColumn(tableName, colName, tags, null));
                     System.out.println(f + "->" + Util.getAnnotations(f));
                 }
@@ -169,6 +174,16 @@ public class JPAAnalysis {
         }
     }
 
+    public static IClass getRepoParamterType(Framework fw, TypeReference tref) {
+        List<TypeName> paramTypes = DivaIRGen.instantiations.getOrDefault(tref, Collections.emptyMap())
+                .getOrDefault(Constants.LSpringJPARepository, null);
+        if (paramTypes != null) {
+            return fw.classHierarchy()
+                    .lookupClass(TypeReference.findOrCreate(tref.getClassLoader(), paramTypes.get(0)));
+        }
+        return null;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -190,11 +205,21 @@ public class JPAAnalysis {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         populateInsertOrUpdate(fw, trace, instr);
 
-                    } else if (ref.getName() == Constants.delete) {
-                        SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                    } else if (ref.getName() == Constants.find || ref.getName() == Constants.findAll
+                            || ref.getName() == Constants.findById || ref.getName() == Constants.findAllById
+                            || ref.getName() == Constants.getOne || ref.getName() == Constants.getById
+                            || ref.getName() == Constants.existsById || ref.getName() == Constants.delete
+                            || ref.getName() == Constants.deleteAll || ref.getName() == Constants.deleteById) {
                         String table = null;
                         String id = null;
-                        IClass typ = trace.inferType(fw, instr.getUse(1));
+                        IClass typ = getRepoParamterType(fw, tref);
+                        if (typ == null) {
+                            SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                            typ = trace.inferType(fw, instr.getUse(0));
+                            if (typ != null) {
+                                typ = getRepoParamterType(fw, typ.getReference());
+                            }
+                        }
                         if (typ != null) {
                             for (IField f : typ.getAllFields()) {
                                 FieldReference fref = f.getReference();
@@ -208,8 +233,18 @@ public class JPAAnalysis {
                                 }
                             }
                         }
+
                         if (table != null) {
-                            fw.reportSqlStatement(trace, "delete from " + table + " where " + id + " = ?");
+                            String exp = "";
+                            if (ref.getName() != Constants.findAll && ref.getName() != Constants.deleteAll) {
+                                exp = " where " + id + " = ?";
+                            }
+                            if (ref.getName() == Constants.delete || ref.getName() == Constants.deleteAll
+                                    || ref.getName() == Constants.deleteById) {
+                                fw.reportSqlStatement(trace, "delete from " + table + exp);
+                            } else {
+                                fw.reportSqlStatement(trace, "select * from " + table + exp);
+                            }
                         } else {
                             Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
                         }
@@ -217,24 +252,7 @@ public class JPAAnalysis {
                     } else if (queryDefinitions.containsKey(ref)) {
                         fw.reportSqlStatement(trace, queryDefinitions.get(ref));
 
-                    } else if (ref.getName().toString().startsWith("findBy")) {
-                        String key = ref.getName().toString().substring("findBy".length()).toLowerCase();
-                        IClass typ = fw.classHierarchy().lookupClass(ref.getReturnType());
-                        TableColumn tcol = null;
-                        for (IField f : typ.getDeclaredInstanceFields()) {
-                            if (f.getName().toString().equalsIgnoreCase(key)) {
-                                if (columnDefinitions.containsKey(f.getReference())) {
-                                    tcol = columnDefinitions.get(f.getReference());
-                                    break;
-                                }
-                            }
-                        }
-                        if (tcol != null) {
-                            fw.reportSqlStatement(trace,
-                                    "select * from " + tcol.tableName + " where " + tcol.colName + " = ?");
-                        } else {
-                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
-                        }
+                    } else if (parseQueryCreation(ref, tref, trace, fw)) {
                     } else {
                         Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
                     }
@@ -254,6 +272,111 @@ public class JPAAnalysis {
                 }
             }
         };
+    }
+
+    public static String[] CONNECTIVES = new String[] { "And", "Or", "OrderBy" };
+    public static String[] OPERATORS = new String[] { "Is", "Equals", "Between", "LessThanEqual", "LessThan",
+            "GreaterThanEqual", "GreaterThan", "After", "Before", "IsNull", "IsNotNull", "NotNull", "Like", "NotLike",
+            "StartingWith", "EndingWith", "Containing", "NotIn", "Not", "In", "True", "False", "IgnoreCase", "Asc",
+            "Desc" };
+
+    public static String[] JPQL_CONNECTIVES = new String[] { "and", "or", "order by" };
+    public static String[] JPQL_OPERATORS = new String[] { "= ?", "= ?", "between ? and ?", "<= ?", "< ?", ">= ?",
+            "> ?", "> ?", "< ?", "is null", "not null", "not null", "like ?", "not like ?", "like ?", "like ?",
+            "like ?", "not in ?", "<> ?", "in ?", "= true", "= false", "<ignorecase>", "asc", "desc" };
+
+    public static boolean parseQueryCreation(MethodReference ref, TypeReference tref, Trace trace, Framework fw) {
+        // @See
+        // https://docs.spring.io/spring-data/commons/docs/2.3.6.BUILD-SNAPSHOT/reference/html/#repositories.query-methods.query-creation
+
+        String mname = ref.getName().toString();
+        if (!mname.contains("By"))
+            return false;
+
+        String stmt;
+        if (mname.startsWith("find") || mname.startsWith("read") || mname.startsWith("get") || mname.startsWith("query")
+                || mname.startsWith("search") || mname.startsWith("stream")) {
+            stmt = "select * from";
+        } else if (mname.startsWith("exists") || mname.startsWith("count")) {
+            stmt = "select count(*) from";
+        } else if (mname.startsWith("delete") || mname.startsWith("remove")) {
+            stmt = "delete from";
+        } else {
+            return false;
+        }
+
+        String term = mname.substring(mname.indexOf("By") + 2);
+        String table = "?";
+        String exp = "";
+
+        while (!term.isEmpty()) {
+            String field = null;
+            int i0 = -1, k0 = -1;
+            for (int k = 0; k < CONNECTIVES.length; k++) {
+                int i = term.indexOf(CONNECTIVES[k]);
+                int i1 = i + CONNECTIVES[k].length();
+                if (i1 >= term.length() || !Character.isUpperCase(term.charAt(i1)))
+                    continue;
+                if (i >= 0 && (i0 < 0 || i < i0)) {
+                    i0 = i;
+                    k0 = k;
+                }
+            }
+            if (k0 >= 0) {
+                field = term.substring(0, i0);
+                term = term.substring(i0 + CONNECTIVES[k0].length());
+            } else {
+                field = term;
+                term = "";
+            }
+            int j0 = -1;
+            for (int j = 0; j < OPERATORS.length; j++) {
+                if (field.endsWith(OPERATORS[j])) {
+                    field = field.substring(0, field.length() - OPERATORS[j].length());
+                    j0 = j;
+                    break;
+                }
+            }
+
+            IClass typ = fw.classHierarchy().lookupClass(ref.getReturnType());
+            if (typ == null || typ.getName() == Constants.LJavaUtilList) {
+                typ = getRepoParamterType(fw, tref);
+            }
+            TableColumn tcol = null;
+            if (typ != null) {
+                for (IField f : typ.getDeclaredInstanceFields()) {
+                    if (f.getName().toString().equalsIgnoreCase(field)) {
+                        if (columnDefinitions.containsKey(f.getReference())) {
+                            tcol = columnDefinitions.get(f.getReference());
+                            break;
+                        }
+                    }
+                }
+            }
+            if (tcol != null) {
+                if (j0 >= 0) {
+                    exp += tcol.colName + " " + JPQL_OPERATORS[j0];
+                } else {
+                    exp += tcol.colName + " = ?";
+                }
+                table = tcol.tableName;
+            } else if (j0 >= 0) {
+                exp += "? " + JPQL_OPERATORS[j0];
+            } else {
+                exp += "?";
+            }
+            if (k0 >= 0) {
+                exp += " " + JPQL_CONNECTIVES[k0] + " ";
+            }
+        }
+
+        String sql = stmt + " " + table;
+        if (!exp.isEmpty()) {
+            sql += " where " + exp;
+        }
+        fw.reportSqlStatement(trace, sql);
+        Util.LOGGER.info("Spring query creation: " + sql);
+        return true;
     }
 
     public static void populateInsertOrUpdate(Framework fw, Trace trace, SSAAbstractInvokeInstruction instr) {
@@ -278,22 +401,43 @@ public class JPAAnalysis {
                 v = null;
                 continue;
             }
+            if (v.instr() instanceof SSACheckCastInstruction) {
+                v = v.getDef(v.instr().getUse(0));
+            }
             break;
         }
         if (v == null)
             return;
         // System.out.println(p + ": " + instr + ": " + v);
         if (v.instr() instanceof SSANewInstruction) {
-            populateInsert(fw, trace, v);
+            TypeReference tref = ((SSANewInstruction) v.instr()).getConcreteType();
+            IClass c = fw.classHierarchy().lookupClass(tref);
+            populateInsert(fw, trace, c);
+
         } else if (v.instr() instanceof SSAAbstractInvokeInstruction) {
-            populateUpdate(fw, trace, v);
+            IClass repo = trace.inferType(fw, instr.getUse(0));
+            if (repo == null) {
+                repo = fw.classHierarchy().lookupClass(instr.getDeclaredTarget().getDeclaringClass());
+            }
+            IClass c = getRepoParamterType(fw, repo.getReference());
+            if (c == null) {
+                c = trace.inferType(fw, instr.getUse(1));
+                if (c == null) {
+                    MethodReference mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget();
+                    c = fw.classHierarchy().lookupClass(mref.getReturnType());
+                }
+            }
+            if (c != null) {
+                populateUpdate(fw, trace, c);
+            } else {
+                Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+            }
+        } else {
+            Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
         }
     }
 
-    public static void populateInsert(Framework fw, Trace trace, Trace.Val v) {
-        TypeReference tref = ((SSANewInstruction) v.instr()).getConcreteType();
-        IClass c = fw.classHierarchy().lookupClass(tref);
-
+    public static void populateInsert(Framework fw, Trace trace, IClass c) {
         String table = null;
         String s = null;
         String t = null;
@@ -310,11 +454,7 @@ public class JPAAnalysis {
         fw.reportSqlStatement(trace, sql);
     }
 
-    public static void populateUpdate(Framework fw, Trace trace, Trace.Val v) {
-        MethodReference mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget();
-        TypeReference tref = mref.getReturnType();
-        IClass c = fw.classHierarchy().lookupClass(tref);
-
+    public static void populateUpdate(Framework fw, Trace trace, IClass c) {
         String table = null;
         String s = null;
         for (IField f : c.getAllFields()) {

@@ -47,12 +47,15 @@ public interface Constants {
     Atom withTableName = Atom.findOrCreateUnicodeAtom("withTableName");
     Atom usingGeneratedKeyColumns = Atom.findOrCreateUnicodeAtom("usingGeneratedKeyColumns");
 
+    Atom find = Atom.findOrCreateUnicodeAtom("find");
     Atom findById = Atom.findOrCreateUnicodeAtom("findById");
     Atom findAll = Atom.findOrCreateUnicodeAtom("findAll");
     Atom findAllById = Atom.findOrCreateUnicodeAtom("findAllById");
+    Atom getOne = Atom.findOrCreateUnicodeAtom("getOne");
     Atom getById = Atom.findOrCreateUnicodeAtom("getById");
     Atom existsById = Atom.findOrCreateUnicodeAtom("existsById");
     Atom delete = Atom.findOrCreateUnicodeAtom("delete");
+    Atom deleteAll = Atom.findOrCreateUnicodeAtom("deleteAll");
     Atom deleteById = Atom.findOrCreateUnicodeAtom("deleteById");
     Atom save = Atom.findOrCreateUnicodeAtom("save");
     Atom saveAndFlush = Atom.findOrCreateUnicodeAtom("saveAndFlush");
@@ -67,6 +70,9 @@ public interface Constants {
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
+    TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+
+    // Spring
     TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");
     TypeName LSpringSimpleJdbcInsert = TypeName.findOrCreate("Lorg/springframework/jdbc/core/simple/SimpleJdbcInsert");
     TypeName LSpringTransactional = TypeName.findOrCreate("Lorg/springframework/transaction/annotation/Transactional");
@@ -74,6 +80,8 @@ public interface Constants {
     TypeName LSpringBeanSource = TypeName
             .findOrCreate("Lorg/springframework/jdbc/core/namedparam/BeanPropertySqlParameterSource");
     TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
+    TypeName LSpringRestController = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RestController");
+    TypeName LSpringScheduled = TypeName.findOrCreate("Lorg/springframework/scheduling/annotation/Scheduled");
 
     // Servlet
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");

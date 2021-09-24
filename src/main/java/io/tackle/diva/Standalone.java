@@ -48,6 +48,7 @@ import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
@@ -116,6 +117,8 @@ public class Standalone {
         cgEntries.addAll(entries);
         cgEntries.addAll(SpringBootAnalysis.getInits(cha));
 
+        JPAAnalysis.getEntities(cha);
+
         CallGraph cg = gengraph(scope, cha, apploader, cgEntries);
 
         Framework fw = new Framework(cha, cg);
@@ -177,6 +180,7 @@ public class Standalone {
         CallGraph cg = builder.get();
         Util.LOGGER.info("done");
         Util.LOGGER.info(CallGraphStats.getStats(cg));
+        // Util.dumpCallGraph(cg);
         return cg;
     }
 

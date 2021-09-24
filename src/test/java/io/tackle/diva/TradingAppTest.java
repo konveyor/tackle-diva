@@ -90,6 +90,8 @@ public class TradingAppTest {
         Set<IMethod> entries = new LinkedHashSet<>();
 
         for (IClass c : cha) {
+            if (c.getClassLoader().getReference().equals(ClassLoaderReference.Primordial))
+                continue;
             for (IMethod m : c.getDeclaredMethods()) {
                 if (c.getName().toString().endsWith("Controller") && m.getName() != Constants.theClinit
                         && m.getName() != Constants.theInit) {

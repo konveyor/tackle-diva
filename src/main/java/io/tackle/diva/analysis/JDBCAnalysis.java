@@ -162,15 +162,19 @@ public class JDBCAnalysis {
                 }
 
             } else if (!fw.classHierarchy().getPossibleTargets(mref).isEmpty()) {
-                IMethod m = fw.classHierarchy().getPossibleTargets(mref).iterator().next();
-                CGNode n = fw.callgraph().getNode(m, value.trace().node().getContext());
-                SSAInstruction[] instrs = n.getIR().getInstructions();
-                for (int i = instrs.length - 1; i >= 0; i--) {
-                    if (instrs[i] == null)
+                for (IMethod m : fw.classHierarchy().getPossibleTargets(mref)) {
+                    CGNode n = fw.callgraph().getNode(m, value.trace().node().getContext());
+                    if (n == null)
                         continue;
-                    if (instrs[i] instanceof SSAReturnInstruction) {
-                        Trace.Val v = new Trace(n, value.trace()).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
-                        return calculateReachingString(fw, v, visited);
+                    SSAInstruction[] instrs = n.getIR().getInstructions();
+                    for (int i = instrs.length - 1; i >= 0; i--) {
+                        if (instrs[i] == null)
+                            continue;
+                        if (instrs[i] instanceof SSAReturnInstruction) {
+                            Trace.Val v = new Trace(n, value.trace())
+                                    .getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
+                            return calculateReachingString(fw, v, visited);
+                        }
                     }
                 }
 
