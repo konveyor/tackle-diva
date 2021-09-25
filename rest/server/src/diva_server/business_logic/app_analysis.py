@@ -4,7 +4,6 @@ Implementation of the REST APIs.
 Also useful for modular testing.
 """
 import json
-import logging
 from abc import abstractmethod
 from contextlib import nullcontext
 from glob import glob, iglob
@@ -16,11 +15,12 @@ from typing import Any, Tuple
 
 import docker
 from docker.types import LogConfig
+from flask import current_app
 
 from ..postprocess import db_extractor
-from ..util import dry_run, get_logger, temp_dir
+from ..util import JavaExecution, dry_run, get_logger, java_exec, persistent, temp_dir
 
-(debug, info, warning, _, exception) = get_logger(__name__)
+(debug, info, warning, error, exception) = get_logger(__name__)
 
 
 class SourceLoader:
@@ -40,11 +40,12 @@ class GitHubLoader(SourceLoader):
 
     def load(self, clone_to: str) -> None:
         """loads source under the specified tempdir."""
-        debug('executing git clone command...')
+        info(f'cloning source at {self.repo} to {clone_to}...')
+        info('executing git clone command...')
         cp: CompletedProcess = run(args=["git", "clone",  # "--depth=1",
                                          self.repo, clone_to], capture_output=True, text=True, check=True)
         assert cp.returncode == 0
-        debug(f'return code = {cp.returncode}')
+        info(f'completed. return code = {cp.returncode}')
         debug('stdout:')
         debug('--> ' + cp.stdout)
         debug('stderr:')
@@ -79,8 +80,8 @@ class OnDockerAnalyzer(Analyzer):
             output_dir: {'bind': '/out', 'mode': 'rw'}
         }
 
-        debug(
-            f'executing command "{_command}"" on docker container {_image}...')
+        info(
+            f'executing command "{_command}" on docker container {_image}...')
         debug(f"volumes mounted:")
         debug(_vols)
         info('running container... (takes time)')
@@ -102,8 +103,28 @@ class OnDockerAnalyzer(Analyzer):
         info(f"analysis results are created at {output_dir}")
 
 
+class LocalAnalyzer(Analyzer):
+    def analyze(self, input: str, output: str) -> None:
+        """Analyze source code using local Java runtime."""
+        _command = ['java', '-jar',
+                    '/diva-distribution/bin/diva.jar', '-s', input]
+        info(
+            f'executing command {_command} using local subprocess...')
+        cp: CompletedProcess = run(
+            args=_command, cwd=output, capture_output=True, text=True, check=True)
+        assert cp.returncode == 0
+        info(f'completed. return code = {cp.returncode}')
+        debug('stdout:')
+        debug('--> ' + cp.stdout)
+        debug('stderr:')
+        debug('==> ' + cp.stderr)
+
+
 def gen_analyzer(spec: Any) -> Analyzer:
-    return OnDockerAnalyzer()
+    javaex: JavaExecution = java_exec()
+    if javaex == JavaExecution.docker:
+        return OnDockerAnalyzer()
+    return LocalAnalyzer()
 
 
 def main(body):
@@ -126,7 +147,7 @@ def main_(id: str, source: dict, name: str = None, in_dir=None, out_dir=None, **
     info(f"source = {source}")
 
     loader: SourceLoader = source_loader(source)
-    info(f'loader for the given source is created: {loader}')
+    info(f'source code loader is created: {loader}')
 
     analyzer: Analyzer = gen_analyzer(None)
     info(f'analyzer is created: {analyzer}')

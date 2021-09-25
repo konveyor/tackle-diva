@@ -1,4 +1,10 @@
-FROM diva-rest-base:latest
+FROM diva:latest
+
+RUN apt-get update \
+    && apt-get install -y \
+    python3.7 python3-pip curl \
+    && apt-get clean \ 
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -13,14 +19,19 @@ WORKDIR /app
 COPY requirements.txt .
 COPY src src
 COPY spec spec
+COPY dist dist
+COPY .env.docker .env
+
+RUN python3 -m pip install -r requirements.txt --no-deps
+RUN python3 -m pip install dist/diva_server-1.0.0rc1-py3-none-any.whl
 
 # cannot install connexion into Python 2...
 ## for version 2
 #RUN pip install -r requirements.txt
 
 # for version 3.7
-RUN python3.7 -m pip install -r requirements.txt
+## RUN python3.7 -m pip install -r requirements.txt
 
 # CMD [ "python3.7", "src/server.py" ]
 # use connexion CLI instead. to add other options for validation, etc.
-CMD [ "connexion", "run", "-p", "8080", "--mock=notimplemented", "--debug", "spec/openapi.yaml" ]
+CMD [ "python3", "-m", "diva_server" ]

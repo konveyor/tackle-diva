@@ -5,6 +5,7 @@ Each API endpoint is automatically dispatched to methods below by connexion.
 For the implementation of each endpoint, see modules under 'business_logic' package.
 """
 import logging
+from enum import Enum, auto
 from operator import attrgetter
 from pathlib import Path
 from typing import Callable
@@ -15,13 +16,15 @@ from environs import Env
 from .business_logic import app_analysis as analysis_
 from .business_logic import get_app as get_app_
 from .business_logic import health_check as health_check_
+from .util import JavaExecution, Persistent
 
 (debug, info) = attrgetter('debug', 'info')(logging.getLogger(__name__))
 
 
 def spec_dir() -> str:
     "construct full path of specification directory"
-    return str(Path(__file__).parent.parent.parent / 'spec')
+    return str(Path(__file__).parent / 'spec')
+    # return str(Path(__file__).parent.parent.parent / 'spec')
 
 
 def main_app(env: Env):
@@ -32,10 +35,15 @@ def main_app(env: Env):
                 strict_validation=True, validate_responses=True)
     app.app.config['env'] = env  # store Env object to Flash app
 
+    persis = env.enum("PERSISTENT", Persistent.database.name,
+                      type=Persistent, ignore_case=True)
+    javaexec = env.enum("JAVA_EXEC", JavaExecution.local.name,
+                        type=JavaExecution, ignore_case=True)
     info('application config:')
     info(f'  DRY_RUN = {env.bool("DRY_RUN", False)}')
-    info(f'  PERSISTENT = {env.str("PERSISTENT", "database")}')
+    info(f'  PERSISTENT = {persis}')
     info(f'  TEMP_DIR = {env.str("TEMP_DIR", None)}')
+    info(f'  JAVA_EXEC = {javaexec}')
     return app
 
 
