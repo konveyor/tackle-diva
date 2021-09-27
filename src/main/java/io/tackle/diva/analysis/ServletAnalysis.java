@@ -39,8 +39,6 @@ import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
-import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntPair;
@@ -121,8 +119,50 @@ public class ServletAnalysis {
         }
     }
 
-    public static Trace.NodeVisitor getContextualAnalysis(Framework fw) {
+    @FunctionalInterface
+    public interface Matcher {
+        public String apply(Framework fw, Trace.Val v);
 
+        public default Matcher with(Matcher m) {
+            return (fw, v) -> {
+                String k = Matcher.this.apply(fw, v);
+                if (k != null) {
+                    return k;
+                }
+                return m.apply(fw, v);
+            };
+        }
+    }
+
+    public static Trace.NodeVisitor getContextualAnalysis(Framework fw) {
+        return getContextualAnalysisAux(fw, getHttpParameterMatcher().with(SpringBootAnalysis.getJsonRequestMatcher()));
+    }
+
+    public static Matcher getHttpParameterMatcher() {
+        return (fw, v) -> {
+            if (v.isConstant() || !(v.instr() instanceof SSAAbstractInvokeInstruction))
+                return null;
+            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v.instr();
+            if (invoke.getDeclaredTarget().getName() != Constants.getParameter)
+                return null;
+            Trace.Val v2 = v.getDef(invoke.getUse(1));
+            if (!v2.isConstant() && !(v2.constant() instanceof String))
+                return null;
+            return v2.toString();
+        };
+    }
+
+    public static Trace.NodeVisitor getContextualAnalysisAux(Framework fw, Matcher matcher) {
+        /*
+         * Search for branches corresponding to test expressions in the form of
+         * 'value.equals(request.getParameter(key))'.
+         *
+         * coveringBranches: Mapping (key, value)-constraint to a set of depending
+         * branch instructions.
+         *
+         * reachingNodesCache: Reachability analysis for calculating forbidden (=
+         * irrelevant) entry methods
+         */
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
         Map<Integer, MutableIntSet> reachingNodesCache = new LinkedHashMap<>();
 
@@ -134,11 +174,6 @@ public class ServletAnalysis {
             IR ir = node.getIR();
             if (ir == null)
                 return;
-
-            MethodReference stringEquals = MethodReference.findOrCreate(
-                    TypeReference.findOrCreate(node.getMethod().getDeclaringClass().getClassLoader().getReference(),
-                            "Ljava/lang/String"),
-                    "equals", "(Ljava/lang/Object;)Z");
 
             outer: for (SSAInstruction instr : ir.getInstructions()) {
                 if (!(instr instanceof SSAConditionalBranchInstruction))
@@ -200,7 +235,9 @@ public class ServletAnalysis {
                     continue;
                 SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
 
-                if (invoke.getDeclaredTarget() != stringEquals)
+                if (invoke.getDeclaredTarget().getName() != Constants.equals
+                        && invoke.getDeclaredTarget().getName() != Constants.equalsIgnoreCase
+                        && invoke.getDeclaredTarget().getName() != Constants.contains)
                     continue;
 
                 Trace.Val v2 = v0.getDef(invoke.getUse(0));
@@ -215,19 +252,13 @@ public class ServletAnalysis {
                     v2 = v3;
                     v3 = tmp;
                 }
-                if (!v3.isConstant() || !(v3.constant() instanceof String) || v2.isConstant()
-                        || !(v2.instr() instanceof SSAAbstractInvokeInstruction))
+                if (!v3.isConstant() || !(v3.constant() instanceof String))
                     continue;
 
-                SSAAbstractInvokeInstruction invoke2 = (SSAAbstractInvokeInstruction) v2.instr();
-                if (invoke2.getDeclaredTarget().getName() != Constants.getParameter)
-                    continue;
+                String key = matcher.apply(fw, v2);
 
-                Trace.Val v4 = v2.getDef(invoke2.getUse(1));
-                if (!v4.isConstant() && !(v4.constant() instanceof String))
+                if (key == null)
                     continue;
-
-                String key = v4.toString();
 
                 if (!phiOrigins.isEmpty()) {
                     MutableIntSet copy = new BitVectorIntSet();
@@ -310,7 +341,7 @@ public class ServletAnalysis {
                     }
                 });
 
-                LOGGER.info(v4 + "=" + v3);
+                LOGGER.info(key + "=" + val);
             }
 
         };

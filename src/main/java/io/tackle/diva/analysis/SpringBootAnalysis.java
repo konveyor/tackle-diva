@@ -8,7 +8,6 @@ import java.util.Set;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
-import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -17,6 +16,8 @@ import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAReturnInstruction;
+import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.IntPair;
 
@@ -195,4 +196,55 @@ public class SpringBootAnalysis {
         return "??";
     }
 
+    public static ServletAnalysis.Matcher getJsonRequestMatcher() {
+        return SpringBootAnalysis::jsonRequestMatcher;
+    }
+
+    public static String jsonRequestMatcher(Framework fw, Trace.Val v) {
+        if (v.isConstant())
+            return null;
+
+        if (v.instr() instanceof SSAAbstractInvokeInstruction) {
+            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v.instr();
+            MethodReference mref = invoke.getDeclaredTarget();
+            if (fw.classHierarchy().getPossibleTargets(mref).isEmpty())
+                return null;
+            for (IMethod m : fw.classHierarchy().getPossibleTargets(mref)) {
+                CGNode n = fw.callgraph().getNode(m, v.trace().node().getContext());
+                if (n == null)
+                    continue;
+                SSAInstruction[] instrs = n.getIR().getInstructions();
+                for (int i = instrs.length - 1; i >= 0; i--) {
+                    if (instrs[i] == null)
+                        continue;
+                    if (instrs[i] instanceof SSAReturnInstruction) {
+                        Trace t2 = new Trace(v.trace().node(), v.trace().parent());
+                        t2.setSite(invoke.getCallSite());
+                        Trace.Val v2 = new Trace(n, t2).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
+                        return jsonRequestMatcher(fw, v2);
+                    }
+                }
+            }
+
+        } else if (v.instr() instanceof SSAGetInstruction) {
+            FieldReference field = ((SSAGetInstruction) v.instr()).getDeclaredField();
+            Trace.Val v2 = v.getDefOrParam(v.instr().getUse(0));
+            if (v2 == null)
+                return null;
+            if (v2.isParam()) {
+                IMethod m = v2.trace().node().getMethod();
+                if (Util.any(Util.getAnnotations(m, ((Integer) v2.constant()) - 1),
+                        a -> a.getType().getName() == Constants.LSpringRequestBody)) {
+                    return "." + field.getName();
+                }
+            } else {
+                String prefix = jsonRequestMatcher(fw, v2);
+                if (prefix != null) {
+                    return prefix + "." + field.getName();
+                }
+            }
+        }
+
+        return null;
+    };
 }
