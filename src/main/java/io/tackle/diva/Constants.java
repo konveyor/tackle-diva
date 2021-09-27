@@ -65,6 +65,10 @@ public interface Constants {
     Atom toString = Atom.findOrCreateUnicodeAtom("toString");
     Atom append = Atom.findOrCreateUnicodeAtom("append");
 
+    Atom equals = Atom.findOrCreateUnicodeAtom("equals");
+    Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
+    Atom contains = Atom.findOrCreateUnicodeAtom("contains");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
@@ -82,6 +86,8 @@ public interface Constants {
     TypeName LSpringController = TypeName.findOrCreate("Lorg/springframework/stereotype/Controller");
     TypeName LSpringRestController = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RestController");
     TypeName LSpringScheduled = TypeName.findOrCreate("Lorg/springframework/scheduling/annotation/Scheduled");
+
+    TypeName LSpringRequestBody = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RequestBody");
 
     // Servlet
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");

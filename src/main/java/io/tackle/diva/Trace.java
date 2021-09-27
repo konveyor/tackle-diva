@@ -143,6 +143,14 @@ public class Trace extends Util.Chain<Trace> {
         public Val getDef(int number) {
             return Trace.this.getDef(number);
         }
+
+        public boolean isParam() {
+            return this instanceof ParamVal;
+        }
+
+        public Val getDefOrParam(int number) {
+            return Trace.this.getDefOrParam(number);
+        }
     }
 
     Context context;
@@ -196,6 +204,45 @@ public class Trace extends Util.Chain<Trace> {
                     return callerTrace.getDef(caller.getUse((Integer) ud[number]));
                 }
             }
+        }
+        return null;
+    }
+
+    public class ParamVal extends Val {
+        public ParamVal(Object content) {
+            super(content);
+        }
+
+        int param() {
+            return (Integer) content;
+        }
+    }
+
+    public Val getDefOrParam(int number) {
+        IR ir = node.getIR();
+        if (ir == null) {
+            return null;
+        }
+        SymbolTable sym = ir.getSymbolTable();
+        if (sym.isConstant(number)) {
+            return new Val(sym.getConstantValue(number));
+        }
+        if (ud == null) {
+            populateUd();
+        }
+        if (ud[number] instanceof SSAInstruction) {
+            return new Val(ud[number]);
+        }
+        if (ud[number] instanceof Integer) {
+            // interprocedural resolution of call parameters
+            Trace callerTrace = this.next;
+            if (callerTrace != null) {
+                SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
+                if (caller != null) {
+                    return callerTrace.getDefOrParam(caller.getUse((Integer) ud[number]));
+                }
+            }
+            return this.new ParamVal(ud[number]);
         }
         return null;
     }

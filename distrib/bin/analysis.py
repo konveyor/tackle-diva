@@ -42,13 +42,20 @@ def crud0(ast, write=False):
         return res
     elif isinstance(ast, dict) and ':from' in ast:
         ts = [ t.values()[0] if isinstance(t, dict) else t for t in ast[':from'] if not isinstance(t, tuple)]
-        return [set(), set(ts)] if write else [set(ts), set()]
+        res = set()
+        for t in ts:
+            if isinstance(t, list):
+                res |= crud0(t, False)[0]
+            else:
+                res.add(t)
+        return [set(), res] if write else [res, set()]
     else:
         return [set(), set()]
 
 def crud(sql):
     r = sqlexp(sql.lower())
-    if r: 
+    if r:
+        # print ('{} -> {}'.format(sql, crud0(r[1])))
         return crud0(r[1])
     else:
         return [set(), set()]
@@ -60,6 +67,8 @@ def analyze(txs, opts):
     # TODO: what about already parallel txs? 
     for tx in txs:
         stack = []
+        if tx['transaction'] and tx['transaction'][0]['sql'] != 'BEGIN':
+            tx['transaction'] = [{ 'sql': 'BEGIN' }] + tx['transaction']
         for op in tx['transaction']:
             if op['sql'] == 'BEGIN':
                 stack.append([set(), set()])
@@ -68,8 +77,8 @@ def analyze(txs, opts):
                 if len(stack) > 1:
                     stack[-2][0] |= stack[-1][0]
                     stack[-2][1] |= stack[-1][1]
-                stack[-1][0] = list(stack[-1][0])
-                stack[-1][1] = list(stack[-1][1])
+                stack[-1][0] = set(stack[-1][0])
+                stack[-1][1] = set(stack[-1][1])
                 stack.pop()
             else:
                 #s = op['callgraph'][-1]
@@ -126,6 +135,8 @@ def dump_dot(c, label, txs, opts):
                 stack.append(None)
                 sql += ' ' + json.dumps({'rwset' : map(list, op['rwset'])}).replace('"', '')
 
+
+            sql = sql.replace('>', '&gt;').replace('<', '&lt;')
             text += '<tr><td align="text">%s<br align="left" /></td></tr>' % ('  ' *len(stack) + sql) 
 
             if op['sql'] in ('COMMIT', 'ROLLBACK'):
@@ -143,8 +154,8 @@ def dump_dot(c, label, txs, opts):
             continue
         for j in range(i):
             # print (i, j, set(rwsets[j][1]), set(rwsets[i][0]))
-            if (set(rwsets[j][1]) & set(rwsets[i][0] + rwsets[i][1])
-                or set(rwsets[i][1]) & set(rwsets[j][0] + rwsets[j][1])):
+            if (set(rwsets[j][1]) & set(rwsets[i][0] | rwsets[i][1])
+                or set(rwsets[i][1]) & set(rwsets[j][0] | rwsets[j][1])):
                 edges.setdefault(j, set()).add(i)
 
     tranred(edges)
