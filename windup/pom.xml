@@ -19,6 +19,13 @@
         <version.windup>LATEST</version.windup>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
             <!-- Windup BOM -->
@@ -36,10 +43,9 @@
 
         <!-- Diva -->
         <dependency>
-            <groupId>io.tackle</groupId>
-            <artifactId>diva-core</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <optional>true</optional>
+            <groupId>com.github.konveyor</groupId>
+            <artifactId>tackle-diva</artifactId>
+            <version>main-SNAPSHOT</version>
         </dependency>
 
         <dependency>
