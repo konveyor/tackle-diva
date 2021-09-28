@@ -4,9 +4,15 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.tackle</groupId>
-    <artifactId>diva-windup</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <parent>
+        <groupId>com.github.konveyor</groupId>
+        <artifactId>tackle-diva</artifactId>
+        <version>main-SNAPSHOT</version>
+    </parent>
+    
+    <groupId>com.github.konveyor.tackle-diva</groupId>
+    <artifactId>windup</artifactId>
+    <version>main-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>diva-windup</name>
