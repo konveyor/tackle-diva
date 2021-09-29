@@ -1,17 +1,13 @@
-build.base: Dockerfile.base
-	docker build -t diva-server-base:latest -f Dockerfile.base .
-
 build: Dockerfile
+	poetry export --without-hashes -o ./requirements.txt
+	poetry build
 	docker build -t diva-server:latest . 
 
 run:
-	docker run --rm -p "8080:8080" --name=diva-rest diva-rest:latest
+	docker run --rm -p "8080:8080" --name=diva-server diva-server:latest
 
 run.shell:
 	docker run --rm -it diva-server:latest bash
-
-run.base:
-	docker run --rm -it diva-server-base:latest bash
 
 run.local:
 	poetry run connexion run -p 8080 --mock=notimplemented --strict-validation --validate-responses \

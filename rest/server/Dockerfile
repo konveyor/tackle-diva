@@ -23,7 +23,7 @@ COPY dist dist
 COPY .env.docker .env
 
 RUN python3 -m pip install -r requirements.txt --no-deps
-RUN python3 -m pip install dist/diva_server-1.0.0rc1-py3-none-any.whl
+RUN python3 -m pip install dist/diva_server-1.0.0rc2-py3-none-any.whl
 
 # cannot install connexion into Python 2...
 ## for version 2
