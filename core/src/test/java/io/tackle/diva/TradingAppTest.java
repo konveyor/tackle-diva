@@ -55,7 +55,7 @@ public class TradingAppTest {
     public static void fromSource() throws Exception {
         long start = System.currentTimeMillis();
 
-        String[] sourceDirs = new String[] { "../trading-app" };
+        String[] sourceDirs = new String[] { "../../trading-app" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {

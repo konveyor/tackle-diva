@@ -25,7 +25,7 @@ import org.junit.runner.RunWith;
 public class DaytraderQuarkusTest {
 
     @Deployment
-    @AddonDependencies({ @AddonDependency(name = "io.tackle:diva-windup"),
+    @AddonDependencies({ @AddonDependency(name = "com.github.konveyor.tackle-diva:diva-windup"),
             @AddonDependency(name = "org.jboss.windup.config:windup-config"),
             @AddonDependency(name = "org.jboss.windup.exec:windup-exec"),
             @AddonDependency(name = "org.jboss.windup.utils:windup-utils"),

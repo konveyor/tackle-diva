@@ -58,7 +58,7 @@ public class ShopizerTest {
     public static void fromSource() throws Exception {
         long start = System.currentTimeMillis();
 
-        String[] sourceDirs = new String[] { "../shopizer" };
+        String[] sourceDirs = new String[] { "../../shopizer" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {

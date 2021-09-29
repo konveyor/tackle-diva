@@ -5,14 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.github.konveyor</groupId>
-        <artifactId>tackle-diva</artifactId>
+        <groupId>com.github.konveyor.tackle-diva</groupId>
+        <artifactId>diva-parent</artifactId>
         <version>main-SNAPSHOT</version>
     </parent>
-    
-    <groupId>com.github.konveyor.tackle-diva</groupId>
-    <artifactId>windup</artifactId>
-    <version>main-SNAPSHOT</version>
+
+    <artifactId>diva-windup</artifactId>
     <packaging>jar</packaging>
 
     <name>diva-windup</name>
@@ -24,13 +22,6 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <version.windup>LATEST</version.windup>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
 
     <dependencyManagement>
         <dependencies>
@@ -49,9 +40,10 @@
 
         <!-- Diva -->
         <dependency>
-            <groupId>com.github.konveyor</groupId>
-            <artifactId>tackle-diva</artifactId>
+            <groupId>com.github.konveyor.tackle-diva</groupId>
+            <artifactId>diva-core</artifactId>
             <version>main-SNAPSHOT</version>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
@@ -192,14 +184,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/akihikot/tackle-diva</url>
-        </repository>
-    </distributionManagement>
 
     <build>
         <plugins>
