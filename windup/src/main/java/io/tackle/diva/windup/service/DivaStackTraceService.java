@@ -25,6 +25,9 @@ public class DivaStackTraceService extends GraphService<DivaStackTraceModel> {
         model.setFile(fileService.createByFilePath(filePath));
     }
 
+//    static int count = 0;
+//    static long total = 0;
+
     public DivaStackTraceModel getOrCreate(String filePath, int lineNumber, int columnNumber, int length,
             DivaStackTraceModel parent, JavaMethodModel method) {
         FileModel fileModel = fileService.createByFilePath(filePath);
@@ -36,7 +39,12 @@ public class DivaStackTraceService extends GraphService<DivaStackTraceModel> {
         } else {
             traversal = traversal.filter(__.out(DivaStackTraceModel.PARENT).is(parent.getElement()));
         }
+//        long nanos = System.nanoTime();
         DivaStackTraceModel model = getUnique(traversal);
+//        total += System.nanoTime() - nanos;
+//        if (++count % 100 == 0) {
+//            Util.LOGGER.info("count = " + count + ", time = " + (total / 1000000) + "ms");
+//        }
         if (model == null) {
             model = create();
             model.setColumnNumber(columnNumber);

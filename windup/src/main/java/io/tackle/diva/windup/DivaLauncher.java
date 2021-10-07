@@ -221,63 +221,68 @@ public class DivaLauncher extends GraphOperation {
 
         for (Context cxt : contexts) {
 
-            CGNode entry = null;
-            for (Context.Constraint c : cxt) {
-                if (c instanceof Context.EntryConstraint) {
-                    entry = ((Context.EntryConstraint) c).node();
-                }
-            }
-            if (entry != null) {
-                CGNode n = entry;
-                Trace.Visitor txAnalysis = JDBCAnalysis.getTransactionAnalysis(fw, cxt)
-                        .with(SpringBootAnalysis.getTransactionAnalysis(fw, cxt)
-                                .with(JPAAnalysis.getTransactionAnalysis(fw, cxt)
-                                        .with(QuarkusAnalysis.getTransactionAnalysis(fw, cxt))));
-
-                fw.calculateTransactions(entry, cxt, new Util.LazyReport() {
-                    @Override
-                    public void accept(Report.Builder txs) {
-                        report.add((Report.Named map) -> {
-                            map.put("constraints", (Report r) -> {
-                                JanusGraphReport<DivaConstraintModel> cs = (JanusGraphReport<DivaConstraintModel>) r;
-                                for (Context.Constraint c : cxt) {
-                                    if (c.category().equals("entry")) {
-                                        IMethod m = ((EntryConstraint) c).node().getMethod();
-                                        DivaEntryMethodModel model = entryMethodService.getOrCreate(
-                                                StringStuff.jvmToBinaryName(m.getDeclaringClass().getName().toString()),
-                                                m.getName().toString());
-                                        for (Annotation a : Util.getAnnotations(m)) {
-                                            // fill rest api if any
-                                            if (a.getType().getName() == Constants.LJavaxWsRsGET) {
-                                                model.setHttpMethod("GET");
-                                            } else if (a.getType().getName() == Constants.LJavaxWsRsPOST) {
-                                                model.setHttpMethod("POST");
-                                            } else if (a.getType().getName() == Constants.LJavaxWsRsPATCH) {
-                                                model.setHttpMethod("PATCH");
-                                            } else if (a.getType().getName() == Constants.LJavaxWsRsDELETE) {
-                                                model.setHttpMethod("DELETE");
-                                            }
-                                            if (a.getType().getName() == Constants.LJavaxWsRsPath) {
-                                                model.setUrlPath(DivaLauncher.stripBraces(
-                                                        ((ConstantElementValue) a.getNamedArguments().get("value")).val
-                                                                .toString()));
-                                            }
-                                            // @TODO. @WebServlet("/app")
-                                        }
-                                        cs.add(model);
-
-                                    } else if (c.category().equals("http-param")) {
-                                        DivaRequestParamModel model = requestParamService.getOrCreate(
-                                                DivaRequestParamModel.PARAM_NAME, c.type(),
-                                                DivaRequestParamModel.PARAM_VALUE, c.value());
-                                        cs.add(model);
-                                    }
-                                }
-                            });
-                            map.put("transactions", txs);
-                        });
+            try {
+                CGNode entry = null;
+                for (Context.Constraint c : cxt) {
+                    if (c instanceof Context.EntryConstraint) {
+                        entry = ((Context.EntryConstraint) c).node();
                     }
-                }, txAnalysis);
+                }
+                if (entry != null) {
+                    CGNode n = entry;
+                    Trace.Visitor txAnalysis = JDBCAnalysis.getTransactionAnalysis(fw, cxt)
+                            .with(SpringBootAnalysis.getTransactionAnalysis(fw, cxt)
+                                    .with(JPAAnalysis.getTransactionAnalysis(fw, cxt)
+                                            .with(QuarkusAnalysis.getTransactionAnalysis(fw, cxt))));
+
+                    fw.calculateTransactions(entry, cxt, new Util.LazyReport() {
+                        @Override
+                        public void accept(Report.Builder txs) {
+                            report.add((Report.Named map) -> {
+                                map.put("constraints", (Report r) -> {
+                                    JanusGraphReport<DivaConstraintModel> cs = (JanusGraphReport<DivaConstraintModel>) r;
+                                    for (Context.Constraint c : cxt) {
+                                        if (c.category().equals("entry")) {
+                                            IMethod m = ((EntryConstraint) c).node().getMethod();
+                                            DivaEntryMethodModel model = entryMethodService.getOrCreate(
+                                                    StringStuff.jvmToBinaryName(
+                                                            m.getDeclaringClass().getName().toString()),
+                                                    m.getName().toString());
+                                            for (Annotation a : Util.getAnnotations(m)) {
+                                                // fill rest api if any
+                                                if (a.getType().getName() == Constants.LJavaxWsRsGET) {
+                                                    model.setHttpMethod("GET");
+                                                } else if (a.getType().getName() == Constants.LJavaxWsRsPOST) {
+                                                    model.setHttpMethod("POST");
+                                                } else if (a.getType().getName() == Constants.LJavaxWsRsPATCH) {
+                                                    model.setHttpMethod("PATCH");
+                                                } else if (a.getType().getName() == Constants.LJavaxWsRsDELETE) {
+                                                    model.setHttpMethod("DELETE");
+                                                }
+                                                if (a.getType().getName() == Constants.LJavaxWsRsPath) {
+                                                    model.setUrlPath(DivaLauncher.stripBraces(((ConstantElementValue) a
+                                                            .getNamedArguments().get("value")).val.toString()));
+                                                }
+                                                // @TODO. @WebServlet("/app")
+                                            }
+                                            cs.add(model);
+
+                                        } else if (c.category().equals("http-param")) {
+                                            DivaRequestParamModel model = requestParamService.getOrCreate(
+                                                    DivaRequestParamModel.PARAM_NAME, c.type(),
+                                                    DivaRequestParamModel.PARAM_VALUE, c.value());
+                                            cs.add(model);
+                                        }
+                                    }
+                                });
+                                map.put("transactions", txs);
+                            });
+                        }
+                    }, txAnalysis);
+                }
+                event.getGraphContext().getGraph().tx().commit();
+            } catch (RuntimeException e) {
+                event.getGraphContext().getGraph().tx().rollback();
             }
         }
 
