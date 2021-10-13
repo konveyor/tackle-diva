@@ -34,12 +34,8 @@ jobs:
     - name: Moving apps
       run: mv sample.daytrader7 daytrader-quarkus ../
     - name: Build & publish to maven-local with gradle
-      uses: eskatos/gradle-command-action@v1
-      with:
-        dependencies-cache-enabled: true
-        configuration-cache-enabled: true
-        gradle-version: current
-        arguments: publishToMavenLocal -x test
+      working-directory: core
+      run: ./gradlew publishToMavenLocal -x test
     - name: Windup arquillian test
       run: mvn --file windup --batch-mode --update-snapshots verify
     - name: Upload Test Report

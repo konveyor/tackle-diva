@@ -88,8 +88,8 @@ public class DaytraderTest {
         // String[] sourceDirs = new String[] {
         // "/Users/akihiko/work/ocp/daytrader-example-webrepo/daytrader-webapp/daytrader-web/src/main/java/"
         // };
-        String[] sourceDirs = new String[] { "../sample.daytrader7/daytrader-ee7-web/src/main/java/",
-                "../sample.daytrader7/daytrader-ee7-ejb/src/main/java/" };
+        String[] sourceDirs = new String[] { "../../sample.daytrader7/daytrader-ee7-web/src/main/java/",
+                "../../sample.daytrader7/daytrader-ee7-ejb/src/main/java/" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {

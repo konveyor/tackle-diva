@@ -12,7 +12,7 @@
 FROM gradle:jdk8 as build
 
 WORKDIR /home/gradle
-COPY . diva
+COPY core diva
 
 WORKDIR /home/gradle/diva
 RUN gradle ziptask

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,26 +37,28 @@ import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
 
-public class TradingAppTest {
+public class ShopizerTest {
 
     public static void main(String[] args) throws Exception {
         // fromBinary();
-        Util.injectedCall(DivaIRGen.advices(), TradingAppTest.class.getName() + ".fromSource");
+        Util.injectedCall(DivaIRGen.advices(), ShopizerTest.class.getName() + ".fromSource");
     }
 
+    @Ignore
     @Test
     public void fromSourceTest() throws Exception {
-        Util.injectedCall(DivaIRGen.advices(), TradingAppTest.class.getName() + ".fromSource");
+        Util.injectedCall(DivaIRGen.advices(), ShopizerTest.class.getName() + ".fromSource");
     }
 
     public static void fromSource() throws Exception {
         long start = System.currentTimeMillis();
 
-        String[] sourceDirs = new String[] { "../trading-app" };
+        String[] sourceDirs = new String[] { "../../shopizer" };
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {
@@ -85,16 +88,18 @@ public class TradingAppTest {
 
         checkCha(cha);
 
+        JPAAnalysis.getEntities(cha);
+
         IClassLoader apploader = cha.getLoader(JavaSourceAnalysisScope.SOURCE);
 
         Set<IMethod> entries = new LinkedHashSet<>();
 
         for (IClass c : cha) {
-            if (c.getClassLoader().getReference().equals(ClassLoaderReference.Primordial))
-                continue;
             for (IMethod m : c.getDeclaredMethods()) {
                 if (c.getName().toString().endsWith("Controller") && m.getName() != Constants.theClinit
                         && m.getName() != Constants.theInit) {
+                    // if (!c.getName().toString().contains("OrderController"))
+                    // continue;
                     entries.add(m);
                 }
                 if (m.getName() == Constants.theInit
@@ -133,6 +138,12 @@ public class TradingAppTest {
             }
             if (!k.contains(".") || k.contains("<")) {
                 System.out.println(k + ": " + c);
+            }
+            if (k.contains("OrderFacade")) {
+                System.out.println(cha.getImplementors(c.getReference()));
+            }
+            if (k.contains("ProductServiceImpl")) {
+                System.out.println(c.getDeclaredMethods());
             }
         }
 

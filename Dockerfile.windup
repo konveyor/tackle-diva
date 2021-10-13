@@ -7,17 +7,18 @@ ENV MTA_CLI_BUILD_PATH=/root/target/mta-cli/mta-cli-5.1.4.Final
 COPY windup/unpack-mta-cli.xml ./
 RUN mvn compile -f unpack-mta-cli.xml
 
-COPY build.gradle ./
-COPY gradlew ./
-COPY src src
-COPY gradle gradle
+COPY core/build.gradle ./
+COPY core/gradlew ./
+COPY core/src src
+COPY core/gradle gradle
 
 RUN ./gradlew publishToMavenLocal
 
+COPY pom.xml ./
 COPY windup windup
 RUN mvn install -DskipTests -f windup/pom.xml
 
-RUN ${MTA_CLI_BUILD_PATH}/bin/mta-cli --batchMode --install io.tackle:diva-windup:0.0.1-SNAPSHOT
+RUN ${MTA_CLI_BUILD_PATH}/bin/mta-cli --batchMode --install com.github.konveyor.tackle-diva:diva-windup:main-SNAPSHOT
 
 RUN curl -k -L -o janusgraph-0.3.2-hadoop2.zip https://github.com/JanusGraph/janusgraph/releases/download/v0.3.2/janusgraph-0.3.2-hadoop2.zip
 RUN jar xvf janusgraph-0.3.2-hadoop2.zip
