@@ -1,7 +1,5 @@
 package io.tackle.diva.windup.service;
 
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.jboss.windup.graph.GraphContext;
 import org.jboss.windup.graph.service.GraphService;
 import org.jboss.windup.rules.apps.java.model.JavaClassModel;
@@ -24,13 +22,18 @@ public class DivaEntryMethodService extends GraphService<DivaEntryMethodModel> {
 
     public DivaEntryMethodModel getOrCreate(String className, String methodName) {
         JavaClassModel classModel = classService.create(className);
-        JavaMethodModel methodModel = methodService.createJavaMethod(classModel, methodName, new JavaClassModel[] {});
-        classModel.addJavaMethod(methodModel); // currently we always get fresh method
-        GraphTraversal<?, ?> traversal = getQuery().getRawTraversal().is(methodModel.getElement());
-        DivaEntryMethodModel model = getUnique(traversal);
-        if (model == null) {
-            model = addTypeToModel(methodModel);
+        for (JavaMethodModel methodModel : classModel.getJavaMethods()) {
+            if (methodModel.getMethodName().equals(methodName)) {
+                if (methodModel instanceof DivaEntryMethodModel) {
+                    return (DivaEntryMethodModel) methodModel;
+                } else {
+                    return addTypeToModel(methodModel);
+                }
+            }
         }
+        DivaEntryMethodModel model = addTypeToModel(
+                methodService.createJavaMethod(classModel, methodName, new JavaClassModel[] {}));
+        classModel.addJavaMethod(model);
         return model;
     }
 
