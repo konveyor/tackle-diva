@@ -178,7 +178,7 @@ public class DivaIRGen {
         }
     }
 
-    public static Map<String, String> importsKnownToDiva = new HashMap<>();
+    public static final Map<String, String> importsKnownToDiva = new HashMap<>();
 
     static {
         for (Field f : Constants.class.getDeclaredFields()) {
@@ -392,12 +392,17 @@ public class DivaIRGen {
 //    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
 //    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
 
-    public static Map<Object, List<Annotation>> annotations = new LinkedHashMap<>();
+    public static Map<Object, List<Annotation>> annotations;
 //    public static Map<TypeReference, List<Annotation>> classAnnotations = new LinkedHashMap<>();
 //    public static Map<MethodReference, List<Annotation>> methodAnnotations = new LinkedHashMap<>();
 //    public static Map<FieldReference, List<Annotation>> fieldAnnotations = new LinkedHashMap<>();
 //    public static Map<Pair<MethodReference, Integer>, List<Annotation>> paramAnnotations = new LinkedHashMap<>();
-    public static Map<TypeReference, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
+    public static Map<TypeReference, Map<TypeName, List<TypeName>>> instantiations;
+
+    public static void init() {
+        annotations = new LinkedHashMap<>();
+        instantiations = new LinkedHashMap<>();
+    }
 
     public static void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {

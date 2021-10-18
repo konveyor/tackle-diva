@@ -42,6 +42,7 @@ ENV MTA_CLI_BUILD_PATH=/root/target/mta-cli/mta-cli-5.1.4.Final
 ENV JANUSGRAPH_PATH=${HOME}/janusgraph-0.3.2-hadoop2
 ENV TCD_APPLICATION_PATH=${HOME}/app
 ENV MTA_CLI_PATH=${HOME}/mta-cli
+ENV JANUSGRAPH_BACKUP_DIR=janusgraph-backup/
 
 COPY --from=build /root/.mta ${HOME}/.mta
 COPY --from=build ${MTA_CLI_BUILD_PATH} ${MTA_CLI_PATH}

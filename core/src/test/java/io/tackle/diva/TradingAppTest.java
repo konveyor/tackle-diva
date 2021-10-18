@@ -71,6 +71,8 @@ public class TradingAppTest {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
 
+        DivaIRGen.init();
+
         // build the class hierarchy
         IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope,
                 new ECJClassLoaderFactory(scope.getExclusions()) {

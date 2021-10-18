@@ -105,6 +105,8 @@ public class DaytraderTest {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
 
+        DivaIRGen.init();
+
         // build the class hierarchy
         IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope,
                 new ECJClassLoaderFactory(scope.getExclusions()) {
@@ -153,6 +155,8 @@ public class DaytraderTest {
         for (String sourceDir : classDirs) {
             scope.addToScope(ClassLoaderReference.Application, new BinaryDirectoryTreeModule(new File(sourceDir)));
         }
+
+        DivaIRGen.init();
 
         IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope);
 
