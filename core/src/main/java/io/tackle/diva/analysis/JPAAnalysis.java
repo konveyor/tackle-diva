@@ -62,12 +62,16 @@ public class JPAAnalysis {
 
     }
 
-    public static Map<FieldReference, TableColumn> columnDefinitions = new LinkedHashMap<>();
-    public static Map<MethodReference, String> queryDefinitions = new LinkedHashMap<>();
+    public static Map<FieldReference, TableColumn> columnDefinitions;
+    public static Map<MethodReference, String> queryDefinitions;
 
-    public static Set<IClass> customIfaces = new LinkedHashSet<>();
+    public static Set<IClass> customIfaces;
 
     public static void getEntities(IClassHierarchy cha) throws IOException {
+
+        columnDefinitions = new LinkedHashMap<>();
+        queryDefinitions = new LinkedHashMap<>();
+        customIfaces = new LinkedHashSet<>();
 
         Set<IClass> repositoryIfaces = new LinkedHashSet<>();
         Map<IClass, IClass> nonRepositoryIfaces = new LinkedHashMap<>();

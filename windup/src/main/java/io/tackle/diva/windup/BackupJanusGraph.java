@@ -14,6 +14,8 @@ import org.ocpsoft.rewrite.context.EvaluationContext;
 
 public class BackupJanusGraph extends GraphOperation {
 
+    static final String JANUSGRAPH_BACKUP_DIR = "JANUSGRAPH_BACKUP_DIR";
+
     @Override
     public void perform(GraphRewrite event, EvaluationContext context) {
         
@@ -24,7 +26,7 @@ public class BackupJanusGraph extends GraphOperation {
             graph.close();
 
             File sourceDirectory = graph.getGraphDirectory().toFile();
-            File destinationDirectory = new File("janusgraph-backup/");
+            File destinationDirectory = new File(System.getenv(JANUSGRAPH_BACKUP_DIR));
             FileUtils.copyDirectory(sourceDirectory, destinationDirectory);
 
         } catch (IOException e) {

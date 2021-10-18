@@ -179,6 +179,8 @@ public class DivaLauncher extends GraphOperation {
             };
         }
 
+        DivaIRGen.init();
+ 
         // build the class hierarchy
         IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope, clf);
         Util.LOGGER.info(cha.getNumberOfClasses() + " classes");
@@ -193,10 +195,10 @@ public class DivaLauncher extends GraphOperation {
         cgEntries.addAll(entries);
         cgEntries.addAll(SpringBootAnalysis.getInits(cha));
 
+        JPAAnalysis.getEntities(cha);
+
         AnalysisOptions options = new AnalysisOptions();
-        // CallGraphBuilder<InstanceKey> builder = Framework.rtaBuilder(cha, scope,
-        // options, entries);
-        Supplier<CallGraph> builder = Framework.chaCgBuilder(cha, options, entries);
+        Supplier<CallGraph> builder = Framework.chaCgBuilder(cha, options, cgEntries);
 
         Util.LOGGER.info("building call graph...");
         CallGraph cg = builder.get();

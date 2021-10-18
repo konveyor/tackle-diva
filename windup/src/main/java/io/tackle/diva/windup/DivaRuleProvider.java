@@ -6,21 +6,28 @@ import org.jboss.windup.config.metadata.RuleMetadata;
 import org.jboss.windup.config.phase.MigrationRulesPhase;
 import org.ocpsoft.rewrite.config.Configuration;
 import org.ocpsoft.rewrite.config.ConfigurationBuilder;
+import org.ocpsoft.rewrite.config.ConfigurationRuleBuilderPerform;
 
 /**
 */
 @RuleMetadata(phase = MigrationRulesPhase.class)
 public class DivaRuleProvider extends AbstractRuleProvider {
 
-   // @formatter:off
+    // @formatter:off
    @Override
    public Configuration getConfiguration(RuleLoaderContext ruleLoaderContext)
    {
-       return ConfigurationBuilder.begin()
+       ConfigurationRuleBuilderPerform conf = ConfigurationBuilder.begin()
            .addRule()
-           .perform(new DivaLauncher())
-           .addRule()
+           .perform(new DivaLauncher());
+
+       String backupFile = System.getenv(BackupJanusGraph.JANUSGRAPH_BACKUP_DIR);
+       if (backupFile == null || backupFile.isEmpty()) {
+           return conf;
+       } else {
+           return conf.addRule()
            .perform(new BackupJanusGraph());
+       }
    }
    // @formatter:on
 }
