@@ -244,7 +244,7 @@ public class JDBCAnalysis {
                                 continue;
                             SSAPutInstruction put = (SSAPutInstruction) instr;
                             if (put.getDeclaredField() == field.getDeclaredField()) {
-                                throw new Escape(t.getDef(put.getUse(1)));
+                                throw new Escape(t.getDefOrParam(put.getUse(1)));
                             }
                         }
                     }, true);

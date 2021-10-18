@@ -120,7 +120,7 @@ public class Trace extends Util.Chain<Trace> {
         }
 
         public boolean isConstant() {
-            return !(content instanceof SSAInstruction);
+            return !(content instanceof SSAInstruction || this instanceof ParamVal);
         }
 
         public Object constant() {
@@ -146,6 +146,10 @@ public class Trace extends Util.Chain<Trace> {
 
         public boolean isParam() {
             return this instanceof ParamVal;
+        }
+
+        public int param() {
+            return -1;
         }
 
         public Val getDefOrParam(int number) {
@@ -213,7 +217,8 @@ public class Trace extends Util.Chain<Trace> {
             super(content);
         }
 
-        int param() {
+        @Override
+        public int param() {
             return (Integer) content;
         }
     }
@@ -247,6 +252,19 @@ public class Trace extends Util.Chain<Trace> {
         return null;
     }
 
+    public TypeReference inferType(SSAInstruction instr) {
+        TypeReference ref = null;
+        if (instr instanceof SSAGetInstruction)
+            ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
+        if (instr instanceof SSANewInstruction)
+            ref = ((SSANewInstruction) instr).getConcreteType();
+        if (instr instanceof SSAAbstractInvokeInstruction)
+            ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
+        if (instr instanceof SSACheckCastInstruction)
+            ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
+        return ref;
+    }
+
     public IClass inferType(Framework fw, int number) {
         IR ir = node.getIR();
         TypeReference ref = null;
@@ -262,14 +280,7 @@ public class Trace extends Util.Chain<Trace> {
         }
         if (ud[number] instanceof SSAInstruction) {
             SSAInstruction instr = (SSAInstruction) ud[number];
-            if (instr instanceof SSAGetInstruction)
-                ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
-            if (instr instanceof SSANewInstruction)
-                ref = ((SSANewInstruction) instr).getConcreteType();
-            if (instr instanceof SSAAbstractInvokeInstruction)
-                ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
-            if (instr instanceof SSACheckCastInstruction)
-                ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
+            ref = inferType(instr);
         }
         if (ud[number] instanceof Integer) {
             // interprocedural resolution of call parameters
