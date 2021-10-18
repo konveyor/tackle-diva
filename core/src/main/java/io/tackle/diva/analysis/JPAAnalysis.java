@@ -24,6 +24,7 @@ import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
+import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.FieldReference;
@@ -184,6 +185,28 @@ public class JPAAnalysis {
         return null;
     }
 
+    public static IClass getRepoParamterType(Framework fw, Trace trace, int number) {
+        IClass typ = null;
+        Trace.Val v = trace.getDef(number);
+        if (!v.isConstant() && v.instr() instanceof SSAGetInstruction) {
+            v = JDBCAnalysis.pointerAnalysis(fw, trace, (SSAGetInstruction) v.instr());
+            if (v != null && !v.isConstant()) {
+                TypeReference r = v.isParam() ? v.trace().node().getMethod().getParameterType(v.param())
+                        : v.trace().inferType(v.instr());
+                if (r != null) {
+                    typ = getRepoParamterType(fw, r);
+                }
+            }
+        }
+        if (typ == null) {
+            typ = trace.inferType(fw, number);
+            if (typ != null) {
+                typ = getRepoParamterType(fw, typ.getReference());
+            }
+        }
+        return typ;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -215,10 +238,7 @@ public class JPAAnalysis {
                         IClass typ = getRepoParamterType(fw, tref);
                         if (typ == null) {
                             SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
-                            typ = trace.inferType(fw, instr.getUse(0));
-                            if (typ != null) {
-                                typ = getRepoParamterType(fw, typ.getReference());
-                            }
+                            typ = getRepoParamterType(fw, trace, instr.getUse(0));
                         }
                         if (typ != null) {
                             for (IField f : typ.getAllFields()) {
@@ -415,11 +435,11 @@ public class JPAAnalysis {
             populateInsert(fw, trace, c);
 
         } else if (v.instr() instanceof SSAAbstractInvokeInstruction) {
-            IClass repo = trace.inferType(fw, instr.getUse(0));
-            if (repo == null) {
-                repo = fw.classHierarchy().lookupClass(instr.getDeclaredTarget().getDeclaringClass());
+            IClass c = getRepoParamterType(fw, trace, instr.getUse(0));
+            if (c == null) {
+                IClass repo = fw.classHierarchy().lookupClass(instr.getDeclaredTarget().getDeclaringClass());
+                c = getRepoParamterType(fw, repo.getReference());
             }
-            IClass c = getRepoParamterType(fw, repo.getReference());
             if (c == null) {
                 c = trace.inferType(fw, instr.getUse(1));
                 if (c == null) {

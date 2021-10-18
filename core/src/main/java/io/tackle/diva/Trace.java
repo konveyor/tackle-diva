@@ -120,7 +120,7 @@ public class Trace extends Util.Chain<Trace> {
         }
 
         public boolean isConstant() {
-            return !(content instanceof SSAInstruction);
+            return !(content instanceof SSAInstruction || this instanceof ParamVal);
         }
 
         public Object constant() {
@@ -146,6 +146,10 @@ public class Trace extends Util.Chain<Trace> {
 
         public boolean isParam() {
             return this instanceof ParamVal;
+        }
+
+        public int param() {
+            return -1;
         }
 
         public Val getDefOrParam(int number) {
@@ -213,7 +217,8 @@ public class Trace extends Util.Chain<Trace> {
             super(content);
         }
 
-        int param() {
+        @Override
+        public int param() {
             return (Integer) content;
         }
     }
@@ -247,44 +252,37 @@ public class Trace extends Util.Chain<Trace> {
         return null;
     }
 
-    public IClass inferType(Framework fw, int number) {
-        IR ir = node.getIR();
+    public TypeReference inferType(SSAInstruction instr) {
         TypeReference ref = null;
-        if (ir == null) {
+        if (instr instanceof SSAGetInstruction)
+            ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
+        if (instr instanceof SSANewInstruction)
+            ref = ((SSANewInstruction) instr).getConcreteType();
+        if (instr instanceof SSAAbstractInvokeInstruction)
+            ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
+        if (instr instanceof SSACheckCastInstruction)
+            ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
+        return ref;
+    }
+
+    public TypeReference inferType(Val value) {
+        if (value == null)
             return null;
-        }
-        SymbolTable sym = ir.getSymbolTable();
-        if (sym.isConstant(number)) {
+        if (value.isConstant()) {
             return null;
+        } else if (value.isParam()) {
+            return value.trace().node().getMethod().getParameterType((Integer) ud[value.param()]);
+        } else {
+            return inferType(value.instr());
         }
-        if (ud == null) {
-            populateUd();
-        }
-        if (ud[number] instanceof SSAInstruction) {
-            SSAInstruction instr = (SSAInstruction) ud[number];
-            if (instr instanceof SSAGetInstruction)
-                ref = ((SSAGetInstruction) instr).getDeclaredFieldType();
-            if (instr instanceof SSANewInstruction)
-                ref = ((SSANewInstruction) instr).getConcreteType();
-            if (instr instanceof SSAAbstractInvokeInstruction)
-                ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredResultType();
-            if (instr instanceof SSACheckCastInstruction)
-                ref = ((SSACheckCastInstruction) instr).getDeclaredResultType();
-        }
-        if (ud[number] instanceof Integer) {
-            // interprocedural resolution of call parameters
-            Trace callerTrace = this.next;
-            if (callerTrace != null) {
-                SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                if (caller != null) {
-                    IClass res = callerTrace.inferType(fw, caller.getUse((Integer) ud[number]));
-                    if (res != null) {
-                        return res;
-                    }
-                }
-            }
-            ref = node.getMethod().getParameterType((Integer) ud[number]);
-        }
+    }
+
+    public TypeReference inferType(int number) {
+        return inferType(getDefOrParam(number));
+    }
+
+    public IClass inferType(Framework fw, int number) {
+        TypeReference ref = inferType(number);
         if (ref == null) {
             return null;
         }
