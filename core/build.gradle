@@ -75,7 +75,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'com.github.konveyor.tackle-diva'
             artifactId = 'diva-core'
-            version = 'main-SNAPSHOT'
+            version = '0.1.0'
             from components.java
         }
     }
