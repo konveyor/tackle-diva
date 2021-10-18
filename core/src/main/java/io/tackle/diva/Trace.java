@@ -265,37 +265,24 @@ public class Trace extends Util.Chain<Trace> {
         return ref;
     }
 
+    public TypeReference inferType(Val value) {
+        if (value == null)
+            return null;
+        if (value.isConstant()) {
+            return null;
+        } else if (value.isParam()) {
+            return value.trace().node().getMethod().getParameterType((Integer) ud[value.param()]);
+        } else {
+            return inferType(value.instr());
+        }
+    }
+
+    public TypeReference inferType(int number) {
+        return inferType(getDefOrParam(number));
+    }
+
     public IClass inferType(Framework fw, int number) {
-        IR ir = node.getIR();
-        TypeReference ref = null;
-        if (ir == null) {
-            return null;
-        }
-        SymbolTable sym = ir.getSymbolTable();
-        if (sym.isConstant(number)) {
-            return null;
-        }
-        if (ud == null) {
-            populateUd();
-        }
-        if (ud[number] instanceof SSAInstruction) {
-            SSAInstruction instr = (SSAInstruction) ud[number];
-            ref = inferType(instr);
-        }
-        if (ud[number] instanceof Integer) {
-            // interprocedural resolution of call parameters
-            Trace callerTrace = this.next;
-            if (callerTrace != null) {
-                SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                if (caller != null) {
-                    IClass res = callerTrace.inferType(fw, caller.getUse((Integer) ud[number]));
-                    if (res != null) {
-                        return res;
-                    }
-                }
-            }
-            ref = node.getMethod().getParameterType((Integer) ud[number]);
-        }
+        TypeReference ref = inferType(number);
         if (ref == null) {
             return null;
         }
