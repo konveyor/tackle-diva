@@ -89,6 +89,8 @@ public interface Constants {
 
     TypeName LSpringRequestBody = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RequestBody");
 
+    TypeName LJavaxInject = TypeName.findOrCreate("Ljavax/inject/Inject");
+
     // Servlet
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
     TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");

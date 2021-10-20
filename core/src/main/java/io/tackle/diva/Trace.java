@@ -271,7 +271,7 @@ public class Trace extends Util.Chain<Trace> {
         if (value.isConstant()) {
             return null;
         } else if (value.isParam()) {
-            return value.trace().node().getMethod().getParameterType((Integer) ud[value.param()]);
+            return value.trace().node().getMethod().getParameterType(value.param());
         } else {
             return inferType(value.instr());
         }
