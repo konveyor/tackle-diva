@@ -17,11 +17,9 @@ import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.IMethod.SourcePosition;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
-import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
@@ -83,9 +81,9 @@ public class JPAAnalysis {
                 if (!a.getNamedArguments().containsKey("name"))
                     continue;
                 String tableName = ((ConstantElementValue) a.getNamedArguments().get("name")).val.toString();
-                List<TypeName> tags = new ArrayList<>();
-                String colName = null;
                 for (IField f : c.getDeclaredInstanceFields()) {
+                    List<TypeName> tags = new ArrayList<>();
+                    String colName = null;
                     for (Annotation a2 : Util.getAnnotations(f)) {
                         if (a2.getType().getName() == Constants.LJavaxPersistenceColumn
                                 || a2.getType().getName() == Constants.LJavaxPersistenceId
@@ -405,11 +403,11 @@ public class JPAAnalysis {
 
     public static void populateInsertOrUpdate(Framework fw, Trace trace, SSAAbstractInvokeInstruction instr) {
         Trace.Val v = trace.getDef(instr.getUse(1));
-        SourcePosition p = null;
-        try {
-            p = trace.node().getMethod().getSourcePosition(instr.getProgramCounter());
-        } catch (InvalidClassFileException e) {
-        }
+//        SourcePosition p = null;
+//        try {
+//            p = trace.node().getMethod().getSourcePosition(instr.getProgramCounter());
+//        } catch (InvalidClassFileException e) {
+//        }
 
         Stack<Trace.Val> todo = new Stack<>();
         todo.add(v);
@@ -419,6 +417,8 @@ public class JPAAnalysis {
                 v = null;
                 continue;
             }
+            if (v.isParam())
+                break;
             if (v.instr() instanceof SSAPhiInstruction) {
                 todo.add(v.getDef(v.instr().getUse(0)));
                 todo.add(v.getDef(v.instr().getUse(1)));
@@ -426,14 +426,23 @@ public class JPAAnalysis {
                 continue;
             }
             if (v.instr() instanceof SSACheckCastInstruction) {
-                v = v.getDef(v.instr().getUse(0));
+                v = v.getDefOrParam(v.instr().getUse(0));
+                if (v != null) {
+                    todo.add(v);
+                    continue;
+                }
             }
             break;
         }
         if (v == null)
             return;
         // System.out.println(p + ": " + instr + ": " + v);
-        if (v.instr() instanceof SSANewInstruction) {
+        if (v.isParam()) {
+            TypeReference tref = v.trace().inferType(v);
+            IClass c = fw.classHierarchy().lookupClass(tref);
+            populateInsert(fw, trace, c);
+
+        } else if (v.instr() instanceof SSANewInstruction) {
             TypeReference tref = ((SSANewInstruction) v.instr()).getConcreteType();
             IClass c = fw.classHierarchy().lookupClass(tref);
             populateInsert(fw, trace, c);
@@ -465,7 +474,7 @@ public class JPAAnalysis {
         String table = null;
         String s = null;
         String t = null;
-        for (IField f : c.getAllFields()) {
+        for (IField f : c.getAllInstanceFields()) {
             FieldReference ref = f.getReference();
             if (columnDefinitions.containsKey(ref)) {
                 TableColumn col = columnDefinitions.get(ref);
@@ -481,7 +490,7 @@ public class JPAAnalysis {
     public static void populateUpdate(Framework fw, Trace trace, IClass c) {
         String table = null;
         String s = null;
-        for (IField f : c.getAllFields()) {
+        for (IField f : c.getAllInstanceFields()) {
             FieldReference ref = f.getReference();
             if (columnDefinitions.containsKey(ref)) {
                 TableColumn col = columnDefinitions.get(ref);

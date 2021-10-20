@@ -56,7 +56,9 @@ public class SpringBootAnalysis {
             for (IMethod m : c.getDeclaredMethods()) {
                 if (!m.isInit())
                     continue;
-                if (!Util.any(Util.getAnnotations(m), a -> a.getType().getName() == Constants.LSpringAutowired))
+                if (!Util.any(Util.getAnnotations(m), a -> a.getType().getName() == Constants.LSpringAutowired
+                        || a.getType().getName() == Constants.LJavaxInject))
+
                     continue;
                 entries.add(m);
             }

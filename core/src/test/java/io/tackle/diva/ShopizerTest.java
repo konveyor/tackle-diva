@@ -39,6 +39,7 @@ import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
+import io.tackle.diva.analysis.SpringBootAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
 
@@ -111,7 +112,10 @@ public class ShopizerTest {
             }
         }
 
-        CallGraph cg = gengraph(start, scope, cha, apploader, entries);
+        Set<IMethod> cgEntries = new LinkedHashSet<>(entries);
+        cgEntries.addAll(SpringBootAnalysis.getInits(cha));
+
+        CallGraph cg = gengraph(start, scope, cha, apploader, cgEntries);
 
         doAnalysis(cha, entries, cg);
     }

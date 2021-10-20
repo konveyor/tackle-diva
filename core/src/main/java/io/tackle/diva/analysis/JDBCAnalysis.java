@@ -38,6 +38,7 @@ import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
+import io.tackle.diva.Util;
 
 public class JDBCAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
@@ -235,8 +236,14 @@ public class JDBCAnalysis {
             if (c == null)
                 return null;
             for (CGNode n : fw.callgraph()) {
-                if (n.getMethod().getDeclaringClass() != c || !n.getMethod().isInit())
+                if (!n.getMethod().isInit())
                     continue;
+                if (c.isInterface()) {
+                    if (Util.all(n.getMethod().getDeclaringClass().getAllImplementedInterfaces(), i -> i != c))
+                        continue;
+                } else if (Util.all(Util.superChain(n.getMethod().getDeclaringClass()), p -> p != c)) {
+                    continue;
+                }
                 try {
                     fw.traverse(n, (Trace.NodeVisitor) (Trace t) -> {
                         for (SSAInstruction instr : t.node().getIR().getInstructions()) {
