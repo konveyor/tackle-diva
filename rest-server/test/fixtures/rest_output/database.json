@@ -1,0 +1,10 @@
+{
+  "/app": [
+    "accountprofileejb",
+    "orderejb",
+    "holdingejb",
+    "accountejb",
+    "quoteejb",
+    "keygenejb"
+  ]
+}

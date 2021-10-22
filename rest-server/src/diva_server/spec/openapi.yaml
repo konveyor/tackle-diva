@@ -1,0 +1,420 @@
+openapi: 3.0.3
+
+info:
+  title: "Tackle-DiVA (Data-intensive Validity Analyzer)"
+  description: "Data-centric application code analysis that import a set of application codes and provides database/transaction analysis results."
+  version: 1.0.0
+  license:
+    name: "Eclipse Public License 2.0"
+    url: "https://github.com/konveyor/tackle-diva/blob/main/LICENSE"
+
+tags:
+  - name: General
+    description: General operations
+  - name: Analysis
+    description: Code analysis of applications
+  - name: Database
+    description: Database information of an app
+  - name: Transaction
+    description: Transaction information an app
+
+# to be changed to valid public endpoints
+servers:
+  - url: /
+    description: Development server
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - General
+      summary: Health check
+      description: Health check. It returns 200 if it's working.
+      operationId: diva_server.health_check
+      responses:
+        "200":
+          description: This REST endpoint is working.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Status"
+              example:
+                status_code: 0
+                detail: Server is working
+                version: 0.0.0
+
+  /apps:
+    post:
+      tags:
+        - Analysis
+      summary: "Request code analysis for an application"
+      description: |-
+        Request data-centric code analysis for specified application.
+        Currently URL for a Git repository is allowed as application source code.
+        If successful, new resource for the analysis result will be created and its URL will be returned.
+        If failed, a Bad Request error (400) will be returned with its reason.
+      operationId: diva_server.new_app
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NewApp"
+            example:
+              id: day_trader
+              name: Day Trader (WAS)
+              source:
+                github_url: https://github.com/WASdev/sample.daytrader7.git
+      responses:
+        "201":
+          description: Analysis is successfully completed and results are generated.
+        "400":
+          description: Analysis failed.
+  /apps/{id}:
+    get:
+      tags:
+        - Analysis
+      summary: "Query status of application code analysis"
+      description: |-
+        Get an overview and status of the application that was analyzed.
+        The result will be given in JSON format.
+      operationId: diva_server.get_app
+      parameters:
+        - name: id
+          in: path
+          description: Target application ID.
+          required: true
+          schema:
+            type: string
+            example: day_trader
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AppStatus"
+        404:
+          description: "Application ID not found."
+
+  /apps/{id}/database:
+    get:
+      tags:
+        - Database
+      summary: Get a list of database tables for an app
+      description: |-
+        Get a list of databases of an application that was analyzed before.
+        The result will be given in JSON format.
+      operationId: diva_server.get_database
+      parameters:
+        - name: id
+          in: path
+          description: Target application ID.
+          required: true
+          schema:
+            type: string
+            example: day_trader
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Database"
+        404:
+          description: "Application ID not found."
+
+  /apps/{id}/transaction:
+    get:
+      tags:
+        - Transaction
+      summary: "Get a list of transactions for an app"
+      description: |-
+        Get a list of transactions of an application that was analyzed before.
+        The result will be given in JSON format.
+      operationId: diva_server.get_transaction
+      parameters:
+        - name: id
+          in: path
+          description: Target application ID.
+          required: true
+          schema:
+            type: string
+            example: day_trader
+      responses:
+        200:
+          description: "Successful operation"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        404:
+          description: "Application ID not found."
+
+  # /analysis/{applicationName}:
+  #   post:
+  #     tags:
+  #       - "analysis"
+  #     summary: "ç"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: string
+  #     requestBody:
+  #       description: "GitHub URL of source application codes."
+  #       required: true
+  #       content:
+  #         "application/json":
+  #           schema:
+  #             $ref: "#/components/schemas/GithubURL"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   put:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Update an existing application code analysis result."
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     requestBody:
+  #       description: "GitHub URL of source application codes."
+  #       required: true
+  #       content:
+  #         "application/json":
+  #           schema:
+  #             $ref: "#/components/schemas/GithubURL"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   get:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Query application analysis status"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name."
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #         content:
+  #           "application/json":
+  #             schema:
+  #               $ref: "#/components/schemas/AppStatus"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+  #   delete:
+  #     tags:
+  #       - "analysis"
+  #     summary: "Delete application analysis results"
+  #     description: "Delete application analysis results"
+  #     parameters:
+  #       - name: "applicationName"
+  #         in: "path"
+  #         description: "Target application name"
+  #         required: true
+  #         schema:
+  #           type: "string"
+  #     responses:
+  #       200:
+  #         description: "Successful operation"
+  #         content:
+  #           "application/json":
+  #             schema:
+  #               $ref: "#/components/schemas/AppStatus"
+  #       400:
+  #         description: "Invalid {applicationName}"
+  #       405:
+  #         description: "Validation exception"
+
+components:
+  schemas:
+    Status:
+      type: "object"
+      properties:
+        status_code:
+          type: integer
+          description: |-
+            Server status code. 0 means normal status and positive number means an error.
+          minimum: 0
+        detail:
+          type: string
+          description: "Human readable text of server status."
+        version:
+          type: string
+          description: |-
+            Server version text, in format of `<major>.<minor>.<patch>`.
+          format: version
+      required:
+        - status_code
+        - detail
+        - version
+      additionalProperties: false
+
+    NewApp:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique key for identifying each app.
+        name:
+          type: string
+          description: Display name for the app, which does not need to be unique.
+        source:
+          $ref: "#/components/schemas/AppSource"
+      required:
+        - id
+        - source
+
+    AppStatus:
+      type: "object"
+      properties:
+        id:
+          type: string
+          description: Unique key for identifying each app.
+        name:
+          type: "string"
+          example: "daytrader"
+        source:
+          $ref: "#/components/schemas/AppSource"
+        status:
+          type: "string"
+          enum:
+            - "available"
+            - "pending"
+            - "none"
+          default: "available"
+      required:
+        - id
+        - source
+        - status
+      example:
+        id: day_trader
+        name: Day Trader (WAS)
+        source:
+          github_url: https://github.com/WASdev/sample.daytrader7.git
+        status: available
+
+    Database:
+      type: "object"
+      additionalProperties:
+        type: array
+        items:
+          type: string
+
+    Transaction:
+      type: array
+      items:
+        type: object
+        properties:
+          entry:
+            $ref: "#/components/schemas/Entry"
+          http-param:
+            $ref: "#/components/schemas/HttpParam"
+          transactions:
+            type: "array"
+            items:
+              $ref: "#/components/schemas/Tx"
+        required:
+          - "entry"
+          - "transactions"
+
+    Entry:
+      type: "object"
+      required:
+        - "methods"
+      properties:
+        methods:
+          type: "array"
+          items:
+            type: "string"
+
+    HttpParam:
+      type: "object"
+      required:
+        - "action"
+      properties:
+        action:
+          type: "array"
+          items:
+            type: "string"
+
+    Tx:
+      type: "object"
+      required:
+        - "txid"
+        - "transaction"
+      properties:
+        txid:
+          type: "integer"
+        transaction:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Operation"
+
+    Operation:
+      type: "object"
+      required:
+        - "stacktrace"
+        - "sql"
+      properties:
+        stacktrace:
+          $ref: "#/components/schemas/StackTrace"
+        sql:
+          type: "string"
+
+    StackTrace:
+      type: "array"
+      items:
+        $ref: "#/components/schemas/Stack"
+
+    Stack:
+      type: "object"
+      required:
+        - "method"
+        - "file"
+        - "position"
+      properties:
+        method:
+          type: "string"
+        file:
+          type: "string"
+        position:
+          type: "string"
+
+    AppSource:
+      oneOf:
+        - $ref: "#/components/schemas/GithubURL"
+      description: application source
+
+    GithubURL:
+      type: "object"
+      description: Application source info that points to GitHub repository.
+      required:
+        - github_url
+      properties:
+        github_url:
+          type: string
+          format: uri
+      example: https://github.com/WASdev/sample.daytrader7.git
