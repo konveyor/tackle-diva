@@ -36,6 +36,8 @@ public class Trace extends Util.Chain<Trace> {
 
         void visitNode(Trace trace);
 
+        void visitInstruction(Trace trace, SSAInstruction instr);
+
         default void visitExit(Trace trace) {
         }
 
@@ -60,6 +62,12 @@ public class Trace extends Util.Chain<Trace> {
                     self.visitExit(trace);
                     other.visitExit(trace);
                 }
+
+                @Override
+                public void visitInstruction(Trace trace, SSAInstruction instr) {
+                    self.visitInstruction(trace, instr);
+                    other.visitInstruction(trace, instr);
+                }
             };
         }
     }
@@ -69,10 +77,29 @@ public class Trace extends Util.Chain<Trace> {
         @Override
         default void visitNode(Trace trace) {
         }
+
+        @Override
+        default void visitInstruction(Trace trace, SSAInstruction instr) {
+        }
     }
 
     @FunctionalInterface
     public interface NodeVisitor extends Visitor {
+        @Override
+        default void visitCallSite(Trace trace) {
+        }
+
+        @Override
+        default void visitInstruction(Trace trace, SSAInstruction instr) {
+        }
+    }
+
+    @FunctionalInterface
+    public interface InstructionVisitor extends Visitor {
+        @Override
+        default void visitNode(Trace trace) {
+        }
+
         @Override
         default void visitCallSite(Trace trace) {
         }
@@ -305,12 +332,16 @@ public class Trace extends Util.Chain<Trace> {
     }
 
     public boolean in(CallSiteReference site) {
+        return in(instrFromSite(site));
+    }
+
+    public boolean in(SSAInstruction instr) {
         if (context == null)
             return true;
         if (reachingInstrs == null) {
             reachingInstrs = context.calculateReachable(node);
         }
-        return reachingInstrs.contains(instrFromSite(site).iIndex());
+        return reachingInstrs.contains(instr.iIndex());
     }
 
 }
