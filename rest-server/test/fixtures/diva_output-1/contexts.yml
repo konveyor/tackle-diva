@@ -1,0 +1,559 @@
+---
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletWriter.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletWriter.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletWriter.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBQueue.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBQueue.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBQueue.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Entity.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Entity.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Entity.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "login"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "register"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "quotes"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "buy"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "sell"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "portfolio"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "portfolioNoEdge"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "logout"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "home"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "account"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "update_profile"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+  http-param:
+    action:
+    - "mksummary"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "login"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "register"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "quotes"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "buy"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "sell"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "portfolio"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "portfolioNoEdge"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "logout"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "home"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "account"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "update_profile"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+  http-param:
+    action:
+    - "mksummary"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeAppServlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession1.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession1.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession1.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2ServletRcv.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2ServletRcv.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2ServletRcv.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead2JSP.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead2JSP.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead2JSP.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession2.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession2.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession2.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDIBeanManagerViaJNDI.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDIBeanManagerViaJNDI.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.service"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.service"
+  http-param:
+    action:
+    - "updateConfig"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.service"
+  http-param:
+    action:
+    - "resetTrade"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.service"
+  http-param:
+    action:
+    - "buildDB"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeConfigServlet.service"
+  http-param:
+    action:
+    - "buildDBTables"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletSetContentLength.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletSetContentLength.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletSetContentLength.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31Async.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31Async.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31Async.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCWrite.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCWrite.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCWrite.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2DB.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2DB.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2DB.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Servlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Servlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2JNDI.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2JNDI.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2JNDI.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJDBCRead.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionRemote.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionRemote.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionRemote.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TestServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TestServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TestServlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletLargeContentLength.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletLargeContentLength.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletLargeContentLength.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDI.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDI.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJSONP.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJSONP.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingJSONP.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2One.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2One.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2One.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2TwoPhase.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2TwoPhase.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2TwoPhase.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Jsp.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Jsp.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2IncludeRcv.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2IncludeRcv.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity2JSP.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity2JSP.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2Entity2JSP.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2EntityCollection.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2EntityCollection.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2EntityCollection.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2PDF.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2PDF.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.jsf.JSFLoginFilter.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.jsf.JSFLoginFilter.doFilter"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBTopic.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBTopic.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2MDBTopic.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Include.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Include.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet2Include.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingUpgradeServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingUpgradeServlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedExecutor.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedExecutor.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedExecutor.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet30Async.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet30Async.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet30Async.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2Many.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2Many.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2Session2CMROne2Many.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession3.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession3.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingSession3.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ExplicitGC.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ExplicitGC.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ExplicitGC.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31AsyncRead.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31AsyncRead.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServlet31AsyncRead.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeScenarioServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeScenarioServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.TradeScenarioServlet.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionLocal.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionLocal.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.ejb3.PingServlet2SessionLocal.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDIBeanManagerViaCDICurrent.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingServletCDIBeanManagerViaCDICurrent.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.OrdersAlertFilter.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.OrdersAlertFilter.doFilter"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedThread.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedThread.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingManagedThread.doGet"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingReentryServlet.init"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingReentryServlet.doPost"
+- entry:
+    methods:
+    - "com.ibm.websphere.samples.daytrader.web.prims.PingReentryServlet.doGet"
