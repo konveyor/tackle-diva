@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.ibm.wala.classLoader.CallSiteReference;
-import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
@@ -29,7 +28,6 @@ import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
-import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.IntPair;
@@ -38,7 +36,6 @@ import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
-import io.tackle.diva.Util;
 
 public class JDBCAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
@@ -115,7 +112,7 @@ public class JDBCAnalysis {
             }
 
         } else if (instr instanceof SSAGetInstruction) {
-            Trace.Val v = pointerAnalysis(fw, value.trace(), (SSAGetInstruction) instr);
+            Trace.Val v = PointerAnalysis.fromInits(fw, value.trace(), (SSAGetInstruction) instr);
             if (v != null) {
                 return calculateReachingString(fw, v, visited);
             }
@@ -218,47 +215,6 @@ public class JDBCAnalysis {
             }
             visited.add(key);
             return getReceiverUseOrDef(pred, trace, instr, number, visited);
-        }
-        return null;
-    }
-
-    public static class Escape extends RuntimeException {
-        public Trace.Val val;
-
-        public Escape(Trace.Val value) {
-            this.val = value;
-        }
-    }
-
-    public static Trace.Val pointerAnalysis(Framework fw, Trace trace, SSAGetInstruction field) {
-        if (!field.isStatic()) {
-            IClass c = trace.inferType(fw, field.getUse(0));
-            if (c == null)
-                return null;
-            for (CGNode n : fw.callgraph()) {
-                if (!n.getMethod().isInit())
-                    continue;
-                if (c.isInterface()) {
-                    if (Util.all(n.getMethod().getDeclaringClass().getAllImplementedInterfaces(), i -> i != c))
-                        continue;
-                } else if (Util.all(Util.superChain(n.getMethod().getDeclaringClass()), p -> p != c)) {
-                    continue;
-                }
-                try {
-                    fw.traverse(n, (Trace.NodeVisitor) (Trace t) -> {
-                        for (SSAInstruction instr : t.node().getIR().getInstructions()) {
-                            if (instr == null || !(instr instanceof SSAPutInstruction))
-                                continue;
-                            SSAPutInstruction put = (SSAPutInstruction) instr;
-                            if (put.getDeclaredField() == field.getDeclaredField()) {
-                                throw new Escape(t.getDefOrParam(put.getUse(1)));
-                            }
-                        }
-                    }, true);
-                } catch (Escape e) {
-                    return e.val;
-                }
-            }
         }
         return null;
     }

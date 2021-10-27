@@ -191,7 +191,7 @@ public class JPAAnalysis {
         IClass typ = null;
         Trace.Val v = trace.getDef(number);
         if (!v.isConstant() && v.instr() instanceof SSAGetInstruction) {
-            v = JDBCAnalysis.pointerAnalysis(fw, trace, (SSAGetInstruction) v.instr());
+            v = PointerAnalysis.fromInits(fw, trace, (SSAGetInstruction) v.instr());
             if (v != null && !v.isConstant()) {
                 TypeReference r = v.isParam() ? v.trace().node().getMethod().getParameterType(v.param())
                         : v.trace().inferType(v.instr());

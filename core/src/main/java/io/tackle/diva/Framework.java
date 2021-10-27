@@ -70,6 +70,7 @@ import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAOptions;
+import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
@@ -81,7 +82,6 @@ import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
-import io.tackle.diva.analysis.QuarkusAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
 import io.tackle.diva.irgen.DivaPhantomClass;
 
@@ -345,7 +345,7 @@ public class Framework {
             visited = new BitVectorIntSet();
         }
         Stack<Trace> stack = new Stack<>();
-        Stack<Iterator<CallSiteReference>> iters = new Stack<>();
+        Stack<Iterator<?>> iters = new Stack<>();
 
         stack.push(new Trace(entry, null));
         iters.push(entry.iterateCallSites());
@@ -364,9 +364,25 @@ public class Framework {
                 iters.pop();
                 continue;
             }
-            CallSiteReference site = iters.peek().next();
-
-            if (!trace.in(site))
+            Object o = iters.peek().next();
+            if (o == null)
+                continue;
+            CallSiteReference site;
+            if (o instanceof SSAInstruction) {
+                SSAInstruction instr = (SSAInstruction) o;
+                if (instr instanceof SSAPhiInstruction)
+                    continue;
+                if (!trace.in(instr))
+                    continue;
+                visitor.visitInstruction(trace, instr);
+                if (!(instr instanceof SSAAbstractInvokeInstruction))
+                    continue;
+                site = ((SSAAbstractInvokeInstruction) instr).getCallSite();
+            } else if (o instanceof CallSiteReference) {
+                site = (CallSiteReference) o;
+                if (!trace.in(site))
+                    continue;
+            } else
                 continue;
 
             trace.setSite(site);
@@ -407,7 +423,7 @@ public class Framework {
                     visited.add(n.getGraphNodeId());
                 }
                 stack.push(new Trace(n, trace));
-                iters.push(n.iterateCallSites());
+                iters.push(n.getIR().iterateAllInstructions());
 
                 visitor.visitNode(stack.peek());
                 // skip the rest of targets
@@ -475,10 +491,8 @@ public class Framework {
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report) {
-        calculateTransactions(entry, cxt, report,
-                JDBCAnalysis.getTransactionAnalysis(this, cxt)
-                        .with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)
-                                .with(JPAAnalysis.getTransactionAnalysis(this, cxt))));
+        calculateTransactions(entry, cxt, report, JDBCAnalysis.getTransactionAnalysis(this, cxt).with(SpringBootAnalysis
+                .getTransactionAnalysis(this, cxt).with(JPAAnalysis.getTransactionAnalysis(this, cxt))));
 
     }
 

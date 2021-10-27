@@ -173,7 +173,7 @@ public class SpringBootAnalysis {
             }
 
         } else if (instr instanceof SSAGetInstruction) {
-            Trace.Val v = JDBCAnalysis.pointerAnalysis(fw, value.trace(), (SSAGetInstruction) instr);
+            Trace.Val v = PointerAnalysis.fromInits(fw, value.trace(), (SSAGetInstruction) instr);
             if (v != null) {
                 return calculateSimpleInsert(fw, v, visited);
             }
@@ -237,6 +237,13 @@ public class SpringBootAnalysis {
                 IMethod m = v2.trace().node().getMethod();
                 if (Util.any(Util.getAnnotations(m, ((Integer) v2.constant()) - 1),
                         a -> a.getType().getName() == Constants.LSpringRequestBody)) {
+                    return "." + field.getName();
+                } else if (Util.any(Util.getAnnotations(m),
+                        a -> a.getType().getName() == Constants.LJavaxWsRsGET
+                                || a.getType().getName() == Constants.LJavaxWsRsPOST
+                                || a.getType().getName() == Constants.LJavaxWsRsPATCH
+                                || a.getType().getName() == Constants.LJavaxWsRsPUT
+                                || a.getType().getName() == Constants.LJavaxWsRsDELETE)) {
                     return "." + field.getName();
                 }
             } else {
