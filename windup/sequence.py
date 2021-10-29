@@ -41,15 +41,17 @@ def translate(g, k, r, ps):
                 print ('P{}->>P{}: {}'.format(k, k, wrapline(d['sql'][0])))
 
             elif 'DivaRestCallOpModel' in d['w:winduptype']:
-                es = g.V(op).out('endpointMethod').toList()
-                if es:
-                    r2 = g.V(es[0]).in_('constraints').next()
+                rs = g.V(op).out('endpointContexts').toList()
+                m = g.V(op).out('method').methodName.next()
+                if rs:
+                    r2 = rs[0]
+                    prms = g.V(r2).out('constraints').has('w:winduptype', 'DivaRequestConstraintModel').valueMap().toList()
                     k2 = getapp(g, r2, ps)
-                    print ('P{}->>P{}: {}'.format(k, k2, g.V(op).out('method').methodName.next()))
+                    print ('P{}->>P{}: {}({})'.format(k, k2, m, ','.join('{}={}'.format(p['paramName'][0], p['paramValue'][0]) for p in prms)))
                     translate(g, k2, r2, ps)
                     print ('P{}->>P{}: '.format(k2, k))
                 else:
-                    print ('P{}->>P{}: {}'.format(k, k, g.V(op).out('method').methodName.next()))
+                    print ('P{}->>P{}: {}()'.format(k, k, m))
         print ('deactivate P{}'.format(k))
 
 
@@ -66,7 +68,9 @@ def proc(opts):
                 continue
 
             for r in rs:
-                print ('### {}@{}'.format(g.V(r).out('constraints').methodName.next(), g.V(app).endpointName.next()))
+                m = g.V(r).out('constraints').methodName.next()
+                prms = g.V(r).out('constraints').has('w:winduptype', 'DivaRequestConstraintModel').valueMap().toList()
+                print ('### {}({})@{}'.format(m, ','.join('{}={}'.format(p['paramName'][0], p['paramValue'][0]) for p in prms), g.V(app).endpointName.next()))
                 print ('```mermaid')
                 print ('sequenceDiagram')
                 ps = []
