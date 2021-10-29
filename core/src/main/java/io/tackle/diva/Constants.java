@@ -126,6 +126,8 @@ public interface Constants {
     TypeName LJavaxWsRsPATCH = TypeName.findOrCreate("Ljavax/ws/rs/PATCH");
     TypeName LJavaxWsRsDELETE = TypeName.findOrCreate("Ljavax/ws/rs/DELETE");
     TypeName LJavaxWsRsPath = TypeName.findOrCreate("Ljavax/ws/rs/Path");
+    TypeName LJavaxWsRsPathParam = TypeName.findOrCreate("Ljavax/ws/rs/PathParam");
+    TypeName LJavaxWsRsQueryParam = TypeName.findOrCreate("Ljavax/ws/rs/QueryParam");
 
     // RestEasy
     TypeName LMicroprofileReigsterRestClient = TypeName

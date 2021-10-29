@@ -59,6 +59,7 @@ import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyMethodTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultContextSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
+import com.ibm.wala.ipa.callgraph.impl.FakeRootMethod;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.DefaultSSAInterpreter;
@@ -348,7 +349,8 @@ public class Framework {
         Stack<Iterator<?>> iters = new Stack<>();
 
         stack.push(new Trace(entry, null));
-        iters.push(entry.iterateCallSites());
+        iters.push(entry.getMethod() instanceof FakeRootMethod ? entry.iterateCallSites()
+                : entry.getIR().iterateAllInstructions());
         if (!pathSensitive) {
             visited.add(entry.getGraphNodeId());
         }

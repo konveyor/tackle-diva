@@ -175,6 +175,10 @@ public class Trace extends Util.Chain<Trace> {
             return this instanceof ParamVal;
         }
 
+        public boolean isInstr() {
+            return !isConstant() && !isParam();
+        }
+
         public int param() {
             return -1;
         }

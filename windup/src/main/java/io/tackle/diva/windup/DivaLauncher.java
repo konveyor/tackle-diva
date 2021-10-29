@@ -74,6 +74,7 @@ import io.tackle.diva.windup.model.DivaConstraintModel;
 import io.tackle.diva.windup.model.DivaContextModel;
 import io.tackle.diva.windup.model.DivaEndpointModel;
 import io.tackle.diva.windup.model.DivaEntryMethodModel;
+import io.tackle.diva.windup.model.DivaRequestConstraintModel;
 import io.tackle.diva.windup.model.DivaRequestParamModel;
 import io.tackle.diva.windup.model.DivaRestApiModel;
 import io.tackle.diva.windup.model.DivaRestCallOpModel;
@@ -93,8 +94,9 @@ public class DivaLauncher extends GraphOperation {
     public static void launch(Object arg0, Object arg1) throws Exception {
         GraphRewrite event = (GraphRewrite) arg0;
         EvaluationContext context = (EvaluationContext) arg1;
+        GraphContext gc = event.getGraphContext();
 
-        List<? extends ProjectModel> projects = event.getGraphContext().getQuery(ProjectModel.class)
+        List<? extends ProjectModel> projects = gc.getQuery(ProjectModel.class)
                 .traverse(g -> g.filter(
                         __.out(ProjectModel.PROJECT_MODEL_TO_FILE).has(WindupFrame.TYPE_PROP, SourceFileModel.TYPE)))
                 .toList(ProjectModel.class);
@@ -154,7 +156,7 @@ public class DivaLauncher extends GraphOperation {
                 }
             };
         } else {
-            WindupConfigurationModel cfg = WindupConfigurationService.getConfigurationModel(event.getGraphContext());
+            WindupConfigurationModel cfg = WindupConfigurationService.getConfigurationModel(gc);
             List<String> sourceDirs = Util.makeList(Util.map(cfg.getInputPaths(), FileModel::getFilePath));
             Util.LOGGER.info("Using root source dirs: " + sourceDirs + " due to non-maven projects: " + notMaven);
             scope = new JavaSourceAnalysisScope() {
@@ -180,7 +182,7 @@ public class DivaLauncher extends GraphOperation {
         }
 
         DivaIRGen.init();
- 
+
         // build the class hierarchy
         IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope, clf);
         Util.LOGGER.info(cha.getNumberOfClasses() + " classes");
@@ -216,12 +218,11 @@ public class DivaLauncher extends GraphOperation {
         // List<Context> contexts = Context.loadContexts(fw,
         // "/Users/aki/git/tackle-diva/dt-contexts.yml");
 
-        JanusGraphReport<DivaContextModel> report = new JanusGraphReport<>(event.getGraphContext(),
-                DivaContextModel.class);
+        JanusGraphReport<DivaContextModel> report = new JanusGraphReport<>(gc, DivaContextModel.class);
 
-        DivaEntryMethodService entryMethodService = new DivaEntryMethodService(event.getGraphContext());
-        GetOrCreateGraphService<DivaRequestParamModel> requestParamService = new GetOrCreateGraphService<>(
-                event.getGraphContext(), DivaRequestParamModel.class);
+        DivaEntryMethodService entryMethodService = new DivaEntryMethodService(gc);
+        GetOrCreateGraphService<DivaRequestParamModel> requestParamService = new GetOrCreateGraphService<>(gc,
+                DivaRequestParamModel.class);
 
         for (Context cxt : contexts) {
 
@@ -275,7 +276,8 @@ public class DivaLauncher extends GraphOperation {
                                             DivaRequestParamModel model = requestParamService.getOrCreate(
                                                     DivaRequestParamModel.PARAM_NAME, c.type(),
                                                     DivaRequestParamModel.PARAM_VALUE, c.value());
-                                            cs.add(model);
+                                            cs.add(GraphService.addTypeToModel(gc, model,
+                                                    DivaRequestConstraintModel.class));
                                         }
                                     }
                                 });
@@ -284,13 +286,13 @@ public class DivaLauncher extends GraphOperation {
                         }
                     }, txAnalysis);
                 }
-                event.getGraphContext().getGraph().tx().commit();
+                gc.getGraph().tx().commit();
             } catch (RuntimeException e) {
-                event.getGraphContext().getGraph().tx().rollback();
+                gc.getGraph().tx().rollback();
             }
         }
 
-        endpointResolution(event.getGraphContext(), projects);
+        endpointResolution(gc, projects);
 
         Util.LOGGER.info("DONE");
     }
@@ -422,6 +424,17 @@ public class DivaLauncher extends GraphOperation {
                         .toList(DivaEntryMethodModel.class);
                 for (DivaEntryMethodModel m : ms) {
                     call.setEndpointMethod(m);
+                    for (DivaContextModel cxt : m.getContexts()) {
+                        if (Util.all(cxt.getConstraints(), r -> {
+                            if (!(r instanceof DivaRequestConstraintModel))
+                                return true;
+                            DivaRequestConstraintModel p = (DivaRequestConstraintModel) r;
+                            return Util.all(call.getCallParams(), q -> !q.getParamName().equals(p.getParamName())
+                                    || q.getParamValue().equals(p.getParamValue()));
+                        })) {
+                            call.addEndpointContext(cxt);
+                        }
+                    }
                     break;
                 }
 
