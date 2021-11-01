@@ -1,13 +1,13 @@
 package io.tackle.diva.analysis;
 
 import java.util.Iterator;
+import java.util.function.BiConsumer;
 
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
-import com.ibm.wala.types.FieldReference;
 
 import io.tackle.diva.Framework;
 import io.tackle.diva.Trace;
@@ -54,7 +54,8 @@ public class PointerAnalysis {
         return null;
     }
 
-    public static Trace.Val fromDefUse(Framework fw, Trace.Val def, Trace.Val use, FieldReference fref) {
+    public static void fromDefUse(Framework fw, Trace.Val def, Trace.Val use,
+            BiConsumer<Trace, SSAPutInstruction> cont) {
         Iterator<Trace> ds = Util.makeList(def.trace().reversed()).iterator();
         Trace nca = null;
         for (Trace u : use.trace().reversed()) {
@@ -65,29 +66,21 @@ public class PointerAnalysis {
             nca = u;
         }
         if (nca == null)
-            return null;
+            return;
         int[] phase = new int[] { 0 };
-        try {
-            fw.traverse(nca.node(), (Trace.InstructionVisitor) (Trace t, SSAInstruction instr) -> {
-                if (phase[0] == 0) {
-                    if (instr == def.instr())
-                        phase[0]++;
-                } else if (phase[0] == 1) {
-                    if (instr == use.instr()) {
-                        phase[0]++;
-                    } else if (instr instanceof SSAPutInstruction) {
-                        SSAPutInstruction put = (SSAPutInstruction) instr;
-                        if (put.getDeclaredField() == fref) {
-                            throw new PointerAnalysis.Escape(t.getDefOrParam(put.getUse(1)));
-                        }
-                    }
+        fw.traverse(nca.node(), (Trace.InstructionVisitor) (Trace t, SSAInstruction instr) -> {
+            if (phase[0] == 0) {
+                if (instr == def.instr())
+                    phase[0]++;
+            } else if (phase[0] == 1) {
+                if (instr == use.instr()) {
+                    phase[0]++;
+                } else if (instr instanceof SSAPutInstruction) {
+                    SSAPutInstruction put = (SSAPutInstruction) instr;
+                    cont.accept(t, put);
                 }
-            }, true);
-        } catch (PointerAnalysis.Escape e) {
-            return e.val;
-        }
-
-        return null;
+            }
+        }, true);
     }
 
 }

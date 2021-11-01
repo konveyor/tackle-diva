@@ -237,14 +237,14 @@ public class SpringBootAnalysis {
                 IMethod m = v2.trace().node().getMethod();
                 if (Util.any(Util.getAnnotations(m, ((Integer) v2.constant()) - 1),
                         a -> a.getType().getName() == Constants.LSpringRequestBody)) {
-                    return "." + field.getName();
+                    return "json:" + field.getName();
                 } else if (Util.any(Util.getAnnotations(m),
                         a -> a.getType().getName() == Constants.LJavaxWsRsGET
                                 || a.getType().getName() == Constants.LJavaxWsRsPOST
                                 || a.getType().getName() == Constants.LJavaxWsRsPATCH
                                 || a.getType().getName() == Constants.LJavaxWsRsPUT
                                 || a.getType().getName() == Constants.LJavaxWsRsDELETE)) {
-                    return "." + field.getName();
+                    return "json:" + field.getName();
                 }
             } else {
                 String prefix = jsonRequestMatcher(fw, v2);
