@@ -1,3 +1,3 @@
 # Diva-windup
 
-<img src="../docs/windup-models.svg" width=60%>
+<img src="../docs/windup-models.svg" width=100%>

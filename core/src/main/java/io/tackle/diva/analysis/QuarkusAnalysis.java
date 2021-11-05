@@ -10,6 +10,8 @@ import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
+import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
@@ -83,6 +85,7 @@ public class QuarkusAnalysis {
                                 map.put("http-method", httpMethod);
                                 map.put("url-path", httpPath);
                                 map.put("client-class", c.getName().toString());
+                                restCallParameterAnalysis(fw, m, trace, map);
                             });
                         });
                         // Util.LOGGER.info("method = " + method + ", path = " + path + ", client = " +
@@ -94,4 +97,43 @@ public class QuarkusAnalysis {
         };
     }
 
+    public static void restCallParameterAnalysis(Framework fw, IMethod m, Trace trace, Report.Named map) {
+
+        SSAAbstractInvokeInstruction instr = trace.instrFromSite(trace.site());
+
+        int nparam = 0;
+        outer: for (int k = 0; k < m.getNumberOfParameters() - 1; k++) {
+            for (Annotation a : Util.getAnnotations(m, k)) {
+                if (a.getType().getName() == Constants.LJavaxWsRsPathParam) {
+                    Trace.Val v = trace.getDef(instr.getUse(k + 1));
+                    if (v != null && v.isConstant()) {
+                        map.put("param:" + nparam++, v.constant().toString());
+                    }
+                    continue outer;
+                } else if (a.getType().getName() == Constants.LJavaxWsRsQueryParam) {
+                    Trace.Val v = trace.getDef(instr.getUse(k + 1));
+                    if (v != null && v.isConstant()) {
+                        map.put(a.getNamedArguments().get("value").toString(), v.constant().toString());
+                    }
+                    continue outer;
+                }
+            }
+
+            Trace.Val def = trace.getDef(instr.getUse(k + 1));
+            if (def != null && def.isInstr() && def.instr() instanceof SSANewInstruction) {
+                TypeReference typ = fw.classHierarchy().lookupClass(((SSANewInstruction) def.instr()).getConcreteType())
+                        .getReference();
+                PointerAnalysis.fromDefUse(fw, def, trace.new Val(instr), (t, put) -> {
+                    if (put.getDeclaredField().getDeclaringClass() == typ) {
+                        Trace.Val v = t.getDef(put.getUse(1));
+                        if (v != null && v.isConstant()) {
+                            map.put("json:" + put.getDeclaredField().getName().toString(), v.constant().toString());
+                        }
+                    }
+                });
+
+            }
+
+        }
+    }
 }

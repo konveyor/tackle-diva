@@ -2,9 +2,10 @@ package io.tackle.diva.windup.model;
 
 import org.jboss.windup.graph.Property;
 import org.jboss.windup.graph.model.TypeValue;
+import org.jboss.windup.graph.model.WindupVertexFrame;
 
 @TypeValue(DivaRequestParamModel.TYPE)
-public interface DivaRequestParamModel extends DivaConstraintModel {
+public interface DivaRequestParamModel extends WindupVertexFrame {
 
     String TYPE = "DivaRequestParamModel";
     String PARAM_NAME = "paramName";

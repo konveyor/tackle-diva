@@ -22,6 +22,7 @@ import io.tackle.diva.Trace;
 import io.tackle.diva.windup.model.DivaConstraintModel;
 import io.tackle.diva.windup.model.DivaContextModel;
 import io.tackle.diva.windup.model.DivaOpModel;
+import io.tackle.diva.windup.model.DivaRequestParamModel;
 import io.tackle.diva.windup.model.DivaRestCallOpModel;
 import io.tackle.diva.windup.model.DivaSqlOpModel;
 import io.tackle.diva.windup.model.DivaStackTraceModel;
@@ -96,6 +97,15 @@ public class JanusGraphReport<T extends WindupVertexFrame> implements Report {
 
             } else if (model instanceof DivaRestCallOpModel && key.equals("url-path")) {
                 ((DivaRestCallOpModel) model).setUrlPath(DivaLauncher.stripBraces((String) value));
+
+            } else if (model instanceof DivaRestCallOpModel && key.equals("client-class")) {
+
+            } else if (model instanceof DivaRestCallOpModel) {
+                DivaRequestParamModel param = new GraphService<DivaRequestParamModel>(gc, DivaRequestParamModel.class)
+                        .create();
+                param.setParamName(key);
+                param.setParamValue(value.toString());
+                ((DivaRestCallOpModel) model).addCallParam(param);
             }
         }
 
