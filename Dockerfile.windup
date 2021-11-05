@@ -20,7 +20,7 @@ COPY pom.xml ./
 
 RUN mvn install -DskipTests
 
-RUN ${MTA_CLI_BUILD_PATH}/bin/mta-cli --batchMode --install com.github.konveyor.tackle-diva:diva-windup:main-SNAPSHOT
+RUN ${MTA_CLI_BUILD_PATH}/bin/mta-cli --batchMode --install com.github.konveyor.tackle-diva:diva-windup:0.1.1
 
 FROM openjdk:8u282-jre-slim
 
