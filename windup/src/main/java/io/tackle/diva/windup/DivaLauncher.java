@@ -84,7 +84,9 @@ public class DivaLauncher extends GraphOperation {
     @Override
     public void perform(GraphRewrite event, EvaluationContext context) {
         try {
-            Util.injectedCall(DivaIRGen.advices(), DivaLauncher.class.getName() + ".launch", event, context);
+            Util.injectedCall(DivaIRGen.advices(), new String[] {},
+                    new String[] { "io.tackle.diva.windup.model", "io.tackle.diva.windup.service" },
+                    DivaLauncher.class.getName() + ".launch", event, context);
         } catch (Exception e) {
             e.printStackTrace();
         }

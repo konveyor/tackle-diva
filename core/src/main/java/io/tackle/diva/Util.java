@@ -69,36 +69,11 @@ public class Util {
     public static final Logger LOGGER = Logger.getLogger("");
 
     public static String CLASS_DUMP_LOCATION = null;
-    // public static String CLASS_DUMP_LOCATION = "./logs/akihiko/"
-    public static String[] INJECTION_PACKAGES = new String[] { "com.ibm.wala", "org.eclipse.jdt", "io.tackle.diva" };
-    public static String[] EXCLUSION_PACKAGES = new String[] { "io.tackle.diva.windup.model",
-            "io.tackle.diva.windup.service" };
-    public static Predicate<String> INJECTION_PREDICATE;
-    public static Predicate<String> EXCLUSION_PREDICATE;
+
     public static ObjectWriter JSON_SERIALIZER;
     public static ObjectMapper YAML_SERIALIZER;
 
     static {
-        String pat = null;
-        for (String p : INJECTION_PACKAGES) {
-            if (pat == null) {
-                pat = "^" + p.replace(".", "\\.") + "\\..*";
-            } else {
-                pat += "|^" + p.replace(".", "\\.") + "\\..*";
-            }
-        }
-        INJECTION_PREDICATE = Pattern.compile(pat).asPredicate();
-
-        pat = null;
-        for (String p : EXCLUSION_PACKAGES) {
-            if (pat == null) {
-                pat = "^" + p.replace(".", "\\.") + "\\..*";
-            } else {
-                pat += "|^" + p.replace(".", "\\.") + "\\..*";
-            }
-        }
-        EXCLUSION_PREDICATE = Pattern.compile(pat).asPredicate();
-
         DefaultPrettyPrinter.Indenter indenter = new DefaultIndenter("  ", DefaultIndenter.SYS_LF);
         DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
         printer.indentObjectsWith(indenter);
@@ -107,7 +82,6 @@ public class Util {
         JSON_SERIALIZER = new ObjectMapper().writer(printer);
 
         YAML_SERIALIZER = new ObjectMapper(new YAMLFactory());
-
     }
 
     public static void directoryAssurance(String directory) {
@@ -170,6 +144,24 @@ public class Util {
     }
 
     public static void injectedCall(Map<String, Class<?>> injectors, String name, Object... args) throws Exception {
+        injectedCall(injectors, new String[] {}, new String[] {}, name, args);
+    }
+
+    public static void injectedCall(Map<String, Class<?>> injectors, String[] includes, String[] excludes, String name,
+            Object... args) throws Exception {
+
+        String pat = "^" + "com.ibm.wala".replace(".", "\\.") + "\\..*";
+        pat += "|^" + "org.eclipse.jdt".replace(".", "\\.") + "\\..*";
+        pat += "|^" + "io.tackle.diva".replace(".", "\\.") + "\\..*";
+        for (String p : includes) {
+            pat += "|^" + p.replace(".", "\\.") + "\\..*";
+        }
+        Predicate<String> inclusion = Pattern.compile(pat).asPredicate();
+        pat = "";
+        for (String p : excludes) {
+            pat += (pat.isEmpty() ? "^" : "|^") + p.replace(".", "\\.") + "\\..*";
+        }
+        Predicate<String> exclusion = pat.isEmpty() ? s -> false : Pattern.compile(pat).asPredicate();
 
         Class klazz = Class.forName(name.substring(0, name.lastIndexOf('.')));
         String method = name.substring(name.lastIndexOf('.') + 1);
@@ -225,8 +217,7 @@ public class Util {
                         }
                     }
 
-                } else if (c.getClassLoader() == null || !INJECTION_PREDICATE.test(name)
-                        || EXCLUSION_PREDICATE.test(name)) {
+                } else if (c.getClassLoader() == null || !inclusion.test(name) || exclusion.test(name)) {
                     return c;
                 } else {
                     String classAsPath = name.replace('.', '/') + ".class";
