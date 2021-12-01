@@ -11,13 +11,16 @@
     </parent>
 
     <artifactId>diva-core</artifactId>
-    <packaging>pom</packaging>
 
     <name>Tackle-DiVA core</name>
 
     <properties>
         <gradle.executable>./gradlew</gradle.executable>
         <wala.version>1.5.7</wala.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jackson.version>2.13.0</jackson.version>
     </properties>
 
     <dependencies>
@@ -25,163 +28,142 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
             <version>3.6.1</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
             <artifactId>commons-cli</artifactId>
             <version>1.4</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>2.8.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>28.2-jre</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.shrike</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.util</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.core</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.cast</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.cast.java</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.wala</groupId>
             <artifactId>com.ibm.wala.cast.java.ecj</artifactId>
-            <version>1.5.7</version>
-            <scope>runtime</scope>
+            <version>${wala.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jdt</groupId>
             <artifactId>org.eclipse.jdt.core</artifactId>
             <version>3.21.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.commands</artifactId>
             <version>3.9.700</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.contenttype</artifactId>
             <version>3.7.1000</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.expressions</artifactId>
             <version>3.7.100</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.filesystem</artifactId>
             <version>1.9.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.jobs</artifactId>
             <version>3.11.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.resources</artifactId>
             <version>3.14.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.core.runtime</artifactId>
             <version>3.17.100</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.equinox.app</artifactId>
             <version>1.5.100</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.equinox.common</artifactId>
             <version>3.14.100</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.equinox.preferences</artifactId>
             <version>3.8.200</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.equinox.registry</artifactId>
             <version>3.10.200</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.osgi</artifactId>
             <version>3.16.300</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.text</artifactId>
             <version>3.11.0</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>net.bytebuddy</groupId>
             <artifactId>byte-buddy</artifactId>
             <version>1.10.21</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.13.0</version>
-            <scope>runtime</scope>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.13.0</version>
-            <scope>runtime</scope>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -191,6 +173,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
                 <executions>
                     <execution>
                         <id>gradle</id>
