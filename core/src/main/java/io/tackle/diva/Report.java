@@ -17,6 +17,22 @@ import java.util.function.Function;
 
 public interface Report {
 
+    String ENTRY = "entry";
+    String METHODS = "methods";
+    String HTTP_PARAM = "http-param";
+    String TRANSACTIONS = "transactions";
+    String TRANSACTION = "transaction";
+    String TXID = "txid";
+    String STACKTRACE = "stacktrace";
+    String METHOD = "method";
+    String FILE = "file";
+    String POSITION = "position";
+    String SQL = "sql";
+    String REST_CALL = "rest-call";
+    String HTTP_METHOD = "http-method";
+    String CLIENT_CLASS = "client-class";
+    String URL_PATH = "url-path";
+
     void add(Named.Builder builder);
 
     void add(Report.Builder builder);

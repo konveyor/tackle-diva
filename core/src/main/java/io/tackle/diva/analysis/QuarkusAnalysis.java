@@ -81,10 +81,10 @@ public class QuarkusAnalysis {
                         String httpMethod = method;
                         String httpPath = path;
                         fw.reportOperation(trace, (Report.Named named) -> {
-                            named.put("rest-call", (Report.Named map) -> {
-                                map.put("http-method", httpMethod);
-                                map.put("url-path", httpPath);
-                                map.put("client-class", c.getName().toString());
+                            named.put(Report.REST_CALL, (Report.Named map) -> {
+                                map.put(Report.HTTP_METHOD, httpMethod);
+                                map.put(Report.URL_PATH, httpPath);
+                                map.put(Report.CLIENT_CLASS, c.getName().toString());
                                 restCallParameterAnalysis(fw, m, trace, map);
                             });
                         });
