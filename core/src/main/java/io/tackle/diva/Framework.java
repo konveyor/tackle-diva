@@ -442,14 +442,14 @@ public class Framework {
     public void reportOperation(Trace trace, Consumer<Report.Named> named) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
-                map.put("txid", transactionId++);
-                map.put("transaction", (Report v) -> {
+                map.put(Report.TXID, transactionId++);
+                map.put(Report.TRANSACTION, (Report v) -> {
                     transaction = v;
                 });
             });
         }
         transaction.add((Report.Named map) -> {
-            map.put("stacktrace", trace, _trace -> (Report stacktrace) -> {
+            map.put(Report.STACKTRACE, trace, _trace -> (Report stacktrace) -> {
                 for (Trace t : _trace.reversed()) {
                     IMethod m = t.node().getMethod();
                     SourcePosition p = null;
@@ -459,9 +459,9 @@ public class Framework {
                     }
                     SourcePosition pos = p;
                     stacktrace.add((Report.Named site) -> {
-                        site.put("method", m.toString());
-                        site.put("file", m.getDeclaringClass().getSourceFileName());
-                        site.put("position", "" + pos);
+                        site.put(Report.METHOD, m.toString());
+                        site.put(Report.FILE, m.getDeclaringClass().getSourceFileName());
+                        site.put(Report.POSITION, "" + pos);
                     });
                 }
             });
@@ -470,7 +470,7 @@ public class Framework {
     }
 
     public void reportSqlStatement(Trace trace, String stmt) {
-        reportOperation(trace, map -> map.put("sql", stmt));
+        reportOperation(trace, map -> map.put(Report.SQL, stmt));
     }
 
     public void reportTxBoundary() {
