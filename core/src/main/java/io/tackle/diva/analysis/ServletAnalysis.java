@@ -50,6 +50,7 @@ import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
 import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.Framework;
+import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
 
@@ -350,7 +351,7 @@ public class ServletAnalysis {
     public static abstract class HttpParameterConstraint implements Context.BranchingConstraint {
         @Override
         public String category() {
-            return "http-param";
+            return Report.HTTP_PARAM;
         }
 
         @Override

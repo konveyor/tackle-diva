@@ -154,7 +154,7 @@ public class Standalone {
                     for (Context.Constraint c : cxt) {
                         c.report(map);
                     }
-                    map.put("transactions", (Report txs) -> {
+                    map.put(Report.TRANSACTIONS, (Report txs) -> {
                         fw.calculateTransactions(n, cxt, txs);
                     });
                 });
