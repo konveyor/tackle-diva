@@ -5,9 +5,7 @@ name: Java CI with Arqullian Test
 
 on:
   push:
-    branches: [ '**' ]
-  pull_request:
-    branches: [ main ]
+    branches: [ 'windup-test' ]
 
 jobs:
   build:
@@ -21,26 +19,21 @@ jobs:
       with:
         java-version: '8'
         distribution: 'adopt'
-    - name: Cloning app
+    - name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-    
+    - name: Cloning windup
       uses: actions/checkout@v2
       with:
-        repository: WASdev/sample.daytrader7
-        path: sample.daytrader7
-    - name: Cloning app
-      uses: actions/checkout@v2
-      with:
-        repository: akihikot/daytrader-quarkus
-        path: daytrader-quarkus
-    - name: Moving apps
-      run: mv sample.daytrader7 daytrader-quarkus ../
-    - name: Build & publish to maven-local with gradle
-      working-directory: core
-      run: ./gradlew publishToMavenLocal -x test
-    - name: Windup arquillian test
-      run: mvn --file windup --batch-mode --update-snapshots verify
-    - name: Upload Test Report
-      uses: actions/upload-artifact@v1
-      if: always()
-      with:
-        name: windup test results
-        path: windup/target/WindupReport
+        repository: akihikot/windup
+        ref: diva-0.1.3
+        path: tmp/windup
+    - name: Moving windup
+      run: mv tmp/windup ../
+    - name: Building windup
+      run: mvn --f ../windup clean install -DskipTests
+
