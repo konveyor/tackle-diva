@@ -23,7 +23,8 @@ FROM eclipse-temurin:17-jre-alpine
 ENV PYTHONUNBUFFERED=1
 
 RUN apk add --update --no-cache python3 graphviz ttf-freefont git bash && \
-    python -m ensurepip && \
+    ln -sf python3 /usr/bin/python && \
+    python3 -m ensurepip && \
     pip3 install --no-cache --upgrade pip pyyaml 
 
 RUN mkdir -p /diva-distribution/lib
