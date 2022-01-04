@@ -41,7 +41,7 @@ def crud0(ast, write=False):
             res[1] |= ws
         return res
     elif isinstance(ast, dict) and ':from' in ast:
-        ts = [ t.values()[0] if isinstance(t, dict) else t for t in ast[':from'] if not isinstance(t, tuple)]
+        ts = [ list(t.values())[0] if isinstance(t, dict) else t for t in ast[':from'] if not isinstance(t, tuple)]
         res = set()
         for t in ts:
             if isinstance(t, list):
@@ -133,7 +133,7 @@ def dump_dot(c, label, txs, opts):
                 if not stack:
                     rwsets[i] = op['rwset']
                 stack.append(None)
-                sql += ' ' + json.dumps({'rwset' : map(list, op['rwset'])}).replace('"', '')
+                sql += ' ' + json.dumps({'rwset' : list(map(list, op['rwset']))}).replace('"', '')
 
 
             sql = sql.replace('>', '&gt;').replace('<', '&lt;')
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     import yaml
 
     yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
-    yaml.add_representer(unicode, lambda dumper, data: dumper.represent_scalar(u'tag:yaml.org,2002:str', data))
+    yaml.add_representer(str, lambda dumper, data: dumper.represent_scalar(u'tag:yaml.org,2002:str', data))
 
     opts = get_opts(sys.argv[1:])
 

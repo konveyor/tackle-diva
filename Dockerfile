@@ -9,7 +9,7 @@
 #	See the License for the specific language governing permissions and
 #	limitations under the License.
 
-FROM gradle:jdk8 as build
+FROM gradle:jdk17 as build
 
 WORKDIR /home/gradle
 COPY core diva
@@ -18,18 +18,17 @@ WORKDIR /home/gradle/diva
 RUN gradle ziptask
 RUN jar xvf build/distributions/diva-all.zip
 
-FROM openjdk:8u282-jre-slim
+FROM eclipse-temurin:17-jre-alpine
+
+ENV PYTHONUNBUFFERED=1
+
+RUN apk add --update --no-cache python3 graphviz ttf-freefont git bash && \
+    python -m ensurepip && \
+    pip3 install --no-cache --upgrade pip pyyaml 
 
 RUN mkdir -p /diva-distribution/lib
 COPY distrib/ /diva-distribution/
 COPY --from=build /home/gradle/diva/bin/*.jar /diva-distribution/bin/
 COPY --from=build /home/gradle/diva/lib/*.jar /diva-distribution/lib/
 
-RUN apt-get update
-RUN apt-get install -y git python2 python-pip graphviz
-RUN pip install PyYAML
-
 WORKDIR /tmp
-
-
-

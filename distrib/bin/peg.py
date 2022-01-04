@@ -36,7 +36,7 @@ def pegcxt(f):
 def choice(s, *args):
     for f in args:
         a = f(s)
-        if a is not ():
+        if a != ():
             return a
     return ()
 
@@ -45,7 +45,7 @@ def seq(s, *args):
     r = []
     for f in args:
         a = f(s)
-        if a is ():
+        if a == ():
             return ()
         s = a[0]
         r += a[1]
@@ -74,7 +74,7 @@ def before(s, *args):
 @pegop
 def match(s, e, r=None):
     a = e(s)
-    if a is ():
+    if a == ():
         return ()
     elif r is None:
         return a[0], a[1] + [s[:len(s)-len(a[0])]]
