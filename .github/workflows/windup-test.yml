@@ -5,7 +5,10 @@ name: Java CI with Arqullian Test
 
 on:
   push:
-    branches: [ 'windup-test' ]
+    paths:
+    - 'windup/**'
+    - '.github/workflows/windup-test.yml'
+    - 'DIVA_ADDON_VERSION'
 
 jobs:
   build:
@@ -25,12 +28,15 @@ jobs:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
-          ${{ runner.os }}-maven-    
+          ${{ runner.os }}-maven-
+    - name: Read DIVA_ADDON_VERSION
+      id: getversion
+      run: echo "::set-output name=version::$(cat DIVA_ADDON_VERSION)"
     - name: Cloning windup
       uses: actions/checkout@v2
       with:
         repository: akihikot/windup
-        ref: diva-0.1.3
+        ref: ${{ steps.getversion.outputs.version }}
         path: tmp/windup
     - name: Moving windup
       run: mv tmp/windup ../
