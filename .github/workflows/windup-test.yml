@@ -9,6 +9,11 @@ on:
     - 'windup/**'
     - '.github/workflows/windup-test.yml'
     - 'DIVA_ADDON_VERSION'
+  pull_request:
+    paths:
+    - 'windup/**'
+    - '.github/workflows/windup-test.yml'
+    - 'DIVA_ADDON_VERSION'
 
 jobs:
   build:
