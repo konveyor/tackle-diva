@@ -35,5 +35,24 @@ jobs:
     - name: Moving windup
       run: mv tmp/windup ../
     - name: Building windup
-      run: mvn --f ../windup clean install -DskipTests
-
+      run: mvn --file ../windup clean install -DskipTests
+    - name: Cloning app
+      uses: actions/checkout@v2
+      with:
+        repository: WASdev/sample.daytrader7
+        path: sample.daytrader7
+    - name: Cloning app
+      uses: actions/checkout@v2
+      with:
+        repository: akihikot/daytrader-quarkus
+        path: daytrader-quarkus
+    - name: Moving apps
+      run: mv sample.daytrader7 daytrader-quarkus ../      
+    - name: Windup arquillian test
+      run: mvn --file windup --batch-mode --update-snapshots verify
+    - name: Upload Test Report
+      uses: actions/upload-artifact@v1
+      if: always()
+      with:
+        name: windup test results
+        path: windup/target/WindupReport

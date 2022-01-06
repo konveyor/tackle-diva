@@ -15,6 +15,8 @@ import org.jboss.windup.exec.WindupProcessor;
 import org.jboss.windup.exec.configuration.WindupConfiguration;
 import org.jboss.windup.graph.GraphContext;
 import org.jboss.windup.graph.GraphContextFactory;
+import org.jboss.windup.rules.apps.diva.EnableTransactionAnalysisOption;
+import org.jboss.windup.rules.apps.diva.analysis.DivaRuleProvider;
 import org.jboss.windup.rules.apps.java.config.SourceModeOption;
 import org.jboss.windup.rules.apps.java.model.WindupJavaConfigurationModel;
 import org.jboss.windup.rules.apps.java.service.WindupJavaConfigurationService;
@@ -25,13 +27,7 @@ import org.junit.runner.RunWith;
 public class DaytraderTest {
 
     @Deployment
-    @AddonDependencies({ @AddonDependency(name = "com.github.konveyor.tackle-diva:diva-windup"),
-            @AddonDependency(name = "org.jboss.windup.config:windup-config"),
-            @AddonDependency(name = "org.jboss.windup.exec:windup-exec"),
-            @AddonDependency(name = "org.jboss.windup.utils:windup-utils"),
-            @AddonDependency(name = "org.jboss.windup.rules.apps:windup-rules-java"),
-            @AddonDependency(name = "org.jboss.windup.reporting:windup-reporting"),
-            @AddonDependency(name = "org.jboss.forge.furnace.container:cdi") })
+    @AddonDependencies
     public static AddonArchive getDeployment() {
         final AddonArchive archive = ShrinkWrap.create(AddonArchive.class).addBeansXML();
         return archive;
@@ -51,12 +47,12 @@ public class DaytraderTest {
 
             WindupConfiguration wc = new WindupConfiguration();
             wc.setGraphContext(context);
-            wc.setRuleProviderFilter(new RuleProviderWithDependenciesPredicate(DivaRuleProvider.class));
             String app = "../../sample.daytrader7/";
 
             wc.addInputPath(Paths.get(app));
             wc.setOutputDirectory(Paths.get("target/WindupReport/sample.daytrader7"));
             wc.setOptionValue(SourceModeOption.NAME, true);
+            wc.setOptionValue(EnableTransactionAnalysisOption.NAME, true);
 
             processor.execute(wc);
         }
