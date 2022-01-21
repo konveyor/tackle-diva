@@ -26,7 +26,7 @@ fi
 rm -rf ${TCD_APPLICATION_PATH}
 git clone $1 ${TCD_APPLICATION_PATH}
 
-${MTA_CLI_PATH}/bin/mta-cli --input ${TCD_APPLICATION_PATH} --sourceMode --target java-ee
+${MTA_CLI_PATH}/bin/mta-cli --input ${TCD_APPLICATION_PATH} --sourceMode --enableTransactionAnalysis --keepWorkDirs --target java-ee
 
 ${JANUSGRAPH_PATH}/bin/gremlin-server.sh start
 
