@@ -1,5 +1,15 @@
 # (Working draft) Development Policy, Design Document and Implementation
 
+## Past Releases (Tags)
+
+- `v1.0.0`: first release. (Nov., 2021)
+
+## Branches
+
+- `main`: the main branch (and dev branch for v2). See this branch for the latest revision.
+  - You cannot directly push to `main` branch. Need to create a PR.
+- `v1`: ver. 1 release branch.
+
 ## Overall: Development env.
 
 Use dev-container of VS Code. 
