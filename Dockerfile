@@ -9,7 +9,7 @@
 #	See the License for the specific language governing permissions and
 #	limitations under the License.
 
-FROM gradle:jdk17 as build
+FROM gradle:jdk11 as build
 
 WORKDIR /home/gradle
 COPY core diva
@@ -18,7 +18,7 @@ WORKDIR /home/gradle/diva
 RUN gradle ziptask
 RUN jar xvf build/distributions/diva-all.zip
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:11-jre-alpine
 
 ENV PYTHONUNBUFFERED=1
 
