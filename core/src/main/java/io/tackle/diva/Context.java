@@ -92,12 +92,12 @@ public class Context extends ArrayList<Context.Constraint> {
 
         @Override
         public String category() {
-            return "entry";
+            return Report.ENTRY;
         }
 
         @Override
         public String type() {
-            return "methods";
+            return Report.METHODS;
         }
 
         @Override
