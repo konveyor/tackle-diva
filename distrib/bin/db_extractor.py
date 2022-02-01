@@ -31,9 +31,8 @@ for tx_entry in tx_entries:
                             for str in sql:
                                 if ':from' in str:
                                     elements = str[':from']
-
-                                    if type(elements[0]) is unicode:
+                                    if type(elements[0]) is str:
                                         db_list.append(elements[0])
 
 db_dict[sys.argv[2]] = list(set(db_list))
-print json.dumps(db_dict, indent=2)
+print(json.dumps(db_dict, indent=2))
