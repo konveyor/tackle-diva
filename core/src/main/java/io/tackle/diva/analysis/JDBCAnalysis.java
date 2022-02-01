@@ -99,6 +99,8 @@ public class JDBCAnalysis {
         }
 
         if (value.isConstant()) {
+            if (value.constant() == null)
+                return "??";
             return value.constant().toString();
         }
 
