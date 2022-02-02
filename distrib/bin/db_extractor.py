@@ -28,9 +28,9 @@ for tx_entry in tx_entries:
                         sql_str = sqlexp(trans['sql'].lower())
                         if sql_str:
                             sql = sql_str[1]
-                            for str in sql:
-                                if ':from' in str:
-                                    elements = str[':from']
+                            for sql_str_str in sql:
+                                if ':from' in sql_str_str:
+                                    elements = sql_str_str[':from']
                                     if type(elements[0]) is str:
                                         db_list.append(elements[0])
 
