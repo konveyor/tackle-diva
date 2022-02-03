@@ -39,7 +39,7 @@
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
-	"postCreateCommand": "pip3 install --user colorama typer wasabi lark",
+	"postCreateCommand": "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli",
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }

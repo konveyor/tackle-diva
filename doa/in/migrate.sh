@@ -54,14 +54,14 @@ OUTDIR=$(readlink -f ${outdir})
 # log
 echo
 cyan "------------------------"
-cyan "DiVA-DOA v2.0.0"
+cyan "DiVA-DOA v{{version}}"
 cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
 echo "base_dir = ${WORKDIR}"
 echo "repo URL = ${REPO_URL}"
 echo "init_file (relative to repo dir) = ${init_file}"
-# echo "outdir (relative) = ${outdir}"
+echo "outdir (relative) = ${outdir}"
 echo "outdir (absolute) = ${OUTDIR}"
 echo "user id:"
 id
@@ -85,18 +85,14 @@ echo
 cyan "analyzing application..."
 APP_NAME=${REPO_URL##*/} # pick up segment after the last "/"
 echo "application name = ${APP_NAME}"
-mkdir -p ${OUTDIR}/${APP_NAME}
-OUTDIR=${OUTDIR}/${APP_NAME} # overwrite
-cyan "application directory ${OUTDIR} created."
 
 echo
 cyan "analyzing DBMS settings..."
 echo "analyzing configuration..."
 echo "analyzing credentials..."
-DB_YAML=${OUTDIR}/postgresql.yaml
+DB_YAML=${OUTDIR}/${APP_NAME}-postgres.yaml
 echo "writing postgresql resource manifest to ${DB_YAML}..."
-# cp ${WORKDIR}/manifests/postgresql.in.yaml ${DB_YAML}
-jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/postgresql.in.yaml > ${DB_YAML}
+cp ${WORKDIR}/manifests/database.yaml ${DB_YAML}
 
 echo
 cyan "analyzing SQL scripts..."
@@ -108,14 +104,11 @@ cyan "analyzing app start-up scripts..."
 PYTHONPATH=${WORKDIR} python -m analyzers.analyze_initdb -n "${APP_NAME}" -i "${REPO_DIR}" --init-file "${init_file}" -o "${OUTDIR}"
 
 mkdir -p ${OUTDIR}/test
-POD_YAML=${OUTDIR}/test/pod-test.yaml # Pod for test. To be removed in future.
-JOB_YAML=${OUTDIR}/job-init.yaml
+POD_YAML=${OUTDIR}/test/${APP_NAME}-pod-init.yaml # Pod for test. To be removed in future.
+JOB_YAML=${OUTDIR}/${APP_NAME}-job-init.yaml
 echo "writing init Job manifest to ${JOB_YAML}..."
-# cp ${WORKDIR}/manifests/pod-init.yaml ${POD_YAML}
-# cp ${WORKDIR}/manifests/job-init.yaml ${JOB_YAML}
-jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/job-init.in.yaml > ${JOB_YAML}
-jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/pod-test.in.yaml > ${POD_YAML}
-
+cp ${WORKDIR}/manifests/pod-init.yaml ${POD_YAML}
+cp ${WORKDIR}/manifests/job-init.yaml ${JOB_YAML}
 
 echo 
 cyan "post processing..."

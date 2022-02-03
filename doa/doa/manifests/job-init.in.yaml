@@ -20,18 +20,18 @@ spec:
               mountPath: /app/init
           env:
             - name: DB_HOST
-              value: diva-trading-app-db
+              value: {{app_name}}-db
             - name: SQL_ROOT
               value: /app/sqls
             - name: USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres.diva-trading-app-db.credentials.postgresql.acid.zalan.do
+                  name: postgres.{{app_name}}-db.credentials.postgresql.acid.zalan.do
                   key: username
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres.diva-trading-app-db.credentials.postgresql.acid.zalan.do
+                  name: postgres.{{app_name}}-db.credentials.postgresql.acid.zalan.do
                   key: password
       volumes:
         - name: volume-sqls

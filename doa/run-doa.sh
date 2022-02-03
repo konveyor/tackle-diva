@@ -67,7 +67,7 @@ OUTDIR=$(abspath ${outdir})
 
 
 echo "--------------------"
-echo "DOA migrator wrapper"
+echo "DiVA-DOA wrapper"
 echo "--------------------"
 
 if [[ -n ${debug+x} ]]; then
@@ -86,12 +86,13 @@ fi
 
 # main routine: run container and app with the output directory mounted.
 # Note: OUTDIR should be absolute path. default "readlink" command of macOS 
-#       does not have "-f" option, thus thus script provided abspath().
+#       does not have "-f" option, thus we provide a method abspath().
 #       if you can use "readlink -f", you can use it instead.
 echo
-echo "running container..."
+echo "running container ${IMAGE}..."
+# need to specify "-l" (as login shell) to be able to execute locally installed Python module.
 docker run -it --rm \
     -u vscode \
     -v ${OUTDIR}:/out \
     ${IMAGE} \
-    bash /work/migrate.sh -o /out -i "${init_file}" ${REPO_URL} # arguments to migrate.sh in container
+    bash -l /work/migrate.sh -o /out -i "${init_file}" ${REPO_URL} # arguments to migrate.sh in container

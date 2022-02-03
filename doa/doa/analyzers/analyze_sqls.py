@@ -9,7 +9,8 @@ from subprocess import CompletedProcess, run
 from typer import Abort, Option, Typer
 from wasabi import Printer
 
-__version__ = '2.0.0.dev0'
+from . import __version__
+
 app = Typer()
 msg = Printer()
 
@@ -22,7 +23,7 @@ def main(app_name: str, in_dir: Path, out_dir: Path) -> None:
     _args = ['kubectl', 'create', 'cm', f'{app_name}-cm-sqls',
              '--dry-run=client', '-o', 'yaml']
 
-    msg.good(f'DiVA DOA: SQL files analyzer ver. {__version__}')
+    msg.good(f'DiVA-DOA: SQL files analyzer v{__version__}')
 
     msg.info('setting up...')
     msg.info(f'  application name = {app_name}')
@@ -31,7 +32,8 @@ def main(app_name: str, in_dir: Path, out_dir: Path) -> None:
     if not out_dir.exists():
         msg.warn('  creating output directory')
         out_dir.mkdir(parents=True)
-    out_file: Path = out_dir / f'{app_name}-cm-sqls.yaml'
+    out_file: Path = out_dir / 'cm-sqls.yaml'
+    # out_file: Path = out_dir / f'{app_name}-cm-sqls.yaml'
     msg.info(f'  output yaml file = {out_file}')
 
     msg.info('searching SQL files...')

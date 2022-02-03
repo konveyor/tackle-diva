@@ -1,5 +1,11 @@
 # Tackle-DiVA-DOA
-Tackle-DiVA Database Operator Adaption (DOA) toolchain. 
+
+Tackle-DiVA Database Operator Adaption (DiVA-DOA) toolchain. 
+
+DiVA-DOA generates K8s resource definitions (YAML files) to help migration from an application with legacy DBMS system to cloud native environment that works with HA DB cluster.
+It analyzes DBMS settings, DB definitions and initialization code in the application and generates resource definition files (YAML files) including one for the Postgres Operator, a K8s Operator for HA DB clusters.
+
+![Overall architecture](docs/arch-overview.dot.svg)
 
 # Prerequisites
 
@@ -58,17 +64,25 @@ See [util/start-minikube.sh](util/start-minikube.sh) to (stop and) start a new m
 
 Let us demonstrate the toolchain to adapt a `trading-app` app by saud-aslam (https://github.com/saud-aslam/trading-app).
 
-## (0) Build `diva-migrator` docker image
+## (0) Build `diva-doa` docker image
 
-Need to run just once.
+Clone this repository and go to `doa` directory.
 
 ```bash
-$ make build
+$ cd /tmp
+$ git clone https://github.com/shinsa82-sgi-2021/tackle-diva.git
+$ cd tackle-diva/doa
+```
 
-$ docker images diva-doa
-REPOSITORY   TAG          IMAGE ID       CREATED        SIZE
-diva-doa     2.0.0.dev0   0ef5158f0c85   44 hours ago   1.21GB
-diva-doa     latest       0ef5158f0c85   44 hours ago   1.21GB
+Build an image, needed to run just once.
+
+```bash
+$ bash util/build.sh
+
+$ docker image ls diva-doa
+REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
+diva-doa     2.0.0     5f9dd8f9f0eb   19 hours ago   1.27GB
+diva-doa     latest    5f9dd8f9f0eb   19 hours ago   1.27GB
 ```
 
 ## (1) Analyze target app and generate manifests
@@ -76,36 +90,56 @@ diva-doa     latest       0ef5158f0c85   44 hours ago   1.21GB
 To analyze `trading-app`, executing the wrapper script `run-doa.sh` with arguments:
 
 ```bash
-$ bash ./run-doa.sh -o _out -i start_up.sh https://github.com/saud-aslam/trading-app
+$ bash ./run-doa.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app
 --------------------
-DOA migrator wrapper
+DiVA-DOA wrapper
 --------------------
 
-running container...
+running container diva-doa:latest...
 
-------------------
-DiVA migrator v1.0
-------------------
-
+------------------------
+DiVA-DOA v2.0.0
+------------------------
 ...
 
 [OK] successfully completed.
 ```
 
-This code analyzes an app at repository https://github.com/saud-aslam/trading-app and outputs generated files under `_out` directory. You can specify any directory that you like.
+This code analyzes an app at https://github.com/saud-aslam/trading-app and outputs generated files under `/tmp/out/<app-name>` directory, where `<app-name>` is obtained from the repository name and a child directory of one specified by `-i` option.
+You can specify any directory with the `-i` option.
 
 In current version, you need to specify (by `-i` option) a file under the repository from which DB initializatoin code will be extracted. Currently only shell script file can be supported.
+
+Here shows the generated files:
+
+```bash
+$ ls -lFR --color /tmp/out/trading-app
+/tmp/out/trading-app:
+total 24
+-rw-r--r-- 1 shinsa wheel  258  1 27 22:21 cm-init-db.yaml
+-rw-r--r-- 1 shinsa wheel 2366  1 27 22:21 cm-sqls.yaml
+-rwxr-xr-x 1 shinsa wheel   90  1 27 22:21 create.sh*
+-rwxr-xr-x 1 shinsa wheel   84  1 27 22:21 delete.sh*
+-rw-r--r-- 1 shinsa wheel 1212  1 27 22:21 job-init.yaml
+-rw-r--r-- 1 shinsa wheel  259  1 27 22:21 postgres.yaml
+drwxr-xr-x 3 shinsa wheel   96  1 27 22:21 test/
+
+/tmp/out/trading-app/test:
+total 4
+-rw-r--r-- 1 shinsa wheel 1210  1 27 22:21 pod-test.yaml
+```
 
 ## (2) Create resources on a K8a cluster
 
 Then let us create resources using the generated manifests. Since utility script is also generated, you can use it:
 
 ```bash
-$ bash _out/create.sh
+$ cd /tmp/out/trading-app
+$ bash create.sh # or kubectl apply -f .
 configmap/trading-app-cm-init-db created
 configmap/trading-app-cm-sqls created
 job.batch/trading-app-init created
-postgresql.acid.zalan.do/diva-trading-app-db created
+postgresql.acid.zalan.do/trading-app-db created
 ```
 
 Then you can check resources' status by `kubectl get`:
@@ -115,23 +149,94 @@ $ kubectl get all
 
 # or 
 
-$ kubectl get postgresql,svc,job,po,cm,secret,pvc,pv  # more detailed
+$ kubectl get postgresql,all,cm,secret,pv,pvc  # more detailed
 ```
+
+<details>
+<summary>Command output sample</summary>
+
+```bash
+$ kubectl get postgresql,all,cm,secret,pv,pvc
+NAME                                      TEAM          VERSION   PODS   VOLUME   CPU-REQUEST   MEMORY-REQUEST   AGE     STATUS
+postgresql.acid.zalan.do/trading-app-db   trading-app   13        4      1Gi                                     3m57s   Running
+
+NAME                                        READY   STATUS      RESTARTS   AGE
+pod/postgres-operator-594c75b5fc-7nn6m      1/1     Running     0          4m23s
+pod/postgres-operator-ui-58644cfcff-9nr44   1/1     Running     0          4m23s
+pod/trading-app-db-0                        1/1     Running     0          3m1s
+pod/trading-app-db-1                        1/1     Running     0          2m4s
+pod/trading-app-db-2                        1/1     Running     0          2m2s
+pod/trading-app-db-3                        1/1     Running     0          119s
+pod/trading-app-init--1-g2xg9               0/1     Completed   4          3m57s
+
+NAME                            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/kubernetes              ClusterIP   10.96.0.1        <none>        443/TCP    4m37s
+service/postgres-operator       ClusterIP   10.106.196.192   <none>        8080/TCP   4m26s
+service/postgres-operator-ui    ClusterIP   10.109.57.193    <none>        80/TCP     4m24s
+service/trading-app-db          ClusterIP   10.105.79.165    <none>        5432/TCP   3m3s
+service/trading-app-db-config   ClusterIP   None             <none>        <none>     2m1s
+service/trading-app-db-repl     ClusterIP   10.102.149.79    <none>        5432/TCP   3m2s
+
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/postgres-operator      1/1     1            1           4m26s
+deployment.apps/postgres-operator-ui   1/1     1            1           4m24s
+
+NAME                                              DESIRED   CURRENT   READY   AGE
+replicaset.apps/postgres-operator-594c75b5fc      1         1         1       4m23s
+replicaset.apps/postgres-operator-ui-58644cfcff   1         1         1       4m23s
+
+NAME                              READY   AGE
+statefulset.apps/trading-app-db   4/4     3m1s
+
+NAME                         COMPLETIONS   DURATION   AGE
+job.batch/trading-app-init   1/1           2m34s      3m57s
+
+NAME                                                    IMAGE                                               CLUSTER-LABEL   SERVICE-ACCOUNT   MIN-INSTANCES   AGE
+operatorconfiguration.acid.zalan.do/postgres-operator   registry.opensource.zalan.do/acid/spilo-14:2.1-p3   cluster-name    postgres-pod      -1              4m26s
+
+NAME                               DATA   AGE
+configmap/kube-root-ca.crt         1      4m23s
+configmap/trading-app-cm-init-db   1      3m57s
+configmap/trading-app-cm-sqls      2      3m57s
+
+NAME                                                                  TYPE                                  DATA   AGE
+secret/default-token-zbbtk                                            kubernetes.io/service-account-token   3      4m23s
+secret/postgres-operator-token-6rsqc                                  kubernetes.io/service-account-token   3      4m26s
+secret/postgres-operator-ui-token-vfksr                               kubernetes.io/service-account-token   3      4m24s
+secret/postgres-pod-token-ct7vm                                       kubernetes.io/service-account-token   3      3m3s
+secret/postgres.trading-app-db.credentials.postgresql.acid.zalan.do   Opaque                                2      3m3s
+secret/sh.helm.release.v1.postgres-operator-ui.v1                     helm.sh/release.v1                    1      4m24s
+secret/sh.helm.release.v1.postgres-operator.v1                        helm.sh/release.v1                    1      4m26s
+secret/standby.trading-app-db.credentials.postgresql.acid.zalan.do    Opaque                                2      3m3s
+
+NAME                                                        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                             STORAGECLASS   REASON   AGE
+persistentvolume/pvc-0b7cc79b-18dc-4e21-ad40-95a0c4fdaa35   1Gi        RWO            Delete           Bound    default/pgdata-trading-app-db-3   standard                119s
+persistentvolume/pvc-74301e09-96c4-4bc8-9539-8c2b2846d69b   1Gi        RWO            Delete           Bound    default/pgdata-trading-app-db-2   standard                2m2s
+persistentvolume/pvc-8df7aa00-51b9-49f6-a3d1-89d573f74371   1Gi        RWO            Delete           Bound    default/pgdata-trading-app-db-1   standard                2m4s
+persistentvolume/pvc-ea6e1c59-f9b6-44f8-bdf6-1efef059226b   1Gi        RWO            Delete           Bound    default/pgdata-trading-app-db-0   standard                3m1s
+
+NAME                                            STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/pgdata-trading-app-db-0   Bound    pvc-ea6e1c59-f9b6-44f8-bdf6-1efef059226b   1Gi        RWO            standard       3m2s
+persistentvolumeclaim/pgdata-trading-app-db-1   Bound    pvc-8df7aa00-51b9-49f6-a3d1-89d573f74371   1Gi        RWO            standard       2m5s
+persistentvolumeclaim/pgdata-trading-app-db-2   Bound    pvc-74301e09-96c4-4bc8-9539-8c2b2846d69b   1Gi        RWO            standard       2m3s
+persistentvolumeclaim/pgdata-trading-app-db-3   Bound    pvc-0b7cc79b-18dc-4e21-ad40-95a0c4fdaa35   1Gi        RWO            standard       2m
+```
+</details>
 
 For example, there should be 4 PostgreSQL instance Pods, one of which is a master and others are replica:
 
-```
-$ kubectl get po -l cluster-name=diva-trading-app-db -L spilo-role
-NAME                    READY   STATUS    RESTARTS   AGE   SPILO-ROLE
-diva-trading-app-db-0   1/1     Running   0          21m   master
-diva-trading-app-db-1   1/1     Running   0          21m   replica
-diva-trading-app-db-2   1/1     Running   0          21m   replica
-diva-trading-app-db-3   1/1     Running   0          21m   replica
+```bash
+$ kubectl get po -l cluster-name=trading-app-db -L cluster-name -L spilo-role
+NAME               READY   STATUS    RESTARTS   AGE     CLUSTER-NAME     SPILO-ROLE
+trading-app-db-0   1/1     Running   0          6m32s   trading-app-db   master
+trading-app-db-1   1/1     Running   0          5m35s   trading-app-db   replica
+trading-app-db-2   1/1     Running   0          5m33s   trading-app-db   replica
+trading-app-db-3   1/1     Running   0          5m30s   trading-app-db   replica
 ```
 
 ---
 
-Before proceeding, you need to wait until the initialization Job and Pod finishes before proceeding:
+**Note: before proceeding, you need to wait until the initialization Job and Pod finishes before proceeding:**
 
 ```bash
 # wait until STATUS of trading-app-init Pod becomes "Completed"
@@ -162,34 +267,33 @@ Next, let us check databases and tables using CLI.
 You can use a Pod definition for test, which comes with generated manifests:
 
 ```bash
-$ kubectl apply -f _out/test/trading-app-pod-init.yaml # creates a Deployment resource and associated Pod
-deployment.apps/trading-app-init created
-$ kubectl exec deploy/trading-app-init -it -- bash # login to the pod
+$ cd /tmp/out/trading-app
+$ kubectl apply -f test/pod-test.yaml # creates a test Pod
+pod/trading-app-test created
+$ kubectl exec trading-app-test -it -- bash  # login to the pod
 ```
 
 In the pod, environment variables `DB_HOST` and `PGPASSWORD` are already set.
 
-```bash
-# connect to DBMS by specifying target database
-$ printenv DB_HOST
+```
+# printenv DB_HOST
 diva-trading-app-db
-$ printenv PGPASSWRD
-(password shown)
+# printenv PGPASSWRD
+(password is shown)
 ```
 
 So you can connect to databases and check if databases, tables, and views are successfully created.
 Connect to cluster and database `jrvstrading` by 
 
-```bash
-$ psql -h ${DB_HOST} -U postgres -d jrvstrading 
+```
+# psql -h ${DB_HOST} -U postgres -d jrvstrading 
 ```
 
-or 
+or connect to DBMS without specifying database and issue `\c` command:
 
-```bash
-# connect to DBMS without specifying database
-$ psql -h ${DB_HOST} -U postgres
-\c jrvstrading # connect to database
+```
+# psql -h ${DB_HOST} -U postgres
+postgres=# \c jrvstrading  # connect to database
 ```
 
 and browse stuff:
@@ -222,51 +326,25 @@ $ exit         # (or Ctrl-D) to logout from the Pod
 When checking is done, delete the test Pod:
 
 ```bash
-$ kubectl delete -f _out/test/trading-app-pod-init.yaml
-deployment.apps "trading-app-init" deleted
+$ kubectl delete -f test/pod-test.yaml
+pod "trading-app-test" deleted
 ```
 
 ## (4) Delete resources created by step (2)
 
-Executing `_out/delete.sh` deletes all resources created by `_out/create.sh`.
+Executing `/tmp/out/trading-app/delete.sh` deletes all resources created by `create.sh`.
 
 ```bash
-$ bash _out/delete.sh 
+$ cd /tmp/out/trading-app
+$ bash delete.sh 
 configmap "trading-app-cm-init-db" deleted
 configmap "trading-app-cm-sqls" deleted
 job.batch "trading-app-init" deleted
-postgresql.acid.zalan.do "diva-trading-app-db" deleted
+postgresql.acid.zalan.do "trading-app-db" deleted
 ```
-
-<details>
-<summary>Resourcs after the cluster is deleted</summary>
-
-```bash
-$ kubectl get all
-NAME                                        READY   STATUS    RESTARTS   AGE
-pod/postgres-operator-594c75b5fc-hkwn9      1/1     Running   0          20m
-pod/postgres-operator-ui-58644cfcff-tv77h   1/1     Running   0          20m
-
-NAME                           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-service/kubernetes             ClusterIP   10.96.0.1       <none>        443/TCP    20m
-service/postgres-operator      ClusterIP   10.100.238.88   <none>        8080/TCP   20m
-service/postgres-operator-ui   ClusterIP   10.106.111.62   <none>        80/TCP     20m
-
-NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/postgres-operator      1/1     1            1           20m
-deployment.apps/postgres-operator-ui   1/1     1            1           20m
-
-NAME                                              DESIRED   CURRENT   READY   AGE
-replicaset.apps/postgres-operator-594c75b5fc      1         1         1       20m
-replicaset.apps/postgres-operator-ui-58644cfcff   1         1         1       20m
-
-NAME                                                    IMAGE                                               CLUSTER-LABEL   SERVICE-ACCOUNT   MIN-INSTANCES   AGE
-operatorconfiguration.acid.zalan.do/postgres-operator   registry.opensource.zalan.do/acid/spilo-14:2.1-p3   cluster-name    postgres-pod      -1              20m
-```
-</details>
 
 That's all for the demonstration.
 
 # For developers
 
-See [docs/design.md](docs/design.md) for design document and development policy.
+See [docs/README.md](docs/README.md) for a design document and development policy.

@@ -1,10 +1,10 @@
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
-  name: diva-trading-app-db
+  name: {{app_name}}-db
   namespace: default
 spec:
-  teamId: diva
+  teamId: {{app_name}}
   volume:
     size: 1Gi
   numberOfInstances: 4
