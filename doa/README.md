@@ -278,7 +278,7 @@ In the pod, environment variables `DB_HOST` and `PGPASSWORD` are already set.
 ```
 # printenv DB_HOST
 diva-trading-app-db
-# printenv PGPASSWRD
+# printenv PGPASSWORD
 (password is shown)
 ```
 
