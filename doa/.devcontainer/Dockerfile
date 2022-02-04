@@ -31,6 +31,6 @@ RUN curl -LO "https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl" \
     && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
     && rm kubectl
 
-RUN su vscode -c "pip3 install --user colorama typer wasabi lark"
+RUN su vscode -c "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli"
 
 COPY . /work

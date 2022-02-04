@@ -1,21 +1,22 @@
 """
 analyzer and generator for SQL startup.
 """
-from ast import parse
 import subprocess
+from ast import parse
 from dataclasses import dataclass
 from glob import iglob
 from pathlib import Path
 from subprocess import CompletedProcess, run
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from lark import Lark, Tree
 from lark.visitors import Visitor
 from typer import Abort, Option, Typer
 from wasabi import msg
-from tempfile import TemporaryDirectory
 
-__version__ = '2.0.0.dev0'
+from . import __version__
+
 app = Typer()
 
 
@@ -27,7 +28,7 @@ def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
     _args = ['kubectl', 'create', 'cm', f'{app_name}-cm-init-db',
              '--dry-run=client', '-o', 'yaml']
 
-    msg.good(f'DiVA DOA: SQL init file analyzer ver. {__version__}')
+    msg.good(f'DiVA-DOA: SQL init file analyzer v{__version__}')
 
     msg.info('setting up...')
     msg.info(f'  application name = {app_name}')
@@ -50,7 +51,7 @@ def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
                     msg.info(f"  converted to: {parsed.to_statement()}")
                     g.write(parsed.to_statement()+"\n")
 
-        out_file = out_dir / f"{app_name}-cm-init-db.yaml"
+        out_file = out_dir / "cm-init-db.yaml"
         msg.info('generating manifest...')
         with open(out_file, mode='w', encoding='utf-8') as file:
             _args.extend(['--from-file', init_db_file])
