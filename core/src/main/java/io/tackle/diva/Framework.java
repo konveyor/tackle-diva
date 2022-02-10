@@ -391,28 +391,50 @@ public class Framework {
 
             visitor.visitCallSite(trace);
 
+            if (site.getDeclaredTarget().getDeclaringClass().getName().toString().equals("Lfm5028/FM5028H200")
+                    && site.getDeclaredTarget().getName().toString().equals("updateDatabase")) {
+                continue;
+            }
             Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
-            Iterable<CGNode> ts = targets;
 
             if (targets.isEmpty())
                 continue;
 
-            if (targets.size() > 1) {
-                // should be virtual
-                SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
-                IClass self = trace.inferType(this, instr.getUse(0));
-                if (self != null) {
-                    ts = Util.filter(targets, n -> {
-                        IClass c = n.getMethod().getDeclaringClass();
-                        return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                                i -> i == self);
-                    });
-                } else {
-                    Util.LOGGER.info("Failing to determine target for " + site);
+            if (targets.size() > 1 && trace.context != null && !trace.context.dispatchMap().isEmpty()) {
+                IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
+                outer: for (Map.Entry<IClass, IClass> e : trace.context.dispatchMap().entrySet()) {
+                    if (e.getKey() == c
+                            || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                                    i -> i == e.getKey())) {
+                        for (IClass d : Util.superChain(e.getValue())) {
+                            Set<CGNode> ts = Util
+                                    .makeSet(Util.filter(targets, n -> n.getMethod().getDeclaringClass() == d));
+                            if (!ts.isEmpty()) {
+                                targets = ts;
+                                break outer;
+                            }
+                        }
+                    }
                 }
             }
 
-            for (CGNode n : ts) {
+            if (targets.size() > 1) {
+                SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                IClass self = trace.inferType(this, instr.getUse(0));
+                if (self != null) {
+                    targets = Util.makeSet(Util.filter(targets, n -> {
+                        IClass c = n.getMethod().getDeclaringClass();
+                        return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                                i -> i == self);
+                    }));
+                }
+            }
+
+            if (targets.size() > 1) {
+                Util.LOGGER.info("Failing to determine target for " + site);
+            }
+
+            for (CGNode n : targets) {
                 if (n.getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/")) {
                     continue;
                 }

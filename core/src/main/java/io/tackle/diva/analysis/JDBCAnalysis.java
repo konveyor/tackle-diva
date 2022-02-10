@@ -171,7 +171,9 @@ public class JDBCAnalysis {
                         if (instrs[i] == null)
                             continue;
                         if (instrs[i] instanceof SSAReturnInstruction) {
-                            Trace.Val v = new Trace(n, value.trace())
+                            Trace parent = new Trace(value.trace().node(), value.trace().parent());
+                            parent.setSite(((SSAAbstractInvokeInstruction) instr).getCallSite());
+                            Trace.Val v = new Trace(n, parent)
                                     .getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
                             return calculateReachingString(fw, v, visited);
                         }
