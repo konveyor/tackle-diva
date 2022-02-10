@@ -27,8 +27,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
@@ -338,10 +341,11 @@ public class DaytraderTest {
             }
         }
 
-        try (Writer f = new FileWriter("transaction.json")) {
+        String cname = Thread.currentThread().getStackTrace()[1].getClassName().replace('.', '_');
+        try (Writer f = new FileWriter("transaction-" + cname + ".json")) {
             f.write(Util.JSON_SERIALIZER.writeValueAsString(res));
         }
-        try (Writer f = new FileWriter("transaction.yml")) {
+        try (Writer f = new FileWriter("transaction-" + cname + ".yml")) {
             f.write(Util.YAML_SERIALIZER.writeValueAsString(res));
         }
     }
