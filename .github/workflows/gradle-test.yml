@@ -36,6 +36,8 @@ jobs:
     - name: Build & test with gradle
       working-directory: core
       run: ./gradlew test
+    - name: Copying results
+      run: cp core/transaction-* core/build/test-results/test
     - name: Upload Test Report
       uses: actions/upload-artifact@v1
       if: always()

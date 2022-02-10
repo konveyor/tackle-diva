@@ -322,7 +322,11 @@ public class Trace extends Util.Chain<Trace> {
 
     public SSAAbstractInvokeInstruction instrFromSite(CallSiteReference site) {
         if (node.getMethod().getDeclaringClass().getClassLoader().getReference() == JavaSourceAnalysisScope.SOURCE) {
-            return (SSAAbstractInvokeInstruction) node.getIR().getInstructions()[site.getProgramCounter()];
+            //SSAInstruction instr = node.getIR().getInstructions()[site.getProgramCounter()];
+            //if (!(instr instanceof SSAAbstractInvokeInstruction)) {
+            //    System.out.println("HERE");
+            //}
+            return (SSAAbstractInvokeInstruction) node.getIR().getCalls(site)[0];
         }
         for (SSAInstruction i : node.getIR().getInstructions()) {
             // TODO binary search

@@ -29,6 +29,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -393,6 +394,30 @@ public class Util {
         return true;
     }
 
+    public static <E> Iterable<E> concat(Iterable<E> a, Iterable<E> b) {
+        return () -> new Iterator<E>() {
+            Iterator<E> i = a.iterator();
+            Iterator<E> j = null;
+
+            @Override
+            public boolean hasNext() {
+                if (j == null) {
+                    if (i.hasNext()) {
+                        return true;
+                    }
+                    i = null;
+                    j = b.iterator();
+                }
+                return j.hasNext();
+            }
+
+            @Override
+            public E next() {
+                return j == null ? i.next() : j.next();
+            }
+        };
+    }
+
     public static <T> T[] makeArray(Iterable<T> iter, Class<T> c) {
         List<T> temp = makeList(iter);
         T[] res = (T[]) Array.newInstance(c, temp.size());
@@ -405,6 +430,14 @@ public class Util {
 
     public static <T> List<T> makeList(Iterable<T> iter) {
         List<T> temp = new ArrayList<>();
+        for (T v : iter) {
+            temp.add(v);
+        }
+        return temp;
+    }
+
+    public static <T> Set<T> makeSet(Iterable<T> iter) {
+        Set<T> temp = new LinkedHashSet<>();
         for (T v : iter) {
             temp.add(v);
         }
