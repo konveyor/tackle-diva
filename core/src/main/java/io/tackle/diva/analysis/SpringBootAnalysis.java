@@ -103,7 +103,9 @@ public class SpringBootAnalysis {
                     if (isSimpleInsert) {
                         analyzeSimpleInsert(fw, trace, site);
                     } else {
-                        JDBCAnalysis.analyzeSqlStatement(fw, trace, site, pos);
+                        SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+                        Trace.Val sql = trace.getDef(instr.getUse(pos + 1));
+                        JDBCAnalysis.analyzeSqlStatement(fw, trace, sql);
                     }
                 }
 
