@@ -13,6 +13,9 @@ limitations under the License.
 
 package io.tackle.diva;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
@@ -25,6 +28,7 @@ import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.intset.BitVector;
@@ -115,8 +119,9 @@ public class Trace extends Util.Chain<Trace> {
 
         final CGNode node;
         Context context;
-        BitVector reachingInstrs = null;
-        Object[] ud = null;
+        BitVector reachingInstrs;
+        Object[] ud;
+        Map<CallSiteReference, Trace> callLog;
     }
 
     public CGNode node() {
@@ -135,8 +140,21 @@ public class Trace extends Util.Chain<Trace> {
         return cache.context;
     }
 
+    public Map<CallSiteReference, Trace> callLog() {
+        return cache.callLog;
+    }
+
     public Trace updateSite(CallSiteReference site) {
         return new Trace(this.cache, site, this.next);
+    }
+
+    public void logCall(Trace callee) {
+        if (site == null)
+            return;
+        if (cache.callLog == null) {
+            cache.callLog = new HashMap<>();
+        }
+        cache.callLog.put(site, callee);
     }
 
     public void setContext(Context context) {
@@ -244,6 +262,21 @@ public class Trace extends Util.Chain<Trace> {
         if (cache.ud == null) {
             populateUd();
         }
+        if (cache.ud[number] instanceof SSAAbstractInvokeInstruction) {
+            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) cache.ud[number];
+            if (cache.callLog != null && cache.callLog.containsKey(invoke.getCallSite())) {
+                Trace calleeTrace = cache.callLog.get(invoke.getCallSite());
+                SSAInstruction[] instrs = calleeTrace.node().getIR().getInstructions();
+                for (int i = instrs.length - 1; i >= 0; i--) {
+                    if (instrs[i] == null)
+                        continue;
+                    if (instrs[i] instanceof SSAReturnInstruction) {
+                        Trace.Val v = calleeTrace.getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
+                        return v;
+                    }
+                }
+            }
+        }
         if (cache.ud[number] instanceof SSAInstruction) {
             return new Val(cache.ud[number]);
         }
@@ -282,6 +315,21 @@ public class Trace extends Util.Chain<Trace> {
         }
         if (cache.ud == null) {
             populateUd();
+        }
+        if (cache.ud[number] instanceof SSAAbstractInvokeInstruction) {
+            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) cache.ud[number];
+            if (cache.callLog != null && cache.callLog.containsKey(invoke.getCallSite())) {
+                Trace calleeTrace = cache.callLog.get(invoke.getCallSite());
+                SSAInstruction[] instrs = calleeTrace.node().getIR().getInstructions();
+                for (int i = instrs.length - 1; i >= 0; i--) {
+                    if (instrs[i] == null)
+                        continue;
+                    if (instrs[i] instanceof SSAReturnInstruction) {
+                        Trace.Val v = calleeTrace.getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
+                        return v;
+                    }
+                }
+            }
         }
         if (cache.ud[number] instanceof SSAInstruction) {
             return new Val(cache.ud[number]);

@@ -208,28 +208,7 @@ public class SpringBootAnalysis {
         if (v.isConstant())
             return null;
 
-        if (v.instr() instanceof SSAAbstractInvokeInstruction) {
-            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v.instr();
-            MethodReference mref = invoke.getDeclaredTarget();
-            if (fw.classHierarchy().getPossibleTargets(mref).isEmpty())
-                return null;
-            for (IMethod m : fw.classHierarchy().getPossibleTargets(mref)) {
-                CGNode n = fw.callgraph().getNode(m, v.trace().node().getContext());
-                if (n == null)
-                    continue;
-                SSAInstruction[] instrs = n.getIR().getInstructions();
-                for (int i = instrs.length - 1; i >= 0; i--) {
-                    if (instrs[i] == null)
-                        continue;
-                    if (instrs[i] instanceof SSAReturnInstruction) {
-                        Trace t2 = v.trace().updateSite(invoke.getCallSite());
-                        Trace.Val v2 = new Trace(n, t2).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
-                        return jsonRequestMatcher(fw, v2);
-                    }
-                }
-            }
-
-        } else if (v.instr() instanceof SSAGetInstruction) {
+        if (v.instr() instanceof SSAGetInstruction) {
             FieldReference field = ((SSAGetInstruction) v.instr()).getDeclaredField();
             Trace.Val v2 = v.getDefOrParam(v.instr().getUse(0));
             if (v2 == null)

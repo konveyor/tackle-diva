@@ -406,7 +406,7 @@ public class Framework {
                 }
                 if (pathSensitive) {
                     if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
-                        continue;
+                        continue;                    
                 } else if (visited.contains(n.getGraphNodeId())) {
                     continue;
                 } else {
@@ -414,6 +414,9 @@ public class Framework {
                 }
                 stack.push(new Trace(n, trace));
                 iters.push(n.getIR().iterateAllInstructions());
+
+                if (pathSensitive) 
+                    trace.logCall(stack.peek());
 
                 visitor.visitNode(stack.peek());
                 // skip the rest of targets

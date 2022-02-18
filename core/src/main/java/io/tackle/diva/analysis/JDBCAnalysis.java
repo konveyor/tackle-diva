@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.ibm.wala.classLoader.CallSiteReference;
-import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.IR;
@@ -103,7 +102,7 @@ public class JDBCAnalysis {
                     Trace.Val vk = v.getDef(instr.getUse(k));
                     if (vk.isConstant())
                         continue;
-                    int bbid = v.trace().node().getIR().getBasicBlockForInstruction(vk.instr()).getNumber();
+                    int bbid = vk.trace().node().getIR().getBasicBlockForInstruction(vk.instr()).getNumber();
                     key = IntPair.make(v.trace().node().getGraphNodeId(), bbid);
                     if (visited.contains(key)) {
                         continue;
@@ -118,8 +117,8 @@ public class JDBCAnalysis {
                 v = PointerAnalysis.fromInits(fw, v.trace(), (SSAGetInstruction) instr);
                 continue;
 
-            } else if ((instr instanceof SSAAbstractInvokeInstruction || instr instanceof SSAReturnInstruction)
-                    && instr.getNumberOfUses() > 0 && instr.getUse(0) == self) {
+            } else if (instr instanceof SSAAbstractInvokeInstruction && instr.getNumberOfUses() > 0
+                    && instr.getUse(0) == self) {
                 v = getReceiverUseOrDef(v.trace(), instr, visited);
                 continue;
 
@@ -131,23 +130,6 @@ public class JDBCAnalysis {
                     sql = v.getDef(instr.getUse(1));
                     break;
 
-                } else if (!fw.classHierarchy().getPossibleTargets(mref).isEmpty()) {
-                    for (IMethod m : fw.classHierarchy().getPossibleTargets(mref)) {
-                        CGNode n = fw.callgraph().getNode(m, v.trace().node().getContext());
-                        if (n == null)
-                            continue;
-                        SSAInstruction[] instrs = n.getIR().getInstructions();
-                        for (int i = instrs.length - 1; i >= 0; i--) {
-                            if (instrs[i] == null)
-                                continue;
-                            if (instrs[i] instanceof SSAReturnInstruction) {
-                                Trace parent = v.trace().updateSite(invoke.getCallSite());
-                                v = new Trace(n, parent).new Val(instrs[i]);
-                                self = instrs[i].getUse(0);
-                                continue outer;
-                            }
-                        }
-                    }
                 }
             }
             break;
@@ -200,8 +182,7 @@ public class JDBCAnalysis {
             } else if (rhs.isConstant()) {
                 return calculateReachingString(fw, rhs, visited);
             }
-            IR ir = value.trace().node().getIR();
-            int bbid = ir.getBasicBlockForInstruction(lhs.instr()).getNumber();
+            int bbid = lhs.trace().node().getIR().getBasicBlockForInstruction(lhs.instr()).getNumber();
             IntPair key = IntPair.make(value.trace().node().getGraphNodeId(), bbid);
             if (visited.contains(key)) {
                 return calculateReachingString(fw, rhs, visited);
@@ -228,24 +209,6 @@ public class JDBCAnalysis {
                     return calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
                 }
 
-            } else if (!fw.classHierarchy().getPossibleTargets(mref).isEmpty()) {
-                for (IMethod m : fw.classHierarchy().getPossibleTargets(mref)) {
-                    CGNode n = fw.callgraph().getNode(m, value.trace().node().getContext());
-                    if (n == null)
-                        continue;
-                    SSAInstruction[] instrs = n.getIR().getInstructions();
-                    for (int i = instrs.length - 1; i >= 0; i--) {
-                        if (instrs[i] == null)
-                            continue;
-                        if (instrs[i] instanceof SSAReturnInstruction) {
-                            Trace parent = value.trace()
-                                    .updateSite(((SSAAbstractInvokeInstruction) instr).getCallSite());
-                            Trace.Val v = new Trace(n, parent).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
-                            return calculateReachingString(fw, v, visited);
-                        }
-                    }
-                }
-
             }
         }
 
@@ -268,6 +231,20 @@ public class JDBCAnalysis {
             if (s == null)
                 continue;
             if (s.hasDef() && s.getDef() == number) {
+                if (s instanceof SSAAbstractInvokeInstruction && trace.callLog() != null) {
+                    SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
+                    if (trace.callLog().containsKey(invoke.getCallSite())) {
+                        Trace calleeTrace = trace.callLog().get(invoke.getCallSite());
+                        SSAInstruction[] instrs = calleeTrace.node().getIR().getInstructions();
+                        for (int j = instrs.length - 1; j >= 0; j--) {
+                            if (instrs[j] == null)
+                                continue;
+                            if (instrs[j] instanceof SSAReturnInstruction) {
+                                return getReceiverUseOrDef(calleeTrace, instrs[j], visited);
+                            }
+                        }
+                    }
+                }
                 return trace.new Val(s);
             }
             if (s instanceof SSAAbstractInvokeInstruction) {
