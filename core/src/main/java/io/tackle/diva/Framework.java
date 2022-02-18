@@ -360,7 +360,7 @@ public class Framework {
             Trace trace = stack.peek();
 
             if (!iters.peek().hasNext()) {
-                trace.setSite(null);
+                trace = trace.updateSite(null);
                 visitor.visitExit(trace);
                 stack.pop();
                 iters.pop();
@@ -387,7 +387,7 @@ public class Framework {
             } else
                 continue;
 
-            trace.setSite(site);
+            trace = trace.updateSite(site);
 
             visitor.visitCallSite(trace);
 
@@ -405,7 +405,7 @@ public class Framework {
                     continue;
                 }
                 if (pathSensitive) {
-                    if (Util.any(trace, t -> t.node.getGraphNodeId() == n.getGraphNodeId()))
+                    if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
                         continue;
                 } else if (visited.contains(n.getGraphNodeId())) {
                     continue;
@@ -429,9 +429,9 @@ public class Framework {
         if (targets.isEmpty())
             return targets;
 
-        if (targets.size() > 1 && trace.context != null && !trace.context.dispatchMap().isEmpty()) {
+        if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
             IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
-            outer: for (Map.Entry<IClass, IClass> e : trace.context.dispatchMap().entrySet()) {
+            outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
                 if (e.getKey() == c
                         || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
                                 i -> i == e.getKey())) {

@@ -222,8 +222,7 @@ public class SpringBootAnalysis {
                     if (instrs[i] == null)
                         continue;
                     if (instrs[i] instanceof SSAReturnInstruction) {
-                        Trace t2 = new Trace(v.trace().node(), v.trace().parent());
-                        t2.setSite(invoke.getCallSite());
+                        Trace t2 = v.trace().updateSite(invoke.getCallSite());
                         Trace.Val v2 = new Trace(n, t2).getDef(((SSAReturnInstruction) instrs[i]).getUse(0));
                         return jsonRequestMatcher(fw, v2);
                     }
