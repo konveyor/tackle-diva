@@ -32,4 +32,6 @@ COPY distrib/ /diva-distribution/
 COPY --from=build /home/gradle/diva/bin/*.jar /diva-distribution/bin/
 COPY --from=build /home/gradle/diva/lib/*.jar /diva-distribution/lib/
 
-WORKDIR /tmp
+WORKDIR /diva-distribution/bin
+ENTRYPOINT [ "bash" ]
+CMD [ "./diva", "/app"]
