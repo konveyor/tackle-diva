@@ -26,6 +26,7 @@ import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
+import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.MethodReference;
@@ -117,12 +118,21 @@ public class JDBCAnalysis {
                 v = PointerAnalysis.fromInits(fw, v.trace(), (SSAGetInstruction) instr);
                 continue;
 
+            } else if (instr instanceof SSAReturnInstruction) {
+                // NOTE: getReceiverUseOrDef doesn't change trace *unless it returns ret-instr*
+                // So if v is invoke-instr with the same self as instr, then its receiver use
+                self = instr.getUse(0);
+                v = getReceiverUseOrDef(v.trace(), instr, visited);
+                continue;
+
             } else if (instr instanceof SSAAbstractInvokeInstruction && instr.getNumberOfUses() > 0
                     && instr.getUse(0) == self) {
+                // receiver use
                 v = getReceiverUseOrDef(v.trace(), instr, visited);
                 continue;
 
             } else if (instr instanceof SSAAbstractInvokeInstruction) {
+                // def
                 SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) instr;
                 MethodReference mref = invoke.getDeclaredTarget();
                 if (mref.getDeclaringClass().getName() == Constants.LJavaSqlConnection
@@ -208,8 +218,26 @@ public class JDBCAnalysis {
                     }
                     return calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
                 }
-
             }
+
+        } else if (instr instanceof SSANewInstruction) {
+            SSANewInstruction alloc = (SSANewInstruction) instr;
+            IR ir = value.trace().node().getIR();
+            if (alloc.getConcreteType().getName() == Constants.LJavaLangString) {
+                for (int i = alloc.iIndex() + 1; i < ir.getInstructions().length; i++) {
+                    SSAInstruction instr0 = ir.getInstructions()[i];
+                    if (instr0 == null || !(instr0 instanceof SSAAbstractInvokeInstruction)
+                            || instr0.getNumberOfUses() == 0 && instr0.getUse(0) != alloc.getDef())
+                        continue;
+                    if (instr0.getNumberOfUses() != 2)
+                        break;
+                    return calculateReachingString(fw, value.trace().getDef(instr0.getUse(1)), visited);
+                }
+            }
+
+        } else if (instr instanceof SSAReturnInstruction) {
+            Trace.Val lastVal = getReceiverUseOrDef(value.trace(), instr, visited);
+            return calculateReachingString(fw, lastVal, visited);
         }
 
         return "??";
@@ -240,7 +268,7 @@ public class JDBCAnalysis {
                             if (instrs[j] == null)
                                 continue;
                             if (instrs[j] instanceof SSAReturnInstruction) {
-                                return getReceiverUseOrDef(calleeTrace, instrs[j], visited);
+                                return calleeTrace.new Val(instrs[j]);
                             }
                         }
                     }

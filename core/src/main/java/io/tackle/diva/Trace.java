@@ -145,6 +145,9 @@ public class Trace extends Util.Chain<Trace> {
     }
 
     public Trace updateSite(CallSiteReference site) {
+        if (cache.callLog != null && cache.callLog.containsKey(site)) {
+            return cache.callLog.get(site).next;
+        }
         return new Trace(this.cache, site, this.next);
     }
 
@@ -285,7 +288,7 @@ public class Trace extends Util.Chain<Trace> {
             Trace callerTrace = this.next;
             if (callerTrace != null) {
                 SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                if (caller != null) {
+                if (caller != null && (int) cache.ud[number] < caller.getNumberOfUses()) {
                     return callerTrace.getDef(caller.getUse((Integer) cache.ud[number]));
                 }
             }
@@ -339,7 +342,7 @@ public class Trace extends Util.Chain<Trace> {
             Trace callerTrace = this.next;
             if (callerTrace != null) {
                 SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
-                if (caller != null) {
+                if (caller != null && (int) cache.ud[number] < caller.getNumberOfUses()) {
                     return callerTrace.getDefOrParam(caller.getUse((Integer) cache.ud[number]));
                 }
             }

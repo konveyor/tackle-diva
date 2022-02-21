@@ -336,10 +336,10 @@ public class Framework {
     }
 
     public void traverse(CGNode entry, Trace.Visitor visitor) {
-        traverse(entry, visitor, false);
+        traverse(new Trace(entry, null), visitor, false);
     }
 
-    public void traverse(CGNode entry, Trace.Visitor visitor, boolean pathSensitive) {
+    public void traverse(Trace trace0, Trace.Visitor visitor, boolean pathSensitive) {
 
         MutableIntSet visited = null;
         if (!pathSensitive) {
@@ -348,7 +348,8 @@ public class Framework {
         Stack<Trace> stack = new Stack<>();
         Stack<Iterator<?>> iters = new Stack<>();
 
-        stack.push(new Trace(entry, null));
+        stack.push(trace0);
+        CGNode entry = trace0.node();
         iters.push(entry.getMethod() instanceof FakeRootMethod ? entry.iterateCallSites()
                 : entry.getIR().iterateAllInstructions());
         if (!pathSensitive) {
@@ -406,7 +407,7 @@ public class Framework {
                 }
                 if (pathSensitive) {
                     if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
-                        continue;                    
+                        continue;
                 } else if (visited.contains(n.getGraphNodeId())) {
                     continue;
                 } else {
@@ -415,7 +416,7 @@ public class Framework {
                 stack.push(new Trace(n, trace));
                 iters.push(n.getIR().iterateAllInstructions());
 
-                if (pathSensitive) 
+                if (pathSensitive)
                     trace.logCall(stack.peek());
 
                 visitor.visitNode(stack.peek());
@@ -515,7 +516,7 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, visitor, true);
+        traverse(new Trace(entry, null), visitor, true);
         if (txStarted()) {
             reportTxBoundary();
         }

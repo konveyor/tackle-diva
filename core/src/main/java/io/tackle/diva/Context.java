@@ -58,6 +58,17 @@ public class Context extends ArrayList<Context.Constraint> {
         public abstract void visitNode(Trace trace, Context context);
     }
 
+    public abstract class InstructionVisitor implements Trace.InstructionVisitor {
+        @Override
+        public void visitNode(Trace trace) {
+            trace.setContext(Context.this);
+        }
+
+        @Override
+        public void visitCallSite(Trace trace) {
+        }
+    }
+
     public static interface Constraint {
 
         default public void report(Report.Named report) {
