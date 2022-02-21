@@ -69,7 +69,15 @@ public interface Constants {
     Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
     Atom contains = Atom.findOrCreateUnicodeAtom("contains");
 
+    Atom setString = Atom.findOrCreateUnicodeAtom("setString");
+    Atom setInt = Atom.findOrCreateUnicodeAtom("setInt");
+    Atom setDecimal = Atom.findOrCreateUnicodeAtom("setDecimal");
+    Atom setDouble = Atom.findOrCreateUnicodeAtom("setDouble");
+    Atom setTimestamp = Atom.findOrCreateUnicodeAtom("setTimestamp");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
+    TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
+    TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
