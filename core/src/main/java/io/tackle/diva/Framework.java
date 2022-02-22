@@ -172,7 +172,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -217,7 +217,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -317,7 +317,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -336,10 +336,10 @@ public class Framework {
     }
 
     public void traverse(CGNode entry, Trace.Visitor visitor) {
-        traverse(entry, visitor, false);
+        traverse(new Trace(entry, null), visitor, false);
     }
 
-    public void traverse(CGNode entry, Trace.Visitor visitor, boolean pathSensitive) {
+    public void traverse(Trace trace0, Trace.Visitor visitor, boolean pathSensitive) {
 
         MutableIntSet visited = null;
         if (!pathSensitive) {
@@ -348,7 +348,8 @@ public class Framework {
         Stack<Trace> stack = new Stack<>();
         Stack<Iterator<?>> iters = new Stack<>();
 
-        stack.push(new Trace(entry, null));
+        stack.push(trace0);
+        CGNode entry = trace0.node();
         iters.push(entry.getMethod() instanceof FakeRootMethod ? entry.iterateCallSites()
                 : entry.getIR().iterateAllInstructions());
         if (!pathSensitive) {
@@ -360,7 +361,7 @@ public class Framework {
             Trace trace = stack.peek();
 
             if (!iters.peek().hasNext()) {
-                trace.setSite(null);
+                trace = trace.updateSite(null);
                 visitor.visitExit(trace);
                 stack.pop();
                 iters.pop();
@@ -387,37 +388,25 @@ public class Framework {
             } else
                 continue;
 
-            trace.setSite(site);
+            trace = trace.updateSite(site);
 
             visitor.visitCallSite(trace);
 
-            Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
-            Iterable<CGNode> ts = targets;
+            Set<CGNode> targets = getFilteredTargets(trace, site);
 
             if (targets.isEmpty())
                 continue;
 
             if (targets.size() > 1) {
-                // should be virtual
-                SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
-                IClass self = trace.inferType(this, instr.getUse(0));
-                if (self != null) {
-                    ts = Util.filter(targets, n -> {
-                        IClass c = n.getMethod().getDeclaringClass();
-                        return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                                i -> i == self);
-                    });
-                } else {
-                    Util.LOGGER.info("Failing to determine target for " + site);
-                }
+                Util.LOGGER.fine("Failing to determine target for " + site);
             }
 
-            for (CGNode n : ts) {
+            for (CGNode n : targets) {
                 if (n.getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/")) {
                     continue;
                 }
                 if (pathSensitive) {
-                    if (Util.any(trace, t -> t.node.getGraphNodeId() == n.getGraphNodeId()))
+                    if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
                         continue;
                 } else if (visited.contains(n.getGraphNodeId())) {
                     continue;
@@ -427,12 +416,53 @@ public class Framework {
                 stack.push(new Trace(n, trace));
                 iters.push(n.getIR().iterateAllInstructions());
 
+                if (pathSensitive)
+                    trace.logCall(stack.peek());
+
                 visitor.visitNode(stack.peek());
                 // skip the rest of targets
                 // @TODO: we may create a call-target constraint in such a case.
                 break;
             }
         }
+    }
+
+    public Set<CGNode> getFilteredTargets(Trace trace, CallSiteReference site) {
+        Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
+
+        if (targets.isEmpty())
+            return targets;
+
+        if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
+            IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
+            outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
+                if (e.getKey() == c
+                        || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                                i -> i == e.getKey())) {
+                    for (IClass d : Util.superChain(e.getValue())) {
+                        Set<CGNode> ts = Util
+                                .makeSet(Util.filter(targets, n -> n.getMethod().getDeclaringClass() == d));
+                        if (!ts.isEmpty()) {
+                            targets = ts;
+                            break outer;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (targets.size() > 1) {
+            SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+            IClass self = trace.inferType(this, instr.getUse(0));
+            if (self != null) {
+                targets = Util.makeSet(Util.filter(targets, n -> {
+                    IClass c = n.getMethod().getDeclaringClass();
+                    return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                            i -> i == self);
+                }));
+            }
+        }
+        return targets;
     }
 
     public Report report;
@@ -486,7 +516,7 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
-        traverse(entry, visitor, true);
+        traverse(new Trace(entry, null), visitor, true);
         if (txStarted()) {
             reportTxBoundary();
         }

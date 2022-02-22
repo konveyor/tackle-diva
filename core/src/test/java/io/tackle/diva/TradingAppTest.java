@@ -192,10 +192,11 @@ public class TradingAppTest {
             }
         }
 
-        try (Writer f = new FileWriter("transaction.json")) {
+        String cname = Thread.currentThread().getStackTrace()[1].getClassName().replace('.', '_');
+        try (Writer f = new FileWriter("transaction-" + cname + ".json")) {
             f.write(Util.JSON_SERIALIZER.writeValueAsString(res));
         }
-        try (Writer f = new FileWriter("transaction.yml")) {
+        try (Writer f = new FileWriter("transaction-" + cname + ".yml")) {
             f.write(Util.YAML_SERIALIZER.writeValueAsString(res));
         }
     }

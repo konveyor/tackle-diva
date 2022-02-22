@@ -31,6 +31,7 @@ import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.intset.IntPair;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
@@ -98,7 +99,7 @@ public class JPAAnalysis {
                             if (v != null) {
                                 colName = v.val.toString();
                             } else {
-                                System.out.println(a2);
+                                Util.LOGGER.fine(a2.toString());
                             }
                         }
                     }
@@ -107,7 +108,7 @@ public class JPAAnalysis {
                     if (colName == null)
                         colName = f.getName().toString();
                     columnDefinitions.put(f.getReference(), new TableColumn(tableName, colName, tags, null));
-                    System.out.println(f + "->" + Util.getAnnotations(f));
+                    Util.LOGGER.fine(f + "->" + Util.getAnnotations(f));
                 }
             }
             if (Util.any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository)) {
@@ -131,7 +132,7 @@ public class JPAAnalysis {
             if (c.getName() == Constants.LSpringJPARepository) {
                 continue;
             }
-            Util.LOGGER.info(c.toString());
+            Util.LOGGER.fine("JPA repository: " + c.toString());
             IClass p = null;
             for (IClass i : c.getAllImplementedInterfaces()) {
                 if (nonRepositoryIfaces.containsKey(i)) {
@@ -142,7 +143,7 @@ public class JPAAnalysis {
             IClass impl = p;
             TypeReference tref = TypeReference.findOrCreate(c.getReference().getClassLoader(),
                     TypeName.findOrCreate(c.getName().toString() + "$DivaImpl"));
-            Util.LOGGER.info("Adding " + tref);
+            Util.LOGGER.fine("Adding " + tref);
             cha.addClass(new DivaPhantomClass(tref, cha) {
 
                 @Override
@@ -268,7 +269,7 @@ public class JPAAnalysis {
                                 fw.reportSqlStatement(trace, "select * from " + table + exp);
                             }
                         } else {
-                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                            Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
                         }
 
                     } else if (queryDefinitions.containsKey(ref)) {
@@ -276,7 +277,7 @@ public class JPAAnalysis {
 
                     } else if (parseQueryCreation(ref, tref, trace, fw)) {
                     } else {
-                        Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
+                        Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
                     }
                 }
 
@@ -397,7 +398,7 @@ public class JPAAnalysis {
             sql += " where " + exp;
         }
         fw.reportSqlStatement(trace, sql);
-        Util.LOGGER.info("Spring query creation: " + sql);
+        Util.LOGGER.fine("Spring query creation: " + sql);
         return true;
     }
 
@@ -410,6 +411,7 @@ public class JPAAnalysis {
 //        }
 
         Stack<Trace.Val> todo = new Stack<>();
+        Set<IntPair> visited = new HashSet<>();
         todo.add(v);
         while (!todo.isEmpty()) {
             v = todo.pop();
@@ -419,6 +421,10 @@ public class JPAAnalysis {
             }
             if (v.isParam())
                 break;
+            IntPair key = IntPair.make(v.trace().node().getGraphNodeId(), v.instr().iIndex());
+            if (visited.contains(key))
+                continue;
+            visited.add(key);
             if (v.instr() instanceof SSAPhiInstruction) {
                 todo.add(v.getDef(v.instr().getUse(0)));
                 todo.add(v.getDef(v.instr().getUse(1)));
@@ -463,10 +469,10 @@ public class JPAAnalysis {
             if (c != null) {
                 populateUpdate(fw, trace, c);
             } else {
-                Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+                Util.LOGGER.fine("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
             }
         } else {
-            Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+            Util.LOGGER.fine("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
         }
     }
 

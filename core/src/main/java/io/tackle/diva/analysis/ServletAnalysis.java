@@ -64,6 +64,9 @@ public class ServletAnalysis {
             boolean isServlet = false;
             String urlPattern = null;
 
+            if (c.isAbstract())
+                continue;
+
             for (Annotation a : Util.getAnnotations(c)) {
                 if (a.getType().getName() != Constants.LJavaxWebServlet
                         && a.getType().getName() != Constants.LJavaxWebFilter)
@@ -221,7 +224,7 @@ public class ServletAnalysis {
                                     continue outer;
                                 phiOrigins.add(last.iIndex());
                             }
-                        } else if (v0 == null) {
+                        } else if (v0 == null && v.isInstr()) {
                             v0 = v;
                         } else {
                             continue outer;
@@ -342,7 +345,7 @@ public class ServletAnalysis {
                     }
                 });
 
-                LOGGER.info(key + "=" + val);
+                LOGGER.fine(key + "=" + val);
             }
 
         };

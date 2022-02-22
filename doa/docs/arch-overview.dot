@@ -1,0 +1,52 @@
+digraph G {
+
+    graph[fontname="overlock"]
+    node[fontname="overlock"]
+    edge[fontname="overlock"]
+
+    rankdir=LR
+
+    subgraph cluster_0 {
+        style=filled;
+        color=lightgrey;
+        edge [style=invis]
+        node [shape=box,style=filled,color=white];
+        a1 [label="DBMS configuration\n[cluster config.,\ncredential]"]
+        a2 [label="SQL files (DDL/DML)\n[**/*.sql]"]
+        a3 [label="DB init scripts\n[psql commands]"]
+        a4 [label="Program code"]
+        label = "Existing system";
+    }
+
+    subgraph cluster_1 {
+        node [shape=box,style=filled];
+        edge [style=invis]
+        label = "Generated manifests";
+        color=blue
+        b1 [label="secret-db.yaml",style="filled,dotted"]
+        b0 [label="postgresql.yaml"]
+        b2 [label="cm-sqls.yaml"]
+        b3 [label="cm-init-db.yaml"]
+        b4 [label="job-init.yaml"]
+        b5 [label="pod-test.yaml",style=""]
+        b6 [label="Program code\n(rewritten)",style="dotted,filled"]
+        {rank=same b0 b1 b2 b3 b4 b5 b6}
+        b4 -> b3 [xlabel="mount ",style=dashed]
+        b4 -> b2 [xlabel=" mount",headport=e,tailport=e,style=dashed]
+    }
+
+    subgraph cluster_2 {
+        color=red
+        label = "PostgreSQL cluster\nmaintained by Operator"
+        node [shape=box,style=filled]
+        c0 [label="Secret\n[user accounts]"]
+        c1 [label="Svcs, RSs, Pods, ..."]
+    }
+    a1 -> b0; a1 -> b1 [style=dotted]
+    a2 -> b2
+    a3 -> b3; a3 -> b4 [headport=w]
+    a4 -> b6 [style=dotted]
+    b0 -> c1 [headport=w,tailport=e]; b1->c0 [style=dotted]
+    b4 -> c0 [xlabel="mount",headport=s,tailport=e,style=dashed]
+    // b4 -> c1 [headport=se]
+}

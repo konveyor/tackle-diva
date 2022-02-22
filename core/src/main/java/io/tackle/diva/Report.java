@@ -32,6 +32,7 @@ public interface Report {
     String HTTP_METHOD = "http-method";
     String CLIENT_CLASS = "client-class";
     String URL_PATH = "url-path";
+    String DISPATCH = "dispatch";
 
     void add(Named.Builder builder);
 

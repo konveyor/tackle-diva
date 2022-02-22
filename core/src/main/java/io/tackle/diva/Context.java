@@ -18,6 +18,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.Map.Entry;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.IR;
@@ -54,6 +56,17 @@ public class Context extends ArrayList<Context.Constraint> {
         }
 
         public abstract void visitNode(Trace trace, Context context);
+    }
+
+    public abstract class InstructionVisitor implements Trace.InstructionVisitor {
+        @Override
+        public void visitNode(Trace trace) {
+            trace.setContext(Context.this);
+        }
+
+        @Override
+        public void visitCallSite(Trace trace) {
+        }
     }
 
     public static interface Constraint {
@@ -92,12 +105,12 @@ public class Context extends ArrayList<Context.Constraint> {
 
         @Override
         public String category() {
-            return "entry";
+            return Report.ENTRY;
         }
 
         @Override
         public String type() {
-            return "methods";
+            return Report.METHODS;
         }
 
         @Override
@@ -115,6 +128,51 @@ public class Context extends ArrayList<Context.Constraint> {
         public boolean forbids(Context.Constraint other) {
             return false;
         }
+    }
+
+    public static class DispatchConstraint implements Constraint {
+
+        IClass base;
+        IClass impl;
+
+        public DispatchConstraint(IClass base, IClass impl) {
+            this.base = base;
+            this.impl = impl;
+        }
+
+        @Override
+        public String category() {
+            return Report.DISPATCH;
+        }
+
+        @Override
+        public String type() {
+            return base.getName().toString();
+        }
+
+        @Override
+        public String value() {
+            return impl.getName().toString();
+        }
+
+        @Override
+        public boolean forbids(Context.Constraint other) {
+            return false;
+        }
+    }
+
+    public Map<IClass, IClass> dispatch;
+
+    public Map<IClass, IClass> dispatchMap() {
+        if (dispatch == null) {
+            dispatch = new LinkedHashMap<>();
+            for (Constraint con : this) {
+                if (!(con instanceof DispatchConstraint))
+                    continue;
+                dispatch.put(((DispatchConstraint) con).base, ((DispatchConstraint) con).impl);
+            }
+        }
+        return dispatch;
     }
 
     public Context(Iterable<Constraint> cs) {

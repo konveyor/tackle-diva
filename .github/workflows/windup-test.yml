@@ -5,9 +5,15 @@ name: Java CI with Arqullian Test
 
 on:
   push:
-    branches: [ '**' ]
+    paths:
+    - 'windup/**'
+    - '.github/workflows/windup-test.yml'
+    - 'DIVA_ADDON_VERSION'
   pull_request:
-    branches: [ main ]
+    paths:
+    - 'windup/**'
+    - '.github/workflows/windup-test.yml'
+    - 'DIVA_ADDON_VERSION'
 
 jobs:
   build:
@@ -16,11 +22,31 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK 8
+    - name: Set up JDK 11
       uses: actions/setup-java@v2
       with:
-        java-version: '8'
+        java-version: '11'
         distribution: 'adopt'
+    - name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - name: Read DIVA_ADDON_VERSION
+      id: getversion
+      run: echo "::set-output name=version::$(cat DIVA_ADDON_VERSION)"
+    - name: Cloning windup
+      uses: actions/checkout@v2
+      with:
+        repository: akihikot/windup
+        ref: ${{ steps.getversion.outputs.version }}
+        path: tmp/windup
+    - name: Moving windup
+      run: mv tmp/windup ../
+    - name: Building windup
+      run: mvn --file ../windup clean install -DskipTests
     - name: Cloning app
       uses: actions/checkout@v2
       with:
@@ -32,10 +58,7 @@ jobs:
         repository: akihikot/daytrader-quarkus
         path: daytrader-quarkus
     - name: Moving apps
-      run: mv sample.daytrader7 daytrader-quarkus ../
-    - name: Build & publish to maven-local with gradle
-      working-directory: core
-      run: ./gradlew publishToMavenLocal -x test
+      run: mv sample.daytrader7 daytrader-quarkus ../      
     - name: Windup arquillian test
       run: mvn --file windup --batch-mode --update-snapshots verify
     - name: Upload Test Report
