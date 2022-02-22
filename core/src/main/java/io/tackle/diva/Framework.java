@@ -172,7 +172,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -217,7 +217,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -317,7 +317,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    System.out.println("adding: " + m.getParameterType(i));
+                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -398,7 +398,7 @@ public class Framework {
                 continue;
 
             if (targets.size() > 1) {
-                Util.LOGGER.info("Failing to determine target for " + site);
+                Util.LOGGER.fine("Failing to determine target for " + site);
             }
 
             for (CGNode n : targets) {

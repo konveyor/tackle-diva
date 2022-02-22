@@ -105,8 +105,8 @@ public class Standalone {
                         return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, stdlibs);
                     }
                 });
-        Util.LOGGER.info(cha.getNumberOfClasses() + " classes");
-        Util.LOGGER.info(Warnings.asString());
+        Util.LOGGER.info("Done class hierarchy: " + cha.getNumberOfClasses() + " classes");
+        Util.LOGGER.fine(Warnings.asString());
 
         IClassLoader apploader = cha.getLoader(JavaSourceAnalysisScope.SOURCE);
 

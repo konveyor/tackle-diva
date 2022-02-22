@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -75,6 +76,10 @@ public class Util {
     public static ObjectMapper YAML_SERIALIZER;
 
     static {
+        Level loglevel = Level.parse(System.getProperty("diva.loglevel", "INFO"));
+        LOGGER.setLevel(loglevel);
+        LOGGER.getHandlers()[0].setLevel(loglevel);
+
         DefaultPrettyPrinter.Indenter indenter = new DefaultIndenter("  ", DefaultIndenter.SYS_LF);
         DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
         printer.indentObjectsWith(indenter);
@@ -205,7 +210,7 @@ public class Util {
                         }
                     }
                     bytes = b.make().getBytes();
-                    LOGGER.info("Instrumented: " + name);
+                    LOGGER.fine("Instrumented: " + name);
                     if (CLASS_DUMP_LOCATION != null) {
                         try {
                             String path = CLASS_DUMP_LOCATION + "/" + name.replace('.', '/') + ".class";
