@@ -228,6 +228,14 @@ public class Trace extends Util.Chain<Trace> {
         public Val getDefOrParam(int number) {
             return Trace.this.getDefOrParam(number);
         }
+
+        public int getBbId() {
+            if (content == null)
+                return -1;
+            if (!(content instanceof SSAInstruction))
+                return -1;
+            return Trace.this.node().getIR().getBasicBlockForInstruction((SSAInstruction) content).getNumber();
+        }
     }
 
     public void populateUd() {

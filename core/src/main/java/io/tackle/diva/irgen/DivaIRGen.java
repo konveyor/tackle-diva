@@ -141,23 +141,30 @@ public class DivaIRGen {
 
         recoverBindings(parser, units, cha);
 
+        int success = 0;
+        int failure = 0;
         for (String source : units.keySet()) {
             CompilationUnit unit = units.get(source);
             try {
                 JDTJava2CAstTranslator<Position> jdt2cast = makeCAstTranslator.apply(unit, source);
                 final Java2IRTranslator java2ir = makeIRTranslator.get();
                 java2ir.translate(sourceMap.get(source), jdt2cast.translateToCAst());
-                LOGGER.info("Done wala IR: " + source);
+                LOGGER.fine("Done wala IR: " + source);
+                success++;
             } catch (Throwable e) {
-                LOGGER.info(e.getMessage());
+                LOGGER.fine(e.getMessage());
                 ;
                 for (StackTraceElement s : e.getStackTrace()) {
-                    LOGGER.info(s.toString());
+                    LOGGER.fine(s.toString());
                 }
-                LOGGER.info("Failed wala IR: " + source + ", reason: " + e.getMessage());
+                LOGGER.fine("Failed wala IR: " + source + ", reason: " + e.getMessage());
+                failure++;
             }
-
+            if ((success + failure) % 100 == 0) {
+                LOGGER.info("wala IR: " + (success + failure) + " classes (" + failure + " failed)");
+            }
         }
+        LOGGER.info("wala IR: " + (success + failure) + " classes (" + failure + " failed)");
         if (knownAsClasses != null) {
             for (String klazz : knownAsClasses) {
                 TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
@@ -252,7 +259,7 @@ public class DivaIRGen {
                 public boolean visit(SimpleName node) {
                     IBinding binding = node.resolveBinding();
                     if (binding == null) {
-                        LOGGER.info(node + "->" + binding);
+                        LOGGER.fine(node + "->" + binding);
                     }
                     return true;
                 }
@@ -384,7 +391,7 @@ public class DivaIRGen {
                 }
 
             });
-            LOGGER.info("Done binding: " + source);
+            LOGGER.fine("Done binding: " + source);
         }
 
     }
@@ -659,10 +666,10 @@ public class DivaIRGen {
         @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
         public static boolean enter(@Advice.Argument(value = 0) ASTNode n) {
             if (n instanceof ExpressionMethodReference) {
-                Util.LOGGER.info(n.toString());
+                Util.LOGGER.fine(n.toString());
                 return true;
             } else if (n instanceof LambdaExpression) {
-                Util.LOGGER.info(n.toString());
+                Util.LOGGER.fine(n.toString());
                 return true;
             }
             return false;
@@ -672,7 +679,7 @@ public class DivaIRGen {
         public static void exit(@Advice.Enter boolean skip, @Advice.FieldValue("fFactory") CAst fFactory,
                 @Advice.Return(readOnly = false) CAstNode res) {
             if (skip) {
-                Util.LOGGER.info("replaced with ??");
+                Util.LOGGER.fine("replaced with ??");
                 res = fFactory.makeConstant("??");
             }
         }
@@ -690,7 +697,7 @@ public class DivaIRGen {
         public static void exit(@Advice.Enter boolean skip, @Advice.This JDTTypeDictionary self,
                 @Advice.FieldValue("fAst") AST fAst, @Advice.Return(readOnly = false) CAstType res) {
             if (skip) {
-                Util.LOGGER.info("resolving nullType");
+                Util.LOGGER.fine("resolving nullType");
                 res = self.getCAstTypeFor(fAst.resolveWellKnownType("java.lang.Object"));
             }
         }

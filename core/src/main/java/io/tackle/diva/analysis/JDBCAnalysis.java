@@ -215,6 +215,8 @@ public class JDBCAnalysis {
                 } else if (mref.getName() == Constants.theInit) {
                     if (mref.getNumberOfParameters() == 0) {
                         return "";
+                    } else if (mref.getParameterType(0).isPrimitiveType()) {
+                        return "";
                     }
                     return calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
                 }

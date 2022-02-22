@@ -345,7 +345,7 @@ public class ServletAnalysis {
                     }
                 });
 
-                LOGGER.info(key + "=" + val);
+                LOGGER.fine(key + "=" + val);
             }
 
         };
