@@ -207,11 +207,12 @@ public class ShopizerTest {
             }
         }
 
-        try (Writer f = new FileWriter("transaction.json")) {
-            f.write(Util.JSON_SERIALIZER.writeValueAsString(res));
+        String cname = Thread.currentThread().getStackTrace()[1].getClassName().replace('.', '_');
+        try (Writer f = new FileWriter("transaction-" + cname + ".json")) {
+            Util.JSON_SERIALIZER.writeValue(f, res);
         }
-        try (Writer f = new FileWriter("transaction.yml")) {
-            f.write(Util.YAML_SERIALIZER.writeValueAsString(res));
+        try (Writer f = new FileWriter("transaction-" + cname + ".yml")) {
+            Util.YAML_SERIALIZER.writeValue(f, res);
         }
     }
 

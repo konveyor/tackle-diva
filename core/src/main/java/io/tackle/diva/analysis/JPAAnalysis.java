@@ -31,6 +31,7 @@ import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.intset.IntPair;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
@@ -410,6 +411,7 @@ public class JPAAnalysis {
 //        }
 
         Stack<Trace.Val> todo = new Stack<>();
+        Set<IntPair> visited = new HashSet<>();
         todo.add(v);
         while (!todo.isEmpty()) {
             v = todo.pop();
@@ -419,6 +421,10 @@ public class JPAAnalysis {
             }
             if (v.isParam())
                 break;
+            IntPair key = IntPair.make(v.trace().node().getGraphNodeId(), v.instr().iIndex());
+            if (visited.contains(key))
+                continue;
+            visited.add(key);
             if (v.instr() instanceof SSAPhiInstruction) {
                 todo.add(v.getDef(v.instr().getUse(0)));
                 todo.add(v.getDef(v.instr().getUse(1)));
