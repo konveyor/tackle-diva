@@ -32,6 +32,7 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
+import org.apache.commons.io.FileUtils;
 
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
@@ -95,7 +96,6 @@ public class Standalone {
         addDefaultExclusions(scope);
 
         Path temp = Files.createTempDirectory("diva-temp");
-        temp.toFile().deleteOnExit();
         Util.LOGGER.info("tempdir=" + temp);
 
         // add standard libraries to scope
@@ -133,6 +133,8 @@ public class Standalone {
                 scope.addToScope(ClassLoaderReference.Application, new JarFileModule(new JarFile(jar)));
             }
         }
+
+        FileUtils.forceDeleteOnExit(temp.toFile());
 
         DivaIRGen.init();
 

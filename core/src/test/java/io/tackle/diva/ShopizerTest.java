@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -78,6 +79,8 @@ public class ShopizerTest {
         for (String sourceDir : sourceDirs) {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
+
+        FileUtils.forceDeleteOnExit(tmpDir.toFile());
 
         DivaIRGen.init();
 

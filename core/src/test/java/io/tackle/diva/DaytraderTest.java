@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -108,6 +109,8 @@ public class DaytraderTest {
         for (String sourceDir : sourceDirs) {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
+
+        FileUtils.forceDeleteOnExit(tmpDir.toFile());
 
         DivaIRGen.init();
 

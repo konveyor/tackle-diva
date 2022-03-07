@@ -15,15 +15,14 @@ package io.tackle.diva;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -227,14 +226,8 @@ public class Framework {
                 }
                 continue;
             }
-            InputStream is = jar.getInputStream(file);
-            FileOutputStream fos = new FileOutputStream(f);
-            byte[] buffer = new byte[1024];
-            for (int nread = is.read(buffer); nread > 0; nread = is.read(buffer)) {
-                fos.write(buffer, 0, nread);
-            }
-            fos.close();
-            is.close();
+
+            Files.copy(jar.getInputStream(file), f.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
             boolean mw = patternWar.matcher(fileName).find();
             if (mw) {
