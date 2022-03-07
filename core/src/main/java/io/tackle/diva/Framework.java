@@ -14,7 +14,10 @@ limitations under the License.
 package io.tackle.diva;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.FileSystems;
@@ -23,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,11 +35,17 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.wala.analysis.reflection.ReflectionContextInterpreter;
 import com.ibm.wala.cast.ipa.callgraph.AstContextInsensitiveSSAContextInterpreter;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
@@ -105,7 +115,7 @@ public class Framework {
         return cha;
     }
 
-    public static String[] loadStandardLib(AnalysisScope scope) throws IOException {
+    public static String[] loadStandardLib(AnalysisScope scope, Path workDir) throws IOException {
         String javaVersion = System.getProperty("java.specification.version");
         String javaHome = System.getProperty("java.home");
         Util.LOGGER.info("java.specification.version=" + javaVersion);
@@ -122,17 +132,7 @@ public class Framework {
             });
         } else {
             // deep copy files in jrt module to temp dir
-            Path temp = Files.createTempDirectory("diva-temp");
-            Util.LOGGER.info("tempdir=" + temp);
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        FileUtils.deleteDirectory(temp.toFile());
-                    } catch (IOException e) {
-                    }
-                }
-            });
+            Path temp = workDir.resolve("jrt");
             Path javaBase = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("modules", "java.base");
             Path javaSql = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("modules", "java.sql");
             Stream.concat(Files.walk(javaBase), Files.walk(javaSql)).forEach(path -> {
@@ -162,6 +162,89 @@ public class Framework {
             }
         }
         return res;
+    }
+
+    public static HttpClient httpClient = HttpClientBuilder.create().build();
+
+    public static boolean checkMavenCentral(String jarFile) {
+        try {
+            if (jarFile.contains("-")) {
+                // this saves most cases
+                jarFile = jarFile.substring(0, jarFile.lastIndexOf(('-')));
+            }
+
+            HttpGet request = new HttpGet(
+                    "https://search.maven.org/solrsearch/select?q=" + jarFile + "&rows=20&wt=json");
+            request.addHeader("content-type", "application/json");
+
+            HttpResponse response = httpClient.execute(request);
+
+            Map<String, Map<String, Object>> res = new ObjectMapper().readValue(response.getEntity().getContent(),
+                    Map.class);
+            if (!res.get("response").get("numFound").equals(0)) {
+                return true;
+            }
+        } catch (Exception e) {
+            Util.LOGGER.info("Failed to query central: " + jarFile);
+        }
+        return false;
+    }
+
+    public static final Pattern patternWar = Pattern.compile(".*\\.war");
+    public static final Pattern patternJar = Pattern.compile(".*\\.jar");
+    public static final Pattern patternClasses = Pattern.compile(".*/classes$");
+    static final Pattern patternClass = Pattern.compile(".*/classes/(.*)\\.class$");
+    static final Pattern patternXhtml = Pattern.compile(".*\\.xhtml$");
+
+    public static void unpackArchives(String jarFile, Path workDir, List<String> classRoots, List<String> jars)
+            throws IOException, FileNotFoundException {
+
+        JarFile jar = new java.util.jar.JarFile(jarFile);
+        Enumeration<JarEntry> enumEntries = jar.entries();
+
+        while (enumEntries.hasMoreElements()) {
+            JarEntry file = enumEntries.nextElement();
+            File f = workDir.resolve(file.getName()).toFile();
+            String fileName = f.getAbsolutePath().toString();
+            if (!f.exists()) {
+                f.getParentFile().mkdirs();
+            }
+
+            boolean mj = patternJar.matcher(fileName).find();
+            if (mj) {
+                String jarName = new File(fileName).getName();
+                if (checkMavenCentral((jarName))) {
+                    Util.LOGGER.info("skpping " + jarName);
+                } else {
+                    jars.add(fileName);
+                }
+            }
+
+            if (file.isDirectory()) {
+                boolean mcs = patternClasses.matcher(fileName).find();
+                if (mcs) {
+                    classRoots.add(fileName);
+                }
+                continue;
+            }
+            InputStream is = jar.getInputStream(file);
+            FileOutputStream fos = new FileOutputStream(f);
+            byte[] buffer = new byte[1024];
+            for (int nread = is.read(buffer); nread > 0; nread = is.read(buffer)) {
+                fos.write(buffer, 0, nread);
+            }
+            fos.close();
+            is.close();
+
+            boolean mw = patternWar.matcher(fileName).find();
+            if (mw) {
+                String warname = file.getName().substring(0, file.getName().lastIndexOf("."));
+                String newWorkDir = workDir + java.io.File.separator + warname;
+                unpackArchives(fileName, workDir.resolve(warname), classRoots, jars);
+            }
+        }
+        jar.close();
+
     }
 
     public static Supplier<CallGraph> chaCgBuilder(IClassHierarchy cha, AnalysisOptions options,

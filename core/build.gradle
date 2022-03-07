@@ -61,6 +61,8 @@ dependencies {
  
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.0'
+
+    implementation 'org.apache.httpcomponents:httpclient:4.5.13'
  
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'

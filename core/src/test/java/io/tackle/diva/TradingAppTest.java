@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,8 +66,10 @@ public class TradingAppTest {
             }
         };
         Standalone.addDefaultExclusions(scope);
+        Path tmpDir = Paths.get(".", "tmp");
+
         // add standard libraries to scope
-        String[] stdlibs = Framework.loadStandardLib(scope);
+        String[] stdlibs = Framework.loadStandardLib(scope, tmpDir);
         // add the source directory
         for (String sourceDir : sourceDirs) {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));

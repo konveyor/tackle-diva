@@ -290,13 +290,17 @@ public class JDBCAnalysis {
             }
         }
         for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
+            if (pred.getFirstInstructionIndex() > index)
+                continue;
             int bbid = pred.getNumber();
             IntPair key = IntPair.make(trace.node().getGraphNodeId(), bbid);
             if (visited.contains(key)) {
                 continue;
             }
             visited.add(key);
-            return getReceiverUseOrDef(pred, trace, index, number, visited);
+            Trace.Val v0 = getReceiverUseOrDef(pred, trace, index, number, visited);
+            if (v0 != null)
+                return v0;
         }
         return null;
     }

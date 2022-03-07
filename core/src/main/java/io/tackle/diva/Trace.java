@@ -424,6 +424,8 @@ public class Trace extends Util.Chain<Trace> {
     public boolean in(SSAInstruction instr) {
         if (cache.context == null)
             return true;
+        if (instr == null || instr.iIndex() < 0)
+            return false;
         if (cache.reachingInstrs == null) {
             cache.reachingInstrs = cache.context.calculateReachable(cache.node);
         }
