@@ -61,7 +61,6 @@ public class JDBCAnalysis {
                         && ref.getNumberOfParameters() == 0
                         || ref.getDeclaringClass().getName() == Constants.LJavaSqlCallableStatement
                                 && ref.getName() == Constants.execute) {
-
                     sql = analyzeJdbc(fw, trace, site);
                 }
                 if (sql != null) {

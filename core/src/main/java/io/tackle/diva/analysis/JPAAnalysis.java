@@ -227,6 +227,7 @@ public class JPAAnalysis {
                         || (c = fw.classHierarchy().lookupClass(tref)) != null
                                 && Util.any(c.getAllImplementedInterfaces(),
                                         c2 -> c2.getName() == Constants.LSpringJPARepository)) {
+
                     if (ref.getName() == Constants.save || ref.getName() == Constants.saveAndFlush) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         populateInsertOrUpdate(fw, trace, instr);

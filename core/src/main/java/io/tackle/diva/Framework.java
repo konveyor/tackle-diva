@@ -39,6 +39,7 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -87,6 +88,7 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.intset.BimodalMutableIntSet;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
@@ -165,15 +167,10 @@ public class Framework {
 
     public static HttpClient httpClient = HttpClientBuilder.create().build();
 
-    public static boolean checkMavenCentral(String jarFile) {
+    public static boolean checkMavenCentral(String sha1, String name) {
         try {
-            if (jarFile.contains("-")) {
-                // this saves most cases
-                jarFile = jarFile.substring(0, jarFile.lastIndexOf(('-')));
-            }
-
             HttpGet request = new HttpGet(
-                    "https://search.maven.org/solrsearch/select?q=" + jarFile + "&rows=20&wt=json");
+                    "https://search.maven.org/solrsearch/select?q=1:" + sha1 + "&rows=20&wt=json");
             request.addHeader("content-type", "application/json");
 
             HttpResponse response = httpClient.execute(request);
@@ -184,7 +181,7 @@ public class Framework {
                 return true;
             }
         } catch (Exception e) {
-            Util.LOGGER.info("Failed to query central: " + jarFile);
+            Util.LOGGER.info("Failed to query central: " + name);
         }
         return false;
     }
@@ -211,9 +208,9 @@ public class Framework {
 
             boolean mj = patternJar.matcher(fileName).find();
             if (mj) {
-                String jarName = new File(fileName).getName();
-                if (checkMavenCentral((jarName))) {
-                    Util.LOGGER.info("skpping " + jarName);
+                String sha1 = DigestUtils.sha1Hex(jar.getInputStream(file));
+                if (checkMavenCentral(sha1, file.getName())) {
+                    Util.LOGGER.info("skpping " + file.getName());
                 } else {
                     jars.add(fileName);
                 }
@@ -459,14 +456,17 @@ public class Framework {
                 site = ((SSAAbstractInvokeInstruction) instr).getCallSite();
             } else if (o instanceof CallSiteReference) {
                 site = (CallSiteReference) o;
-                if (!trace.in(site))
-                    continue;
             } else
                 continue;
 
             trace = trace.updateSite(site);
 
             visitor.visitCallSite(trace);
+
+            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+            if (klazz.startsWith("Ljava/")) {
+                continue;
+            }
 
             Set<CGNode> targets = getFilteredTargets(trace, site);
 
@@ -478,9 +478,6 @@ public class Framework {
             }
 
             for (CGNode n : targets) {
-                if (n.getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/")) {
-                    continue;
-                }
                 if (pathSensitive) {
                     if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
                         continue;

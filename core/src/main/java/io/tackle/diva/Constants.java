@@ -75,6 +75,8 @@ public interface Constants {
     Atom setDouble = Atom.findOrCreateUnicodeAtom("setDouble");
     Atom setTimestamp = Atom.findOrCreateUnicodeAtom("setTimestamp");
 
+    TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
+
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
     TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
     TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");

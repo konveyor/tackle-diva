@@ -80,6 +80,7 @@ import com.ibm.wala.cast.tree.CAst;
 import com.ibm.wala.cast.tree.CAstNode;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.cast.tree.CAstType;
+import com.ibm.wala.classLoader.BytecodeClass;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.ModuleEntry;
@@ -704,6 +705,26 @@ public class DivaIRGen {
 
     }
 
+    public static class DoBytecodeClassSuperclass {
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.This BytecodeClass self, @Advice.FieldValue("cha") IClassHierarchy cha,
+                @Advice.FieldValue("loader") IClassLoader loader,
+                @Advice.FieldValue(value = "superClass", readOnly = false) IClass superClass,
+                @Advice.Return(readOnly = false) IClass res) {
+            if (res != null && res.getName() == io.tackle.diva.Constants.LJavaLangObject
+                    && self.getSuperName() != io.tackle.diva.Constants.LJavaLangObject) {
+                // Assuming makeWithRoot mode, which returns Object class in case of load
+                // failure.
+                superClass = new DivaPhantomClass(
+                        TypeReference.findOrCreate(ClassLoaderReference.Primordial, self.getSuperName()), cha);
+                cha.addClass(superClass);
+                res = superClass;
+            }
+        }
+
+    }
+
     @SuppressWarnings("serial")
     public static Map<String, Class<?>> advices() {
         return (new HashMap<String, Class<?>>() {
@@ -727,6 +748,9 @@ public class DivaIRGen {
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
+
+                // binary analysis
+                put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
             }
         });
     }

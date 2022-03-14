@@ -58,6 +58,7 @@ public class QuarkusAnalysis {
 
                 if (c != null && Util.any(Util.getAnnotations(c),
                         a -> a.getType().getName() == Constants.LMicroprofileReigsterRestClient)) {
+
                     IMethod m = c.getMethod(ref.getSelector());
 
                     String method = null;
