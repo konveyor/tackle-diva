@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -68,12 +71,16 @@ public class ShopizerTest {
             }
         };
         Standalone.addDefaultExclusions(scope);
+        Path tmpDir = Paths.get(".", "tmp");
+
         // add standard libraries to scope
-        String[] stdlibs = Framework.loadStandardLib(scope);
+        String[] stdlibs = Framework.loadStandardLib(scope, tmpDir);
         // add the source directory
         for (String sourceDir : sourceDirs) {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
+
+        FileUtils.forceDeleteOnExit(tmpDir.toFile());
 
         DivaIRGen.init();
 

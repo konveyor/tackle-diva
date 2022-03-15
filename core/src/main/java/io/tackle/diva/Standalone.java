@@ -19,22 +19,31 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.jar.JarFile;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
+import org.apache.commons.io.FileUtils;
 
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
+import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.classLoader.JarFileModule;
 import com.ibm.wala.classLoader.SourceDirectoryTreeModule;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisScope;
@@ -48,11 +57,13 @@ import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
+import io.tackle.diva.irgen.FilteredClassHierarchy;
 
 public class Standalone {
 
@@ -61,13 +72,14 @@ public class Standalone {
         Options options = new Options();
 
         options.addOption("s", "source", true, "source path");
+        options.addOption("b", "binary", true, "binary path");
         options.addOption("c", "contexts", true, "contexts yaml file");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {
             cmd = parser.parse(options, args);
-            if (!cmd.hasOption("source")) {
+            if (!cmd.hasOption("source") && !cmd.hasOption("binary")) {
                 throw new RuntimeException();
             }
         } catch (Exception e) {
@@ -82,18 +94,53 @@ public class Standalone {
         AnalysisScope scope = new JavaSourceAnalysisScope() {
             @Override
             public boolean isApplicationLoader(IClassLoader loader) {
-                return loader.getReference() == ClassLoaderReference.Application
-                        || loader.getReference() == JavaSourceAnalysisScope.SOURCE;
+                return loader.getReference().equals(ClassLoaderReference.Application)
+                        || loader.getReference().equals(JavaSourceAnalysisScope.SOURCE);
             }
         };
         addDefaultExclusions(scope);
+
+        Path temp = Files.createTempDirectory("diva-temp");
+        Util.LOGGER.info("tempdir=" + temp);
+
         // add standard libraries to scope
-        String[] stdlibs = Framework.loadStandardLib(scope);
-        // add the source directory
-        String[] sourceDirs = cmd.getOptionValue("source").split(":");
-        for (String sourceDir : sourceDirs) {
-            scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
+        String[] stdlibs = Framework.loadStandardLib(scope, temp);
+
+        if (cmd.hasOption("source")) {
+            // add the source directory
+
+            String[] sourceDirs = cmd.getOptionValue("source").split(":");
+            for (String sourceDir : sourceDirs) {
+                scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
+            }
+
+        } else if (cmd.hasOption("binary")) {
+
+            List<String> classRoots = new ArrayList<>();
+            List<String> jars = new ArrayList<>();
+
+            String[] binaryFiles = cmd.getOptionValue("binary").split(":");
+
+            for (String s : binaryFiles) {
+                if (new File(s).isDirectory()) {
+                    classRoots.add(s);
+                } else if (s.endsWith(".ear") || s.endsWith(".war")) {
+                    Framework.unpackArchives(s, temp.resolve("unpacked"), classRoots, jars);
+                } else {
+                    jars.add(s);
+                }
+            }
+
+            for (String classRoot : classRoots) {
+                scope.addToScope(ClassLoaderReference.Application, new BinaryDirectoryTreeModule(new File(classRoot)));
+            }
+            for (String jar : jars) {
+                scope.addToScope(ClassLoaderReference.Application, new JarFileModule(new JarFile(jar)));
+            }
         }
+
+        FileUtils.forceDeleteOnExit(temp.toFile());
+
         DivaIRGen.init();
 
         // build the class hierarchy
@@ -108,19 +155,33 @@ public class Standalone {
         Util.LOGGER.info("Done class hierarchy: " + cha.getNumberOfClasses() + " classes");
         Util.LOGGER.fine(Warnings.asString());
 
-        IClassLoader apploader = cha.getLoader(JavaSourceAnalysisScope.SOURCE);
+        IClassLoader apploader = cmd.hasOption("source") ? cha.getLoader(JavaSourceAnalysisScope.SOURCE)
+                : cha.getLoader(ClassLoaderReference.Application);
+
+        Set<IClass> relevantClasses = new HashSet<>();
+        Set<IClass> appClasses = new HashSet<>();
+        Framework.relevantJarsAnalysis(cha, apploader, relevantClasses, appClasses,
+                c -> JDBCAnalysis.checkRelevance(c) || JPAAnalysis.checkRelevance(c));
+
+        IClassHierarchy filteredCha = new FilteredClassHierarchy(cha, appClasses::contains);
+        IClassHierarchy relevantCha = new FilteredClassHierarchy(cha, relevantClasses::contains);
 
         List<IMethod> entries = new ArrayList<>();
-        entries.addAll(ServletAnalysis.getEntries(cha));
-        entries.addAll(SpringBootAnalysis.getEntries(cha));
+        entries.addAll(ServletAnalysis.getEntries(filteredCha));
+        entries.addAll(SpringBootAnalysis.getEntries(filteredCha));
 
         List<IMethod> cgEntries = new ArrayList<>();
         cgEntries.addAll(entries);
-        cgEntries.addAll(SpringBootAnalysis.getInits(cha));
+        cgEntries.addAll(SpringBootAnalysis.getInits(relevantCha));
 
         JPAAnalysis.getEntities(cha);
 
-        CallGraph cg = gengraph(scope, cha, apploader, cgEntries);
+        if (entries.isEmpty()) {
+            Util.LOGGER.info("No entry methods found");
+            return;
+        }
+
+        CallGraph cg = gengraph(scope, relevantCha, apploader, cgEntries);
 
         Framework fw = new Framework(cha, cg);
 

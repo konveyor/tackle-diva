@@ -43,6 +43,10 @@ public class QuarkusAnalysis {
 
     }
 
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LSpringJPARepository;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -58,6 +62,7 @@ public class QuarkusAnalysis {
 
                 if (c != null && Util.any(Util.getAnnotations(c),
                         a -> a.getType().getName() == Constants.LMicroprofileReigsterRestClient)) {
+
                     IMethod m = c.getMethod(ref.getSelector());
 
                     String method = null;

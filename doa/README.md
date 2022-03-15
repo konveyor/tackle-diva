@@ -348,3 +348,7 @@ That's all for the demonstration.
 # For developers
 
 See [docs/README.md](docs/README.md) for a design document and development policy.
+  
+# Materials
+- [Youtube recording](https://youtu.be/61e9DjonrZs)
+

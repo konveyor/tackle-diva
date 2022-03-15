@@ -210,6 +210,10 @@ public class JPAAnalysis {
         return typ;
     }
 
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LSpringJPARepository;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -227,6 +231,7 @@ public class JPAAnalysis {
                         || (c = fw.classHierarchy().lookupClass(tref)) != null
                                 && Util.any(c.getAllImplementedInterfaces(),
                                         c2 -> c2.getName() == Constants.LSpringJPARepository)) {
+
                     if (ref.getName() == Constants.save || ref.getName() == Constants.saveAndFlush) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         populateInsertOrUpdate(fw, trace, instr);

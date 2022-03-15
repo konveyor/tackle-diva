@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,11 +29,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.junit.ClassRule;
+import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestName;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
@@ -61,6 +61,8 @@ import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.Context.Constraint;
+import io.tackle.diva.analysis.JDBCAnalysis;
+import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
@@ -80,7 +82,7 @@ public class DaytraderTest {
     @Ignore
     @Test
     public void fromBinaryTest() throws Exception {
-        fromBinary();
+        Util.injectedCall(DivaIRGen.advices(), DaytraderTest.class.getName() + ".fromBinary");
     }
 
     public static void fromSource() throws Exception {
@@ -101,12 +103,16 @@ public class DaytraderTest {
             }
         };
         addDefaultExclusions(scope);
+        Path tmpDir = Paths.get(".", "tmp");
+
         // add standard libraries to scope
-        String[] stdlibs = Framework.loadStandardLib(scope);
+        String[] stdlibs = Framework.loadStandardLib(scope, tmpDir);
         // add the source directory
         for (String sourceDir : sourceDirs) {
             scope.addToScope(JavaSourceAnalysisScope.SOURCE, new SourceDirectoryTreeModule(new File(sourceDir)));
         }
+
+        FileUtils.forceDeleteOnExit(tmpDir.toFile());
 
         DivaIRGen.init();
 
@@ -153,7 +159,10 @@ public class DaytraderTest {
         AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
         // set exclusions. we use these exclusions as standard for handling JDK 8
         addDefaultExclusions(scope);
-        String[] stdlibs = Framework.loadStandardLib(scope);
+
+        Path tmpDir = Paths.get(".", "tmp");
+
+        String[] stdlibs = Framework.loadStandardLib(scope, tmpDir);
         // add the source directory
         for (String sourceDir : classDirs) {
             scope.addToScope(ClassLoaderReference.Application, new BinaryDirectoryTreeModule(new File(sourceDir)));
@@ -322,8 +331,9 @@ public class DaytraderTest {
             throws IOException, JsonProcessingException {
         Framework fw = new Framework(cha, cg);
 
-        fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
+        //fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
+        fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
         List<Object> res = new ArrayList<>();
         Report report = new Util.JsonReport(res);
 

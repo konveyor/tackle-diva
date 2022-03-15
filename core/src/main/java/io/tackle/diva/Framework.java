@@ -14,6 +14,7 @@ limitations under the License.
 package io.tackle.diva;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -21,8 +22,12 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,21 +35,34 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.wala.analysis.reflection.ReflectionContextInterpreter;
 import com.ibm.wala.cast.ipa.callgraph.AstContextInsensitiveSSAContextInterpreter;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.client.impl.ZeroCFABuilderFactory;
+import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.IMethod.SourcePosition;
+import com.ibm.wala.classLoader.JarFileEntry;
+import com.ibm.wala.classLoader.ModuleEntry;
+import com.ibm.wala.classLoader.ShrikeClass;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -66,6 +84,8 @@ import com.ibm.wala.ipa.callgraph.propagation.cfa.DefaultSSAInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.DelegatingSSAContextInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.rta.BasicRTABuilder;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.shrikeCT.ClassConstants;
+import com.ibm.wala.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
@@ -76,6 +96,7 @@ import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
@@ -105,7 +126,7 @@ public class Framework {
         return cha;
     }
 
-    public static String[] loadStandardLib(AnalysisScope scope) throws IOException {
+    public static String[] loadStandardLib(AnalysisScope scope, Path workDir) throws IOException {
         String javaVersion = System.getProperty("java.specification.version");
         String javaHome = System.getProperty("java.home");
         Util.LOGGER.info("java.specification.version=" + javaVersion);
@@ -122,17 +143,7 @@ public class Framework {
             });
         } else {
             // deep copy files in jrt module to temp dir
-            Path temp = Files.createTempDirectory("diva-temp");
-            Util.LOGGER.info("tempdir=" + temp);
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        FileUtils.deleteDirectory(temp.toFile());
-                    } catch (IOException e) {
-                    }
-                }
-            });
+            Path temp = workDir.resolve("jrt");
             Path javaBase = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("modules", "java.base");
             Path javaSql = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("modules", "java.sql");
             Stream.concat(Files.walk(javaBase), Files.walk(javaSql)).forEach(path -> {
@@ -164,8 +175,201 @@ public class Framework {
         return res;
     }
 
+    public static HttpClient httpClient = HttpClientBuilder.create().build();
+
+    public static boolean checkMavenCentral(String sha1, String name) {
+        try {
+            if (name.startsWith("log4j") || name.startsWith("slf4j")) {
+                return true;
+            }
+            HttpGet request = new HttpGet(
+                    "https://search.maven.org/solrsearch/select?q=1:" + sha1 + "&rows=20&wt=json");
+            request.addHeader("content-type", "application/json");
+
+            HttpResponse response = httpClient.execute(request);
+
+            Map<String, Map<String, Object>> res = new ObjectMapper().readValue(response.getEntity().getContent(),
+                    Map.class);
+            if (!res.get("response").get("numFound").equals(0)) {
+                return true;
+            }
+        } catch (Exception e) {
+            Util.LOGGER.info("Failed to query central: " + name);
+        }
+        return false;
+    }
+
+    public static final Pattern patternWar = Pattern.compile(".*\\.war");
+    public static final Pattern patternJar = Pattern.compile(".*\\.jar");
+    public static final Pattern patternClasses = Pattern.compile(".*/classes$");
+    static final Pattern patternClass = Pattern.compile(".*/classes/(.*)\\.class$");
+    static final Pattern patternXhtml = Pattern.compile(".*\\.xhtml$");
+
+    public static void unpackArchives(String jarFile, Path workDir, List<String> classRoots, List<String> jars)
+            throws IOException, FileNotFoundException {
+
+        JarFile jar = new java.util.jar.JarFile(jarFile);
+        Enumeration<JarEntry> enumEntries = jar.entries();
+
+        while (enumEntries.hasMoreElements()) {
+            JarEntry entry = enumEntries.nextElement();
+            File file = workDir.resolve(entry.getName()).toFile();
+            String fileName = file.getAbsolutePath().toString();
+            if (!file.exists()) {
+                file.getParentFile().mkdirs();
+            }
+
+            boolean mj = patternJar.matcher(fileName).find();
+            if (mj) {
+                String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
+                if (checkMavenCentral(sha1, file.getName())) {
+                    Util.LOGGER.info("skpping " + file.getName());
+                } else {
+                    jars.add(fileName);
+                }
+            }
+
+            if (entry.isDirectory()) {
+                boolean mcs = patternClasses.matcher(fileName).find();
+                if (mcs) {
+                    classRoots.add(fileName);
+                }
+                continue;
+            }
+
+            Files.copy(jar.getInputStream(entry), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            boolean mw = patternWar.matcher(fileName).find();
+            if (mw) {
+                String warname = entry.getName().substring(0, entry.getName().lastIndexOf("."));
+                String newWorkDir = workDir + java.io.File.separator + warname;
+                unpackArchives(fileName, workDir.resolve(warname), classRoots, jars);
+            }
+        }
+        jar.close();
+
+    }
+
+    public static Set<IClass> relevantJarsAnalysis(IClassHierarchy cha, IClassLoader apploader,
+            Set<IClass> relevantClasses, Set<IClass> applicationClasses, Predicate<IClass> relevanceTest) {
+
+        Map<String, Set<IClass>> defines = new HashMap<>();
+        Map<String, Set<IClass>> references = new HashMap<>();
+        Map<String, Set<String>> deps = new HashMap<>();
+
+        for (IClass c : cha) {
+            if (c.getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) {
+                continue;
+            }
+            if (!(c instanceof ShrikeClass)) {
+                relevantClasses.add(c);
+                applicationClasses.add(c);
+                continue;
+            }
+            ShrikeClass sc = (ShrikeClass) c;
+            ModuleEntry m = sc.getModuleEntry();
+            if (!(m instanceof JarFileEntry)) {
+                relevantClasses.add(c);
+                applicationClasses.add(c);
+                continue;
+            }
+
+            String jarName = ((JarFileEntry) m).getJarFile().getName();
+
+            if (!defines.containsKey(jarName)) {
+                defines.put(jarName, new HashSet<>());
+            }
+            defines.get(jarName).add(c);
+
+            ConstantPoolParser cp = sc.getReader().getCP();
+            for (int k = 1; k < cp.getItemCount(); k++) {
+                if (cp.getItemType(k) == ClassConstants.CONSTANT_Class) {
+                    String cref;
+                    try {
+                        cref = cp.getCPClass(k);
+                    } catch (Exception e) {
+                        continue;
+                    }
+//                    if (cref.equals("java/sql/Connection")) {
+//                        System.out.println(c);
+//                    }
+                    IClass c2 = apploader.lookupClass(TypeName.findOrCreate("L" + cref));
+                    if (c2 == null)
+                        continue;
+
+                    if (!references.containsKey(jarName)) {
+                        references.put(jarName, new HashSet<>());
+                    }
+                    references.get(jarName).add(c2);
+                }
+            }
+        }
+
+        List<String> next = new ArrayList<>(references.keySet());
+
+        while (!next.isEmpty()) {
+            List<String> todo = next;
+            next = new ArrayList<>();
+            for (String j : todo) {
+                if (!references.containsKey(j)) {
+                    references.put(j, new HashSet<>());
+                }
+                Set<IClass> rs = references.get(j);
+                Set<String> js = new HashSet<>();
+                for (Map.Entry<String, Set<IClass>> e2 : defines.entrySet()) {
+                    if (e2.getKey().equals(j))
+                        continue;
+                    if (Util.any(rs, v -> e2.getValue().contains(v))) {
+                        js.add(e2.getKey());
+                    }
+                }
+                if (js.isEmpty())
+                    continue;
+                boolean mod = false;
+                for (String j2 : js) {
+                    Set<IClass> rs2 = references.getOrDefault(j2, Collections.emptySet());
+                    if (rs.containsAll(rs2))
+                        continue;
+                    rs.addAll(rs2);
+                    mod = true;
+                }
+                if (mod)
+                    next.add(j);
+            }
+        }
+
+        Set<String> relevantJars = new HashSet<>();
+
+        for (Map.Entry<String, Set<IClass>> e : references.entrySet()) {
+            if (Util.any(e.getValue(), relevanceTest)) {
+                relevantJars.add(e.getKey());
+            }
+        }
+
+        Util.LOGGER.info("" + relevantJars);
+
+        for (String jar : relevantJars) {
+            relevantClasses.addAll(defines.getOrDefault(jar, Collections.emptySet()));
+        }
+        return relevantClasses;
+    }
+
+    public static Predicate<IMethod> isRelevantMethod = null;
+
     public static Supplier<CallGraph> chaCgBuilder(IClassHierarchy cha, AnalysisOptions options,
             Iterable<? extends IMethod> entries) {
+        List<ClassLoaderReference> refs = new ArrayList<>();
+        refs.add(ClassLoaderReference.Application);
+        refs.add(JavaSourceAnalysisScope.SOURCE);
+        return chaCgBuilder(cha, options, entries,
+                m -> refs.contains(m.getDeclaringClass().getClassLoader().getReference()));
+    }
+
+    public static Supplier<CallGraph> chaCgBuilder(IClassHierarchy cha, AnalysisOptions options,
+            Iterable<? extends IMethod> entries, Predicate<IMethod> relevanceTest) {
+
+        isRelevantMethod = relevanceTest;
+
         List<Entrypoint> entryPoints = new ArrayList<>();
 
         for (IMethod m : entries) {
@@ -383,14 +587,17 @@ public class Framework {
                 site = ((SSAAbstractInvokeInstruction) instr).getCallSite();
             } else if (o instanceof CallSiteReference) {
                 site = (CallSiteReference) o;
-                if (!trace.in(site))
-                    continue;
             } else
                 continue;
 
             trace = trace.updateSite(site);
 
             visitor.visitCallSite(trace);
+
+            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+            if (klazz.startsWith("Ljava/")) {
+                continue;
+            }
 
             Set<CGNode> targets = getFilteredTargets(trace, site);
 
@@ -402,9 +609,6 @@ public class Framework {
             }
 
             for (CGNode n : targets) {
-                if (n.getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/")) {
-                    continue;
-                }
                 if (pathSensitive) {
                     if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
                         continue;
