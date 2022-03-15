@@ -80,8 +80,10 @@ import com.ibm.wala.cast.tree.CAst;
 import com.ibm.wala.cast.tree.CAstNode;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.cast.tree.CAstType;
+import com.ibm.wala.classLoader.BytecodeClass;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.ModuleEntry;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.Constants;
@@ -96,6 +98,7 @@ import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.strings.Atom;
 import com.ibm.wala.util.strings.StringStuff;
 
+import io.tackle.diva.Framework;
 import io.tackle.diva.Util;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
@@ -704,6 +707,43 @@ public class DivaIRGen {
 
     }
 
+    public static class DoBytecodeClassSuperclass {
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.This BytecodeClass self, @Advice.FieldValue("cha") IClassHierarchy cha,
+                @Advice.FieldValue("loader") IClassLoader loader,
+                @Advice.FieldValue(value = "superClass", readOnly = false) IClass superClass,
+                @Advice.Return(readOnly = false) IClass res) {
+            if (res != null && res.getName() == io.tackle.diva.Constants.LJavaLangObject
+                    && self.getSuperName() != io.tackle.diva.Constants.LJavaLangObject) {
+                // Assuming makeWithRoot mode, which returns Object class in case of load
+                // failure.
+                superClass = new DivaPhantomClass(
+                        TypeReference.findOrCreate(ClassLoaderReference.Primordial, self.getSuperName()), cha);
+                cha.addClass(superClass);
+                res = superClass;
+            }
+        }
+
+    }
+
+    public static class DoCHACallGraph {
+
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter() {
+            return Framework.isRelevantMethod != null;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.Enter boolean skip, @Advice.Argument(0) IMethod m,
+                @Advice.Return(readOnly = false) boolean res) {
+            if (skip) {
+                res = !m.isAbstract() && Framework.isRelevantMethod.test(m);
+            }
+        }
+
+    }
+
     @SuppressWarnings("serial")
     public static Map<String, Class<?>> advices() {
         return (new HashMap<String, Class<?>>() {
@@ -727,6 +767,11 @@ public class DivaIRGen {
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
+
+                // binary analysis
+                put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
+                put("com.ibm.wala.ipa.callgraph.cha.CHACallGraph.isRelevantMethod", DoCHACallGraph.class);
+
             }
         });
     }

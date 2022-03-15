@@ -23,7 +23,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.jar.JarFile;
 
@@ -38,6 +40,7 @@ import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.JarFileModule;
@@ -54,11 +57,13 @@ import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
+import io.tackle.diva.irgen.FilteredClassHierarchy;
 
 public class Standalone {
 
@@ -153,17 +158,30 @@ public class Standalone {
         IClassLoader apploader = cmd.hasOption("source") ? cha.getLoader(JavaSourceAnalysisScope.SOURCE)
                 : cha.getLoader(ClassLoaderReference.Application);
 
+        Set<IClass> relevantClasses = new HashSet<>();
+        Set<IClass> appClasses = new HashSet<>();
+        Framework.relevantJarsAnalysis(cha, apploader, relevantClasses, appClasses,
+                c -> JDBCAnalysis.checkRelevance(c) || JPAAnalysis.checkRelevance(c));
+
+        IClassHierarchy filteredCha = new FilteredClassHierarchy(cha, appClasses::contains);
+        IClassHierarchy relevantCha = new FilteredClassHierarchy(cha, relevantClasses::contains);
+
         List<IMethod> entries = new ArrayList<>();
-        entries.addAll(ServletAnalysis.getEntries(cha));
-        entries.addAll(SpringBootAnalysis.getEntries(cha));
+        entries.addAll(ServletAnalysis.getEntries(filteredCha));
+        entries.addAll(SpringBootAnalysis.getEntries(filteredCha));
 
         List<IMethod> cgEntries = new ArrayList<>();
         cgEntries.addAll(entries);
-        cgEntries.addAll(SpringBootAnalysis.getInits(cha));
+        cgEntries.addAll(SpringBootAnalysis.getInits(relevantCha));
 
         JPAAnalysis.getEntities(cha);
 
-        CallGraph cg = gengraph(scope, cha, apploader, cgEntries);
+        if (entries.isEmpty()) {
+            Util.LOGGER.info("No entry methods found");
+            return;
+        }
+
+        CallGraph cg = gengraph(scope, relevantCha, apploader, cgEntries);
 
         Framework fw = new Framework(cha, cg);
 

@@ -61,6 +61,8 @@ import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
 import io.tackle.diva.Context.Constraint;
+import io.tackle.diva.analysis.JDBCAnalysis;
+import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
@@ -80,7 +82,7 @@ public class DaytraderTest {
     @Ignore
     @Test
     public void fromBinaryTest() throws Exception {
-        fromBinary();
+        Util.injectedCall(DivaIRGen.advices(), DaytraderTest.class.getName() + ".fromBinary");
     }
 
     public static void fromSource() throws Exception {
@@ -329,8 +331,9 @@ public class DaytraderTest {
             throws IOException, JsonProcessingException {
         Framework fw = new Framework(cha, cg);
 
-        fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
+        //fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
+        fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
         List<Object> res = new ArrayList<>();
         Report report = new Util.JsonReport(res);
 

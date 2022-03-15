@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.IR;
@@ -40,6 +41,10 @@ import io.tackle.diva.Trace;
 public class JDBCAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
 
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LJavaSqlConnection;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
@@ -61,7 +66,6 @@ public class JDBCAnalysis {
                         && ref.getNumberOfParameters() == 0
                         || ref.getDeclaringClass().getName() == Constants.LJavaSqlCallableStatement
                                 && ref.getName() == Constants.execute) {
-
                     sql = analyzeJdbc(fw, trace, site);
                 }
                 if (sql != null) {
