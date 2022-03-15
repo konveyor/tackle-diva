@@ -53,11 +53,9 @@ import com.ibm.wala.analysis.reflection.ReflectionContextInterpreter;
 import com.ibm.wala.cast.ipa.callgraph.AstContextInsensitiveSSAContextInterpreter;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.client.impl.ZeroCFABuilderFactory;
-import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
-import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.IMethod.SourcePosition;
 import com.ibm.wala.classLoader.JarFileEntry;
@@ -250,8 +248,8 @@ public class Framework {
 
     }
 
-    public static Set<IClass> relevantJarsAnalysis(IClassHierarchy cha, IClassLoader apploader,
-            Set<IClass> relevantClasses, Set<IClass> applicationClasses, Predicate<IClass> relevanceTest) {
+    public static Set<IClass> relevantJarsAnalysis(IClassHierarchy cha, Set<IClass> relevantClasses,
+            Set<IClass> applicationClasses, Predicate<IClass> relevanceTest) {
 
         Map<String, Set<IClass>> defines = new HashMap<>();
         Map<String, Set<IClass>> references = new HashMap<>();
@@ -290,10 +288,10 @@ public class Framework {
                     } catch (Exception e) {
                         continue;
                     }
-//                    if (cref.equals("java/sql/Connection")) {
-//                        System.out.println(c);
-//                    }
-                    IClass c2 = apploader.lookupClass(TypeName.findOrCreate("L" + cref));
+                    // if (cref.equals("java/sql/Connection")) {
+                    // System.out.println(c);
+                    // }
+                    IClass c2 = c.getClassLoader().lookupClass(TypeName.findOrCreate("L" + cref));
                     if (c2 == null)
                         continue;
 
@@ -358,11 +356,8 @@ public class Framework {
 
     public static Supplier<CallGraph> chaCgBuilder(IClassHierarchy cha, AnalysisOptions options,
             Iterable<? extends IMethod> entries) {
-        List<ClassLoaderReference> refs = new ArrayList<>();
-        refs.add(ClassLoaderReference.Application);
-        refs.add(JavaSourceAnalysisScope.SOURCE);
         return chaCgBuilder(cha, options, entries,
-                m -> refs.contains(m.getDeclaringClass().getClassLoader().getReference()));
+                m -> !m.getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial));
     }
 
     public static Supplier<CallGraph> chaCgBuilder(IClassHierarchy cha, AnalysisOptions options,

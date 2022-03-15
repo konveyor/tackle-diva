@@ -155,12 +155,9 @@ public class Standalone {
         Util.LOGGER.info("Done class hierarchy: " + cha.getNumberOfClasses() + " classes");
         Util.LOGGER.fine(Warnings.asString());
 
-        IClassLoader apploader = cmd.hasOption("source") ? cha.getLoader(JavaSourceAnalysisScope.SOURCE)
-                : cha.getLoader(ClassLoaderReference.Application);
-
         Set<IClass> relevantClasses = new HashSet<>();
         Set<IClass> appClasses = new HashSet<>();
-        Framework.relevantJarsAnalysis(cha, apploader, relevantClasses, appClasses,
+        Framework.relevantJarsAnalysis(cha, relevantClasses, appClasses,
                 c -> JDBCAnalysis.checkRelevance(c) || JPAAnalysis.checkRelevance(c));
 
         IClassHierarchy filteredCha = new FilteredClassHierarchy(cha, appClasses::contains);
@@ -181,7 +178,7 @@ public class Standalone {
             return;
         }
 
-        CallGraph cg = gengraph(scope, relevantCha, apploader, cgEntries);
+        CallGraph cg = gengraph(scope, relevantCha, cgEntries, relevantClasses);
 
         Framework fw = new Framework(cha, cg);
 
@@ -230,12 +227,13 @@ public class Standalone {
         }
     }
 
-    public static CallGraph gengraph(AnalysisScope scope, IClassHierarchy cha, IClassLoader apploader,
-            Collection<? extends IMethod> entries) throws IOException, CancelException {
+    public static CallGraph gengraph(AnalysisScope scope, IClassHierarchy cha, Collection<? extends IMethod> entries,
+            Set<IClass> relevantClasses) throws IOException, CancelException {
         AnalysisOptions options = new AnalysisOptions();
         // CallGraphBuilder<InstanceKey> builder = Framework.rtaBuilder(cha, scope,
         // options, entries);
-        Supplier<CallGraph> builder = Framework.chaCgBuilder(cha, options, entries);
+        Supplier<CallGraph> builder = Framework.chaCgBuilder(cha, options, entries,
+                m -> relevantClasses.contains(m.getDeclaringClass()));
 
         Util.LOGGER.info("building call graph...");
         // CallGraph cg = builder.makeCallGraph(options, null);
