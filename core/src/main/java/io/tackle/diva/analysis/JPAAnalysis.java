@@ -210,6 +210,10 @@ public class JPAAnalysis {
         return typ;
     }
 
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LSpringJPARepository;
+    }
+
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
         return context.new CallSiteVisitor() {
 
