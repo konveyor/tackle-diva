@@ -184,7 +184,7 @@ public class Standalone {
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
-                fw.recordContraint(new Context.EntryConstraint(n));
+                fw.recordContraint(new Constraint.EntryConstraint(n));
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
@@ -201,15 +201,15 @@ public class Standalone {
 
         for (Context cxt : contexts) {
             CGNode entry = null;
-            for (Context.Constraint c : cxt) {
-                if (c instanceof Context.EntryConstraint) {
-                    entry = ((Context.EntryConstraint) c).node();
+            for (Constraint c : cxt) {
+                if (c instanceof Constraint.EntryConstraint) {
+                    entry = ((Constraint.EntryConstraint) c).node();
                 }
             }
             if (entry != null) {
                 CGNode n = entry;
                 report.add((Report.Named map) -> {
-                    for (Context.Constraint c : cxt) {
+                    for (Constraint c : cxt) {
                         c.report(map);
                     }
                     map.put(Report.TRANSACTIONS, (Report txs) -> {

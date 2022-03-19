@@ -727,7 +727,7 @@ public class Framework {
 
     }
 
-    public void recordContraint(Context.Constraint c) {
+    public void recordContraint(Constraint c) {
         Pair<String, String> key = Pair.make(c.category(), c.type());
         if (!constraints.containsKey(key)) {
             constraints.put(key, new ArrayList<>());
@@ -735,6 +735,6 @@ public class Framework {
         constraints.get(key).add(c);
     }
 
-    public Map<Pair<String, String>, List<Context.Constraint>> constraints = new LinkedHashMap<>();
+    public Map<Pair<String, String>, List<Constraint>> constraints = new LinkedHashMap<>();
 
 }
