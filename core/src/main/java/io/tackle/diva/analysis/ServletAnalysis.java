@@ -47,8 +47,7 @@ import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.MutableSparseIntSet;
 
 import io.tackle.diva.Constants;
-import io.tackle.diva.Context;
-import io.tackle.diva.Context.Constraint;
+import io.tackle.diva.Constraint;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
@@ -320,8 +319,8 @@ public class ServletAnalysis {
 
                     @Override
                     public boolean forbids(Constraint other) {
-                        if (other instanceof Context.EntryConstraint) {
-                            return !reachingNodes.contains(((Context.EntryConstraint) other).node().getGraphNodeId());
+                        if (other instanceof Constraint.EntryConstraint) {
+                            return !reachingNodes.contains(((Constraint.EntryConstraint) other).node().getGraphNodeId());
                         }
                         if (other instanceof HttpParameterConstraint) {
                             return key.equals(((HttpParameterConstraint) other).key);
@@ -351,7 +350,7 @@ public class ServletAnalysis {
         };
     }
 
-    public static abstract class HttpParameterConstraint implements Context.BranchingConstraint {
+    public static abstract class HttpParameterConstraint implements Constraint.BranchingConstraint {
         @Override
         public String category() {
             return Report.HTTP_PARAM;

@@ -60,7 +60,6 @@ import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
-import io.tackle.diva.Context.Constraint;
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;

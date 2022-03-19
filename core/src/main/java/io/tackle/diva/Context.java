@@ -27,7 +27,6 @@ import java.util.Map.Entry;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.ibm.wala.classLoader.IClass;
-import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
@@ -37,9 +36,8 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
 import com.ibm.wala.util.intset.IntPair;
-import com.ibm.wala.util.strings.StringStuff;
 
-public class Context extends ArrayList<Context.Constraint> {
+public class Context extends ArrayList<Constraint> {
 
     public abstract class CallSiteVisitor implements Trace.CallSiteVisitor {
         @Override
@@ -69,107 +67,15 @@ public class Context extends ArrayList<Context.Constraint> {
         }
     }
 
-    public static interface Constraint {
-
-        default public void report(Report.Named report) {
-            report.put(category(), (Report.Named map) -> {
-                map.put(type(), (Report values) -> {
-                    values.add(value());
-                });
-            });
-        }
-
-        public String category();
-
-        public String type();
-
-        public String value();
-
-        public boolean forbids(Constraint other);
-    }
-
-    public static interface BranchingConstraint extends Constraint {
-        public Iterable<IntPair> fallenThruBranches();
-
-        public Iterable<IntPair> takenBranches();
-    }
-
-    public static class EntryConstraint implements Constraint {
-
-        public EntryConstraint(CGNode node) {
-            super();
-            this.node = node;
-        }
-
-        CGNode node;
-
-        @Override
-        public String category() {
-            return Report.ENTRY;
-        }
-
-        @Override
-        public String type() {
-            return Report.METHODS;
-        }
-
-        @Override
-        public String value() {
-            IMethod method = node.getMethod();
-            return StringStuff.jvmToBinaryName(method.getDeclaringClass().getName().toString()) + "."
-                    + method.getName().toString();
-        }
-
-        public CGNode node() {
-            return node;
-        }
-
-        @Override
-        public boolean forbids(Context.Constraint other) {
-            return false;
-        }
-    }
-
-    public static class DispatchConstraint implements Constraint {
-
-        IClass base;
-        IClass impl;
-
-        public DispatchConstraint(IClass base, IClass impl) {
-            this.base = base;
-            this.impl = impl;
-        }
-
-        @Override
-        public String category() {
-            return Report.DISPATCH;
-        }
-
-        @Override
-        public String type() {
-            return base.getName().toString();
-        }
-
-        @Override
-        public String value() {
-            return impl.getName().toString();
-        }
-
-        @Override
-        public boolean forbids(Context.Constraint other) {
-            return false;
-        }
-    }
-
     public Map<IClass, IClass> dispatch;
 
     public Map<IClass, IClass> dispatchMap() {
         if (dispatch == null) {
             dispatch = new LinkedHashMap<>();
             for (Constraint con : this) {
-                if (!(con instanceof DispatchConstraint))
+                if (!(con instanceof Constraint.DispatchConstraint))
                     continue;
-                dispatch.put(((DispatchConstraint) con).base, ((DispatchConstraint) con).impl);
+                dispatch.put(((Constraint.DispatchConstraint) con).base, ((Constraint.DispatchConstraint) con).impl);
             }
         }
         return dispatch;
@@ -190,8 +96,8 @@ public class Context extends ArrayList<Context.Constraint> {
         BitVector taken = new BitVector();
 
         for (Constraint con : this) {
-            if (con instanceof BranchingConstraint) {
-                BranchingConstraint c = (BranchingConstraint) con;
+            if (con instanceof Constraint.BranchingConstraint) {
+                Constraint.BranchingConstraint c = (Constraint.BranchingConstraint) con;
                 for (IntPair key : c.fallenThruBranches()) {
                     if (key.getX() != n.getGraphNodeId())
                         continue;
