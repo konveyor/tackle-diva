@@ -22,7 +22,6 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.IR;
-import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
@@ -96,7 +95,7 @@ public class JDBCAnalysis {
 
         Set<IntPair> visited = new HashSet<>();
         int self = instr.getUse(0);
-        Trace.Val v = getReceiverUseOrDef(trace, instr, visited);
+        Trace.Val v = trace.getReceiverUseOrDef(instr, visited);
         outer: while (true) {
             if (v == null || !v.isInstr())
                 break;
@@ -126,13 +125,13 @@ public class JDBCAnalysis {
                 // NOTE: getReceiverUseOrDef doesn't change trace *unless it returns ret-instr*
                 // So if v is invoke-instr with the same self as instr, then its receiver use
                 self = instr.getUse(0);
-                v = getReceiverUseOrDef(v.trace(), instr, visited);
+                v = v.getReceiverUseOrDef(visited);
                 continue;
 
             } else if (instr instanceof SSAAbstractInvokeInstruction && instr.getNumberOfUses() > 0
                     && instr.getUse(0) == self) {
                 // receiver use
-                v = getReceiverUseOrDef(v.trace(), instr, visited);
+                v = v.getReceiverUseOrDef(visited);
                 continue;
 
             } else if (instr instanceof SSAAbstractInvokeInstruction) {
@@ -210,10 +209,10 @@ public class JDBCAnalysis {
                     || mref.getDeclaringClass().getName() == Constants.LJavaLangStringBuilder) {
 
                 if (mref.getName() == Constants.toString) {
-                    Trace.Val lastVal = getReceiverUseOrDef(value.trace(), instr, visited);
+                    Trace.Val lastVal = value.getReceiverUseOrDef(visited);
                     return calculateReachingString(fw, lastVal, visited);
                 } else if (mref.getName() == Constants.append) {
-                    Trace.Val lastVal = getReceiverUseOrDef(value.trace(), instr, visited);
+                    Trace.Val lastVal = value.getReceiverUseOrDef(visited);
                     return calculateReachingString(fw, lastVal, visited)
                             + calculateReachingString(fw, value.getDef(instr.getUse(1)), new HashSet<>());
                 } else if (mref.getName() == Constants.theInit) {
@@ -242,71 +241,11 @@ public class JDBCAnalysis {
             }
 
         } else if (instr instanceof SSAReturnInstruction) {
-            Trace.Val lastVal = getReceiverUseOrDef(value.trace(), instr, visited);
+            Trace.Val lastVal = value.getReceiverUseOrDef(visited);
             return calculateReachingString(fw, lastVal, visited);
         }
 
         return "??";
-    }
-
-    public static Trace.Val getReceiverUseOrDef(Trace trace, SSAInstruction instr, Set<IntPair> visited) {
-        IR ir = trace.node().getIR();
-        return getReceiverUseOrDef(ir.getBasicBlockForInstruction(instr), trace, instr.iIndex(), instr.getUse(0),
-                visited);
-    }
-
-    public static Trace.Val getReceiverUseOrDef(ISSABasicBlock bb, Trace trace, int index, int number,
-            Set<IntPair> visited) {
-        IR ir = trace.node().getIR();
-        int i = bb.getFirstInstructionIndex() <= index && index <= bb.getLastInstructionIndex() ? index - 1
-                : bb.getLastInstructionIndex();
-        for (; i >= bb.getFirstInstructionIndex(); i--) {
-            SSAInstruction s = ir.getInstructions()[i];
-            if (s == null)
-                continue;
-            if (s.hasDef() && s.getDef() == number) {
-                if (s instanceof SSAAbstractInvokeInstruction && trace.callLog() != null) {
-                    SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
-                    if (trace.callLog().containsKey(invoke.getCallSite())) {
-                        Trace calleeTrace = trace.callLog().get(invoke.getCallSite());
-                        SSAInstruction[] instrs = calleeTrace.node().getIR().getInstructions();
-                        for (int j = instrs.length - 1; j >= 0; j--) {
-                            if (instrs[j] == null)
-                                continue;
-                            if (instrs[j] instanceof SSAReturnInstruction) {
-                                return calleeTrace.new Val(instrs[j]);
-                            }
-                        }
-                    }
-                }
-                return trace.new Val(s);
-            }
-            if (s instanceof SSAAbstractInvokeInstruction) {
-                SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
-                if (!invoke.isStatic() && invoke.getUse(0) == number) {
-                    return trace.new Val(s);
-                }
-            }
-        }
-        for (SSAPhiInstruction phi : (Iterable<SSAPhiInstruction>) () -> bb.iteratePhis()) {
-            if (phi.getDef() == number) {
-                return trace.new Val(phi);
-            }
-        }
-        for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
-            if (pred.getFirstInstructionIndex() > index)
-                continue;
-            int bbid = pred.getNumber();
-            IntPair key = IntPair.make(trace.node().getGraphNodeId(), bbid);
-            if (visited.contains(key)) {
-                continue;
-            }
-            visited.add(key);
-            Trace.Val v0 = getReceiverUseOrDef(pred, trace, index, number, visited);
-            if (v0 != null)
-                return v0;
-        }
-        return null;
     }
 
     public static void getDataflowForVal(Trace.Val val) {
