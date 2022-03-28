@@ -69,22 +69,40 @@ public interface Constants {
     Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
     Atom contains = Atom.findOrCreateUnicodeAtom("contains");
 
+    Atom intValue = Atom.findOrCreateUnicodeAtom("intValue");
+    Atom longValue = Atom.findOrCreateUnicodeAtom("longValue");
+    Atom floatValue = Atom.findOrCreateUnicodeAtom("floatValue");
+    Atom doubleValue = Atom.findOrCreateUnicodeAtom("doubleValue");
+
     Atom setString = Atom.findOrCreateUnicodeAtom("setString");
     Atom setInt = Atom.findOrCreateUnicodeAtom("setInt");
-    Atom setDecimal = Atom.findOrCreateUnicodeAtom("setDecimal");
+    Atom setBigDecimal = Atom.findOrCreateUnicodeAtom("setBigDecimal");
+    Atom setFloat = Atom.findOrCreateUnicodeAtom("setFloat");
     Atom setDouble = Atom.findOrCreateUnicodeAtom("setDouble");
     Atom setTimestamp = Atom.findOrCreateUnicodeAtom("setTimestamp");
 
+    Atom getString = Atom.findOrCreateUnicodeAtom("getString");
+    Atom getInt = Atom.findOrCreateUnicodeAtom("getInt");
+    Atom getBigDecimal = Atom.findOrCreateUnicodeAtom("getBigDecimal");
+    Atom getFloat = Atom.findOrCreateUnicodeAtom("getFloat");
+    Atom getDouble = Atom.findOrCreateUnicodeAtom("getDouble");
+    Atom getTimestamp = Atom.findOrCreateUnicodeAtom("getTimestamp");
+
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
 
-    TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
-    TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
-    TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");
+    TypeName LJavaLangInteger = TypeName.findOrCreate("Ljava/lang/Integer");
+
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
     TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+
+    // JDBC
+    TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
+    TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
+    TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");
+    TypeName LJavaSqlResultSet = TypeName.findOrCreate("Ljava/sql/ResultSet");
 
     // Spring
     TypeName LSpringJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/JdbcTemplate");

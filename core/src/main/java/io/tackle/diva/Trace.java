@@ -15,6 +15,7 @@ package io.tackle.diva;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -32,6 +33,7 @@ import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.intset.BitVector;
+import com.ibm.wala.util.intset.IntPair;
 
 public class Trace extends Util.Chain<Trace> {
 
@@ -227,6 +229,14 @@ public class Trace extends Util.Chain<Trace> {
 
         public Val getDefOrParam(int number) {
             return Trace.this.getDefOrParam(number);
+        }
+
+        public Val getReceiverUseOrDef(Set<IntPair> visited) {
+            if (isInstr()) {
+                return Trace.this.getReceiverUseOrDef(instr(), visited);
+            } else {
+                return null;
+            }
         }
 
         public int getBbId() {
@@ -432,4 +442,83 @@ public class Trace extends Util.Chain<Trace> {
         return cache.reachingInstrs.contains(instr.iIndex());
     }
 
+    public Val getReceiverUseOrDef(SSAInstruction instr, Set<IntPair> visited) {
+        IR ir = this.node().getIR();
+        return getReceiverUseOrDef(ir.getBasicBlockForInstruction(instr), instr.iIndex(), instr.getUse(0), visited);
+    }
+
+    public Val getReceiverUseOrDef(ISSABasicBlock bb, int index, int number, Set<IntPair> visited) {
+        IR ir = this.node().getIR();
+        int i = bb.getFirstInstructionIndex() <= index && index <= bb.getLastInstructionIndex() ? index - 1
+                : bb.getLastInstructionIndex();
+        for (; i >= bb.getFirstInstructionIndex(); i--) {
+            SSAInstruction s = ir.getInstructions()[i];
+            if (s == null)
+                continue;
+            if (s.hasDef() && s.getDef() == number) {
+                if (s instanceof SSAAbstractInvokeInstruction && this.callLog() != null) {
+                    SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
+                    if (this.callLog().containsKey(invoke.getCallSite())) {
+                        Trace calleeTrace = this.callLog().get(invoke.getCallSite());
+                        SSAInstruction[] instrs = calleeTrace.node().getIR().getInstructions();
+                        for (int j = instrs.length - 1; j >= 0; j--) {
+                            if (instrs[j] == null)
+                                continue;
+                            if (instrs[j] instanceof SSAReturnInstruction) {
+                                return calleeTrace.new Val(instrs[j]);
+                            }
+                        }
+                    }
+                }
+                return this.new Val(s);
+            }
+            if (s instanceof SSAAbstractInvokeInstruction) {
+                SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
+                if (!invoke.isStatic() && invoke.getUse(0) == number) {
+                    return this.new Val(s);
+                }
+            }
+        }
+        for (SSAPhiInstruction phi : (Iterable<SSAPhiInstruction>) () -> bb.iteratePhis()) {
+            if (phi.getDef() == number) {
+                return this.new Val(phi);
+            }
+        }
+        for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
+            if (pred.getFirstInstructionIndex() > index)
+                continue;
+            int bbid = pred.getNumber();
+            IntPair key = IntPair.make(this.node().getGraphNodeId(), bbid);
+            if (visited.contains(key)) {
+                continue;
+            }
+            visited.add(key);
+            Trace.Val v0 = getReceiverUseOrDef(pred, index, number, visited);
+            if (v0 != null)
+                return v0;
+        }
+        return null;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = System.identityHashCode(cache);
+        if (site() != null) {
+            hash ^= site().hashCode();
+        }
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || !(o instanceof Trace)) {
+            return false;
+        }
+        Trace other = (Trace) o;
+        if (other.cache != this.cache)
+            return false;
+        if (site == null)
+            return other.site == null;
+        return this.site.equals(other.site);
+    }
 }

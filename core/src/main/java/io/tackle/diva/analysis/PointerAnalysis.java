@@ -97,7 +97,7 @@ public class PointerAnalysis {
                         return;
                     SSAPutInstruction put = (SSAPutInstruction) instr;
                     if (put.getDeclaredField() == field.getDeclaredField()) {
-                        throw new PointerAnalysis.Escape(t.getDefOrParam(put.getUse(1)));
+                        throw new PointerAnalysis.Escape(t.getDefOrParam(put.getUse(0)));
                     }
                 }, true);
             } catch (PointerAnalysis.Escape e) {

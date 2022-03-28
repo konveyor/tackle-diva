@@ -328,7 +328,7 @@ public class DaytraderTest {
 
     public static void doAnalysis(IClassHierarchy cha, List<IMethod> entries, CallGraph cg)
             throws IOException, JsonProcessingException {
-        Framework fw = new Framework(cha, cg);
+        Framework fw = new Framework(cha, cg, true);
 
         //fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 

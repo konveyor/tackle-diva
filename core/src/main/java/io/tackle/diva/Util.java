@@ -367,7 +367,6 @@ public class Util {
     public static <S, T> Iterable<T> map(Iterable<S> data, Function<S, T> map) {
         return () -> new Iterator<T>() {
             Iterator<S> i = data.iterator();
-            T next;
 
             @Override
             public boolean hasNext() {
@@ -535,6 +534,11 @@ public class Util {
 
         @Override
         public void add(String data) {
+            list.add(data);
+        }
+
+        @Override
+        public void add(Integer data) {
             list.add(data);
         }
 
