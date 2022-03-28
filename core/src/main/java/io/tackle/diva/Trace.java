@@ -500,4 +500,25 @@ public class Trace extends Util.Chain<Trace> {
         return null;
     }
 
+    @Override
+    public int hashCode() {
+        int hash = System.identityHashCode(cache);
+        if (site() != null) {
+            hash ^= site().hashCode();
+        }
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || !(o instanceof Trace)) {
+            return false;
+        }
+        Trace other = (Trace) o;
+        if (other.cache != this.cache)
+            return false;
+        if (site == null)
+            return other.site == null;
+        return this.site.equals(other.site);
+    }
 }

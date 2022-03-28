@@ -13,8 +13,13 @@ limitations under the License.
 
 package io.tackle.diva.analysis;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.Stack;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -24,13 +29,17 @@ import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntPair;
+import com.ibm.wala.util.intset.IntSet;
+import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Context;
@@ -55,6 +64,7 @@ public class JDBCAnalysis {
                 CallSiteReference site = trace.site();
                 MethodReference ref = site.getDeclaredTarget();
                 Trace.Val sql = null;
+                List<Trace.Val> seeds = null;
                 if (false && ref.getDeclaringClass().getName() == Constants.LJavaSqlConnection) {
                     if (ref.getName() == Constants.prepareStatement || ref.getName() == Constants.prepareCall) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
@@ -65,13 +75,20 @@ public class JDBCAnalysis {
                         && ref.getNumberOfParameters() == 0
                         || ref.getDeclaringClass().getName() == Constants.LJavaSqlCallableStatement
                                 && ref.getName() == Constants.execute) {
-                    sql = analyzeJdbc(fw, trace, site);
+                    if (fw.dependencyAnalysis) {
+                        seeds = new ArrayList<>();
+                    }
+                    sql = analyzeJdbc(fw, trace, site, seeds);
                 }
                 if (sql != null) {
                     if (!fw.txStarted()) {
                         fw.reportSqlStatement(trace, "BEGIN");
                     }
-                    analyzeSqlStatement(fw, trace, sql);
+                    IntSet deps = null;
+                    if (seeds != null && !seeds.isEmpty()) {
+                        deps = getDependentOps(fw, seeds);
+                    }
+                    analyzeSqlStatement(fw, trace, sql, deps);
                 }
 
                 if (fw.txStarted() && ref.getDeclaringClass().getName() == Constants.LJavaSqlConnection) {
@@ -84,11 +101,10 @@ public class JDBCAnalysis {
                     }
                 }
             }
-
         };
     }
 
-    public static Trace.Val analyzeJdbc(Framework fw, Trace trace, CallSiteReference site) {
+    public static Trace.Val analyzeJdbc(Framework fw, Trace trace, CallSiteReference site, List<Trace.Val> seeds) {
         Trace.Val sql = trace.new Val("??");
 
         SSAInstruction instr = trace.instrFromSite(site);
@@ -131,6 +147,17 @@ public class JDBCAnalysis {
             } else if (instr instanceof SSAAbstractInvokeInstruction && instr.getNumberOfUses() > 0
                     && instr.getUse(0) == self) {
                 // receiver use
+                if (seeds != null) {
+                    MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
+                    if (mref.getName() == Constants.setInt || mref.getName() == Constants.setString
+                            || mref.getName() == Constants.setBigDecimal || mref.getName() == Constants.getFloat
+                            || mref.getName() == Constants.getDouble) {
+                        Trace.Val d = v.getDef(instr.getUse(2));
+                        if (d != null) {
+                            seeds.add(d);
+                        }
+                    }
+                }
                 v = v.getReceiverUseOrDef(visited);
                 continue;
 
@@ -151,11 +178,29 @@ public class JDBCAnalysis {
     }
 
     public static void analyzeSqlStatement(Framework fw, Trace trace, Trace.Val v) {
+        analyzeSqlStatement(fw, trace, v, null);
+    }
+
+    public static void analyzeSqlStatement(Framework fw, Trace trace, Trace.Val v, IntSet deps) {
         if (v.isConstant()) {
-            fw.reportSqlStatement(trace, (String) v.constant());
+            fw.reportSqlStatement(trace, (String) v.constant(), deps);
         } else {
-            fw.reportSqlStatement(trace, calculateReachingString(fw, v, new HashSet<>()));
+            fw.reportSqlStatement(trace, calculateReachingString(fw, v, new HashSet<>()), deps);
         }
+    }
+
+    public static SSAAbstractInvokeInstruction getConstructorForNew(IR ir, SSANewInstruction alloc) {
+        for (int i = alloc.iIndex() + 1; i < ir.getInstructions().length; i++) {
+            SSAInstruction instr = ir.getInstructions()[i];
+            if (instr == null || !(instr instanceof SSAAbstractInvokeInstruction) || instr.getNumberOfUses() == 0
+                    || instr.getUse(0) != alloc.getDef())
+                continue;
+            SSAAbstractInvokeInstruction constr = (SSAAbstractInvokeInstruction) instr;
+            if (constr.getDeclaredTarget().getName() != Constants.theInit)
+                return null;
+            return constr;
+        }
+        return null;
     }
 
     public static String calculateReachingString(Framework fw, Trace.Val value, Set<IntPair> visited) {
@@ -227,16 +272,10 @@ public class JDBCAnalysis {
 
         } else if (instr instanceof SSANewInstruction) {
             SSANewInstruction alloc = (SSANewInstruction) instr;
-            IR ir = value.trace().node().getIR();
             if (alloc.getConcreteType().getName() == Constants.LJavaLangString) {
-                for (int i = alloc.iIndex() + 1; i < ir.getInstructions().length; i++) {
-                    SSAInstruction instr0 = ir.getInstructions()[i];
-                    if (instr0 == null || !(instr0 instanceof SSAAbstractInvokeInstruction)
-                            || instr0.getNumberOfUses() == 0 && instr0.getUse(0) != alloc.getDef())
-                        continue;
-                    if (instr0.getNumberOfUses() != 2)
-                        break;
-                    return calculateReachingString(fw, value.trace().getDef(instr0.getUse(1)), visited);
+                SSAAbstractInvokeInstruction constr = getConstructorForNew(value.trace().node().getIR(), alloc);
+                if (constr.getNumberOfUses() == 2) {
+                    return calculateReachingString(fw, value.trace().getDef(constr.getUse(1)), visited);
                 }
             }
 
@@ -248,7 +287,99 @@ public class JDBCAnalysis {
         return "??";
     }
 
-    public static void getDataflowForVal(Trace.Val val) {
+    public static IntSet getDependentOps(Framework fw, List<Trace.Val> seeds) {
+        MutableIntSet ops = new BitVectorIntSet();
+        getDataflowSources(fw, seeds, (v, h) -> {
+            if (!v.isInstr())
+                return;
+            SSAInstruction instr = v.instr();
+            if (instr instanceof SSAAbstractInvokeInstruction) {
+                MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
+                if (mref.getDeclaringClass().getName() == Constants.LJavaSqlResultSet
+                        && (mref.getName() == Constants.getInt || mref.getName() == Constants.getString
+                                || mref.getName() == Constants.getFloat || mref.getName() == Constants.getDouble
+                                || mref.getName() == Constants.getBigDecimal)) {
+                    Trace.Val query = v.getDef(instr.getUse(0));
+                    if (query.isInstr() && query.instr() instanceof SSAAbstractInvokeInstruction) {
+                        CallSiteReference site = ((SSAAbstractInvokeInstruction) query.instr()).getCallSite();
+                        int op = fw.callSiteToOp.getOrDefault(query.trace().updateSite(site), -1);
+                        if (op >= 0) {
+                            ops.add(op);
+                        }
+                    }
+                }
+            }
+        });
+        return ops;
+    }
+
+    public static void getDataflowSources(Framework fw, List<Trace.Val> seeds,
+            BiConsumer<Trace.Val, Consumer<Trace.Val>> cont) {
+
+        Set<IntPair> visited = new HashSet<>();
+        Stack<Trace.Val> todo = new Stack<>();
+        todo.addAll(seeds);
+        final Consumer<Trace.Val> handler = v -> {
+            if (v != null && v.isInstr()) {
+                IntPair key = IntPair.make(v.trace().node().getGraphNodeId(), v.instr().iIndex());
+                if (!visited.contains(key)) {
+                    visited.add(key);
+                    todo.push(v);
+                }
+            }
+        };
+
+        while (!todo.isEmpty()) {
+
+            Trace.Val v = todo.pop();
+            if (v.isConstant()) {
+                cont.accept(v, handler);
+                continue;
+            }
+
+            SSAInstruction instr = v.instr();
+            if (instr instanceof SSAGetInstruction) {
+                v = PointerAnalysis.fromInits(fw, v.trace(), (SSAGetInstruction) instr);
+                handler.accept(v);
+
+            } else if (instr instanceof SSAPhiInstruction) {
+                SSAPhiInstruction phi = (SSAPhiInstruction) instr;
+                handler.accept(v.getDef(phi.getUse(0)));
+                handler.accept(v.getDef(phi.getUse(1)));
+
+            } else if (instr instanceof SSABinaryOpInstruction) {
+                handler.accept(v.getDef(instr.getUse(0)));
+                handler.accept(v.getDef(instr.getUse(1)));
+
+            } else if (instr instanceof SSACheckCastInstruction) {
+                handler.accept(v.getDef(instr.getUse(0)));
+
+            } else if (instr instanceof SSANewInstruction) {
+                SSANewInstruction alloc = (SSANewInstruction) instr;
+
+                if (alloc.getConcreteType().getName() == Constants.LJavaLangString
+                        || alloc.getConcreteType().getName() == Constants.LJavaLangInteger) {
+                    SSAAbstractInvokeInstruction constr = getConstructorForNew(v.trace().node().getIR(), alloc);
+                    if (constr.getNumberOfUses() == 2) {
+                        handler.accept(v.trace().getDef(constr.getUse(1)));
+                    }
+                }
+
+            } else if (instr instanceof SSAAbstractInvokeInstruction) {
+                MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
+
+                if (instr.getNumberOfUses() == 1 && (mref.getName() == Constants.toString
+                        || mref.getName() == Constants.intValue || mref.getName() == Constants.longValue
+                        || mref.getName() == Constants.floatValue || mref.getName() == Constants.doubleValue)) {
+                    handler.accept(v.getDef(instr.getUse(0)));
+                } else {
+                    cont.accept(v, handler);
+                }
+
+            } else {
+                cont.accept(v, handler);
+            }
+        }
 
     }
 

@@ -98,6 +98,7 @@ import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -113,8 +114,16 @@ public class Framework {
         this.callgraph = callgraph;
     }
 
+    public Framework(IClassHierarchy cha, CallGraph callgraph, boolean dependencyAnalysis) {
+        super();
+        this.cha = cha;
+        this.callgraph = callgraph;
+        this.dependencyAnalysis = dependencyAnalysis;
+    }
+
     IClassHierarchy cha;
     CallGraph callgraph;
+    public boolean dependencyAnalysis;
 
     public CallGraph callgraph() {
         return callgraph;
@@ -594,34 +603,45 @@ public class Framework {
                 continue;
             }
 
-            Set<CGNode> targets = getFilteredTargets(trace, site);
-
-            if (targets.isEmpty())
-                continue;
-
-            if (targets.size() > 1) {
-                Util.LOGGER.fine("Failing to determine target for " + site);
+            Trace targetTrace = null;
+            if (trace.callLog() != null) {
+                targetTrace = trace.callLog().getOrDefault(site, null);
             }
+            if (targetTrace != null) {
+                stack.push(targetTrace);
+                iters.push(targetTrace.node().getIR().iterateAllInstructions());
 
-            for (CGNode n : targets) {
-                if (pathSensitive) {
-                    if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
-                        continue;
-                } else if (visited.contains(n.getGraphNodeId())) {
+            } else {
+                Set<CGNode> targets = getFilteredTargets(trace, site);
+
+                if (targets.isEmpty())
                     continue;
-                } else {
-                    visited.add(n.getGraphNodeId());
+
+                if (targets.size() > 1) {
+                    Util.LOGGER.fine("Failing to determine target for " + site);
                 }
-                stack.push(new Trace(n, trace));
-                iters.push(n.getIR().iterateAllInstructions());
 
-                if (pathSensitive)
-                    trace.logCall(stack.peek());
+                for (CGNode n : targets) {
+                    if (pathSensitive) {
+                        if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
+                            continue;
+                    } else if (visited.contains(n.getGraphNodeId())) {
+                        continue;
+                    } else {
+                        visited.add(n.getGraphNodeId());
+                    }
 
-                visitor.visitNode(stack.peek());
-                // skip the rest of targets
-                // @TODO: we may create a call-target constraint in such a case.
-                break;
+                    stack.push(new Trace(n, trace));
+                    iters.push(n.getIR().iterateAllInstructions());
+
+                    if (pathSensitive)
+                        trace.logCall(stack.peek());
+
+                    visitor.visitNode(stack.peek());
+                    // skip the rest of targets
+                    // @TODO: we may create a call-target constraint in such a case.
+                    break;
+                }
             }
         }
     }
@@ -667,8 +687,10 @@ public class Framework {
     public Report report;
     public Report transaction;
     public int transactionId;
+    public int operationId;
+    public Map<Trace, Integer> callSiteToOp;
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> named, IntSet depends) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put(Report.TXID, transactionId++);
@@ -678,6 +700,10 @@ public class Framework {
             });
         }
         transaction.add((Report.Named map) -> {
+            if (trace.site() != null) {
+                callSiteToOp.put(trace, operationId);
+            }
+            map.put(Report.OPID, operationId++);
             map.put(Report.STACKTRACE, trace, _trace -> (Report stacktrace) -> {
                 for (Trace t : _trace.reversed()) {
                     IMethod m = t.node().getMethod();
@@ -695,11 +721,22 @@ public class Framework {
                 }
             });
             named.accept(map);
+            if (depends != null && !depends.isEmpty()) {
+                map.put("depends", (Report r) -> depends.foreach(i -> r.add(i)));
+            }
         });
+    }
+
+    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
+        reportOperation(trace, named, null);
     }
 
     public void reportSqlStatement(Trace trace, String stmt) {
         reportOperation(trace, map -> map.put(Report.SQL, stmt));
+    }
+
+    public void reportSqlStatement(Trace trace, String stmt, IntSet depends) {
+        reportOperation(trace, map -> map.put(Report.SQL, stmt), depends);
     }
 
     public void reportTxBoundary() {
@@ -715,6 +752,8 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
+        this.operationId = 0;
+        this.callSiteToOp = new HashMap<>();
         traverse(new Trace(entry, null), visitor, true);
         if (txStarted()) {
             reportTxBoundary();

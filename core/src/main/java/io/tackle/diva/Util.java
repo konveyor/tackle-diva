@@ -537,6 +537,11 @@ public class Util {
             list.add(data);
         }
 
+        @Override
+        public void add(Integer data) {
+            list.add(data);
+        }
+
         public static class Named implements Report.Named {
             Map<String, Object> map;
 

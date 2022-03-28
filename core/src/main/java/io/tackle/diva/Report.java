@@ -23,6 +23,7 @@ public interface Report {
     String TRANSACTIONS = "transactions";
     String TRANSACTION = "transaction";
     String TXID = "txid";
+    String OPID = "opid";
     String STACKTRACE = "stacktrace";
     String METHOD = "method";
     String FILE = "file";
@@ -39,6 +40,8 @@ public interface Report {
     void add(Report.Builder builder);
 
     void add(String data);
+
+    void add(Integer data);
 
     @FunctionalInterface
     public interface Builder {
