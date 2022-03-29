@@ -75,7 +75,7 @@ public class JDBCAnalysis {
                         && ref.getNumberOfParameters() == 0
                         || ref.getDeclaringClass().getName() == Constants.LJavaSqlCallableStatement
                                 && ref.getName() == Constants.execute) {
-                    if (fw.dependencyAnalysis) {
+                    if (fw.usageAnalysis) {
                         seeds = new ArrayList<>();
                     }
                     sql = analyzeJdbc(fw, trace, site, seeds);
@@ -84,11 +84,11 @@ public class JDBCAnalysis {
                     if (!fw.txStarted()) {
                         fw.reportSqlStatement(trace, "BEGIN");
                     }
-                    IntSet deps = null;
+                    IntSet uses = null;
                     if (seeds != null && !seeds.isEmpty()) {
-                        deps = getDependentOps(fw, seeds);
+                        uses = getUsingOps(fw, seeds);
                     }
-                    analyzeSqlStatement(fw, trace, sql, deps);
+                    analyzeSqlStatement(fw, trace, sql, uses);
                 }
 
                 if (fw.txStarted() && ref.getDeclaringClass().getName() == Constants.LJavaSqlConnection) {
@@ -104,7 +104,7 @@ public class JDBCAnalysis {
         };
     }
 
-    public static Trace.Val analyzeJdbc(Framework fw, Trace trace, CallSiteReference site, List<Trace.Val> seeds) {
+    public static Trace.Val analyzeJdbc(Framework fw, Trace trace, CallSiteReference site, List<Trace.Val> uses) {
         Trace.Val sql = trace.new Val("??");
 
         SSAInstruction instr = trace.instrFromSite(site);
@@ -147,14 +147,14 @@ public class JDBCAnalysis {
             } else if (instr instanceof SSAAbstractInvokeInstruction && instr.getNumberOfUses() > 0
                     && instr.getUse(0) == self) {
                 // receiver use
-                if (seeds != null) {
+                if (uses != null) {
                     MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
                     if (mref.getName() == Constants.setInt || mref.getName() == Constants.setString
                             || mref.getName() == Constants.setBigDecimal || mref.getName() == Constants.getFloat
                             || mref.getName() == Constants.getDouble) {
                         Trace.Val d = v.getDef(instr.getUse(2));
                         if (d != null) {
-                            seeds.add(d);
+                            uses.add(d);
                         }
                     }
                 }
@@ -181,11 +181,11 @@ public class JDBCAnalysis {
         analyzeSqlStatement(fw, trace, v, null);
     }
 
-    public static void analyzeSqlStatement(Framework fw, Trace trace, Trace.Val v, IntSet deps) {
+    public static void analyzeSqlStatement(Framework fw, Trace trace, Trace.Val v, IntSet uses) {
         if (v.isConstant()) {
-            fw.reportSqlStatement(trace, (String) v.constant(), deps);
+            fw.reportSqlStatement(trace, (String) v.constant(), uses);
         } else {
-            fw.reportSqlStatement(trace, calculateReachingString(fw, v, new HashSet<>()), deps);
+            fw.reportSqlStatement(trace, calculateReachingString(fw, v, new HashSet<>()), uses);
         }
     }
 
@@ -287,7 +287,7 @@ public class JDBCAnalysis {
         return "??";
     }
 
-    public static IntSet getDependentOps(Framework fw, List<Trace.Val> seeds) {
+    public static IntSet getUsingOps(Framework fw, List<Trace.Val> seeds) {
         MutableIntSet ops = new BitVectorIntSet();
         getDataflowSources(fw, seeds, (v, h) -> {
             if (!v.isInstr())

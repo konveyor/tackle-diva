@@ -74,7 +74,7 @@ public class Standalone {
         options.addOption("s", "source", true, "source path");
         options.addOption("b", "binary", true, "binary path");
         options.addOption("c", "contexts", true, "contexts yaml file");
-        options.addOption("d", "dependency", true, "enable dependency analysis");
+        options.addOption("u", "usage", true, "enable usage analysis");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -181,7 +181,7 @@ public class Standalone {
 
         CallGraph cg = gengraph(scope, relevantCha, cgEntries, relevantClasses);
 
-        Framework fw = new Framework(cha, cg, cmd.hasOption("dependency"));
+        Framework fw = new Framework(cha, cg, cmd.hasOption("usage"));
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
