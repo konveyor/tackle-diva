@@ -47,6 +47,7 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
@@ -98,11 +99,12 @@ public class Util {
 
     public static List<Annotation> getAnnotations(IClass c) {
         List<Annotation> res = new ArrayList<>();
-        Collection<Annotation> as = c.getAnnotations();
-        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-            res.add(a);
+        Collection<Annotation> as;
+        if (c.getClassLoader() instanceof JavaSourceLoaderImpl) {
+            as = DivaIRGen.annotations.get(c.getReference());
+        } else {
+            as = c.getAnnotations();
         }
-        as = DivaIRGen.annotations.get(c.getReference());
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
@@ -114,11 +116,13 @@ public class Util {
 
         // String key = m.getDeclaringClass().getName() + " " + m.getName() + " " +
         // m.getDescriptor().toString();
-        Collection<Annotation> as = DivaIRGen.annotations.get(m.getReference());
-        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-            res.add(a);
+        Collection<Annotation> as;
+        if (m.getDeclaringClass().getClassLoader() instanceof JavaSourceLoaderImpl) {
+            as = DivaIRGen.annotations.get(m.getReference());
+        } else {
+            as = m.getAnnotations();
+
         }
-        as = m.getAnnotations();
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
@@ -127,23 +131,25 @@ public class Util {
 
     public static List<Annotation> getAnnotations(IMethod m, int param) {
         List<Annotation> res = new ArrayList<>();
-        Collection<Annotation> as = DivaIRGen.annotations.get(Pair.make(m.getReference(), param));
-        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-            res.add(a);
+        if (m.getDeclaringClass().getClassLoader() instanceof JavaSourceLoaderImpl) {
+            Collection<Annotation> as = DivaIRGen.annotations.get(Pair.make(m.getReference(), param));
+            for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+                res.add(a);
+            }
         }
-
         return res;
     }
 
     public static List<Annotation> getAnnotations(IField f) {
         List<Annotation> res = new ArrayList<>();
         // String key = f.getDeclaringClass().getName() + " " + f.getName();
-        Collection<Annotation> as = DivaIRGen.annotations
-                .get(Pair.make(f.getDeclaringClass().getReference(), f.getName()));
-        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-            res.add(a);
+        Collection<Annotation> as;
+        if (f.getDeclaringClass().getClassLoader() instanceof JavaSourceLoaderImpl) {
+            as = DivaIRGen.annotations
+                    .get(Pair.make(f.getDeclaringClass().getReference(), f.getName()));
+        } else {
+            as = f.getAnnotations();
         }
-        as = f.getAnnotations();
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
