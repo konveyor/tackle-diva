@@ -361,7 +361,7 @@ public class Framework {
             }
         }
 
-        LOGGER.info("" + relevantJars);
+        LOGGER.info("Relevant jars: " + relevantJars);
 
         for (String jar : relevantJars) {
             relevantClasses.addAll(defines.getOrDefault(jar, Collections.emptySet()));

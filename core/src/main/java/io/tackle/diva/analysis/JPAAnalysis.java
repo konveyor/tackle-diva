@@ -133,7 +133,7 @@ public class JPAAnalysis {
             if (c.getName() == Constants.LSpringJPARepository || c.getName() == Constants.LSpringRepository) {
                 continue;
             }
-            Util.LOGGER.fine("JPA repository: " + c.toString());
+            Util.LOGGER.info("Spring repository: " + c.toString());
             IClass p = null;
             for (IClass i : c.getAllImplementedInterfaces()) {
                 if (nonRepositoryIfaces.containsKey(i)) {
@@ -216,7 +216,7 @@ public class JPAAnalysis {
     }
 
     public static boolean checkRelevance(IClass c) {
-        return c.getName() == Constants.LSpringJPARepository;
+        return c.getName() == Constants.LSpringJPARepository || c.getName() == Constants.LSpringRepository;
     }
 
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
@@ -290,7 +290,7 @@ public class JPAAnalysis {
                                 fw.reportSqlStatement(trace, "select * from " + table + exp);
                             }
                         } else {
-                            Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
+                            Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
                             fw.reportSqlStatement(trace, "??");
 
                         }
@@ -300,7 +300,7 @@ public class JPAAnalysis {
 
                     } else if (parseQueryCreation(ref, tref, trace, fw)) {
                     } else {
-                        Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
+                        Util.LOGGER.info("Couldn't resolve jpa operation: " + ref);
                         fw.reportSqlStatement(trace, "??");
 
                     }
@@ -498,10 +498,10 @@ public class JPAAnalysis {
             if (c != null) {
                 populateUpdate(fw, trace, c);
             } else {
-                Util.LOGGER.fine("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+                Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
             }
         } else {
-            Util.LOGGER.fine("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
+            Util.LOGGER.info("Couldn't resolve jpa operation: " + instr.getDeclaredTarget());
         }
     }
 
