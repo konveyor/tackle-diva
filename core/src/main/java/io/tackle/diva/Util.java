@@ -118,10 +118,10 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
-//        as = m.getAnnotations();
-//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-//            res.add(a);
-//        }
+        as = m.getAnnotations();
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
         return res;
     }
 
@@ -131,6 +131,7 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
+
         return res;
     }
 
@@ -142,10 +143,10 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
-//        as = f.getAnnotations();
-//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-//            res.add(a);
-//        }
+        as = f.getAnnotations();
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
         return res;
     }
 
@@ -606,6 +607,16 @@ public class Util {
 
         @Override
         public void add(String data) {
+            if (delegate == null) {
+                accept(r -> {
+                    delegate = r;
+                });
+            }
+            delegate.add(data);
+        }
+
+        @Override
+        public void add(Integer data) {
             if (delegate == null) {
                 accept(r -> {
                     delegate = r;

@@ -39,6 +39,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -108,6 +109,8 @@ import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class Framework {
 
+    private static final Logger LOGGER = Logger.getLogger(Framework.class.getName());
+
     public Framework(IClassHierarchy cha, CallGraph callgraph) {
         super();
         this.cha = cha;
@@ -136,9 +139,9 @@ public class Framework {
     public static String[] loadStandardLib(AnalysisScope scope, Path workDir) throws IOException {
         String javaVersion = System.getProperty("java.specification.version");
         String javaHome = System.getProperty("java.home");
-        Util.LOGGER.info("java.specification.version=" + javaVersion);
-        Util.LOGGER.info("java.home=" + javaHome);
-        // Util.LOGGER.info("java.class.path=" + System.getProperty("java.class.path"));
+        LOGGER.info("java.specification.version=" + javaVersion);
+        LOGGER.info("java.home=" + javaHome);
+        // LOGGER.info("java.class.path=" + System.getProperty("java.class.path"));
 
         List<String> stdlibs = new ArrayList<>();
         if (javaVersion.equals("1.8")) {
@@ -201,7 +204,7 @@ public class Framework {
                 return true;
             }
         } catch (Exception e) {
-            Util.LOGGER.info("Failed to query central: " + name);
+            LOGGER.info("Failed to query central: " + name);
         }
         return false;
     }
@@ -211,6 +214,11 @@ public class Framework {
     public static final Pattern patternClasses = Pattern.compile(".*/classes$");
     static final Pattern patternClass = Pattern.compile(".*/classes/(.*)\\.class$");
     static final Pattern patternXhtml = Pattern.compile(".*\\.xhtml$");
+
+    public static boolean checkSpringBoot(String jarFile) throws IOException, FileNotFoundException {
+        JarFile jar = new java.util.jar.JarFile(jarFile);
+        return jar.getJarEntry("BOOT-INF") != null;
+    }
 
     public static void unpackArchives(String jarFile, Path workDir, List<String> classRoots, List<String> jars)
             throws IOException, FileNotFoundException {
@@ -230,7 +238,7 @@ public class Framework {
             if (mj) {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
-                    Util.LOGGER.info("skpping " + file.getName());
+                    LOGGER.info("skpping " + sha1 + " " + file.getName());
                 } else {
                     jars.add(fileName);
                 }
@@ -353,7 +361,7 @@ public class Framework {
             }
         }
 
-        Util.LOGGER.info("" + relevantJars);
+        LOGGER.info("Relevant jars: " + relevantJars);
 
         for (String jar : relevantJars) {
             relevantClasses.addAll(defines.getOrDefault(jar, Collections.emptySet()));
@@ -380,7 +388,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -425,7 +433,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -525,7 +533,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -599,7 +607,7 @@ public class Framework {
             visitor.visitCallSite(trace);
 
             String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-            if (klazz.startsWith("Ljava/")) {
+            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/")) {
                 continue;
             }
 
@@ -618,7 +626,7 @@ public class Framework {
                     continue;
 
                 if (targets.size() > 1) {
-                    Util.LOGGER.fine("Failing to determine target for " + site);
+                    LOGGER.fine("Failing to determine target for " + site);
                 }
 
                 for (CGNode n : targets) {
@@ -634,8 +642,7 @@ public class Framework {
                     stack.push(new Trace(n, trace));
                     iters.push(n.getIR().iterateAllInstructions());
 
-                    if (pathSensitive)
-                        trace.logCall(stack.peek());
+                    trace.logCall(stack.peek());
 
                     visitor.visitNode(stack.peek());
                     // skip the rest of targets
@@ -670,7 +677,7 @@ public class Framework {
             }
         }
 
-        if (targets.size() > 1) {
+        if (targets.size() > 1 && trace.node().getGraphNodeId() != 0) {
             SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
             IClass self = trace.inferType(this, instr.getUse(0));
             if (self != null) {
@@ -679,6 +686,14 @@ public class Framework {
                     return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
                             i -> i == self);
                 }));
+            }
+        }
+
+        if (targets.size() > 1) {
+            for (CGNode m : targets) {
+                if (site.getDeclaredTarget() == m.getMethod().getReference()) {
+                    return Collections.singleton(m);
+                }
             }
         }
         return targets;
