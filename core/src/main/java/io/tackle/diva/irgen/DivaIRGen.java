@@ -13,10 +13,9 @@ limitations under the License.
 
 package io.tackle.diva.irgen;
 
-import static io.tackle.diva.Util.LOGGER;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -29,6 +28,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IJavaElement;
@@ -96,6 +96,7 @@ import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.strings.Atom;
+import com.ibm.wala.util.strings.ImmutableByteArray;
 import com.ibm.wala.util.strings.StringStuff;
 
 import io.tackle.diva.Framework;
@@ -104,6 +105,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 
 public class DivaIRGen {
+
+    private static final Logger LOGGER = Logger.getLogger(DivaIRGen.class.getName());
 
     public DivaIRGen(IClassLoader loader, Consumer<IClass> addClass) {
         current = this;
@@ -156,7 +159,6 @@ public class DivaIRGen {
                 success++;
             } catch (Throwable e) {
                 LOGGER.fine(e.getMessage());
-                ;
                 for (StackTraceElement s : e.getStackTrace()) {
                     LOGGER.fine(s.toString());
                 }
@@ -744,6 +746,33 @@ public class DivaIRGen {
 
     }
 
+    public static class DoBytecodeClassArray2IClassSet {
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter() {
+            return true;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.Enter boolean skip, @Advice.Argument(0) ImmutableByteArray[] interfaces,
+                @Advice.FieldValue("cha") IClassHierarchy cha, @Advice.FieldValue("loader") IClassLoader loader,
+                @Advice.Return(readOnly = false) Collection<IClass> res) {
+
+            ArrayList<IClass> result = new ArrayList<>(interfaces.length);
+            for (ImmutableByteArray name : interfaces) {
+                IClass klass = null;
+                TypeName tname = TypeName.findOrCreate(name);
+                klass = loader.lookupClass(tname);
+                if (klass == null) {
+                    klass = new DivaPhantomClass(TypeReference.findOrCreate(ClassLoaderReference.Primordial, tname),
+                            cha, true);
+                }
+                result.add(klass);
+            }
+            res = result;
+        }
+
+    }
+
     @SuppressWarnings("serial")
     public static Map<String, Class<?>> advices() {
         return (new HashMap<String, Class<?>>() {
@@ -771,6 +800,7 @@ public class DivaIRGen {
                 // binary analysis
                 put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
                 put("com.ibm.wala.ipa.callgraph.cha.CHACallGraph.isRelevantMethod", DoCHACallGraph.class);
+                put("com.ibm.wala.classLoader.BytecodeClass.array2IClassSet", DoBytecodeClassArray2IClassSet.class);
 
             }
         });

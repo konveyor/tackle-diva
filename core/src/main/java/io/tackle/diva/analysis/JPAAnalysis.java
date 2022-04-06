@@ -111,7 +111,8 @@ public class JPAAnalysis {
                     Util.LOGGER.fine(f + "->" + Util.getAnnotations(f));
                 }
             }
-            if (Util.any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository)) {
+            if (Util.any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository
+                    || c2.getName() == Constants.LSpringRepository)) {
                 repositoryIfaces.add(c);
                 for (IMethod m : c.getDeclaredMethods()) {
                     for (Annotation a : Util.getAnnotations(m)) {
@@ -129,7 +130,7 @@ public class JPAAnalysis {
             }
         }
         for (IClass c : repositoryIfaces) {
-            if (c.getName() == Constants.LSpringJPARepository) {
+            if (c.getName() == Constants.LSpringJPARepository || c.getName() == Constants.LSpringRepository) {
                 continue;
             }
             Util.LOGGER.fine("JPA repository: " + c.toString());
@@ -181,6 +182,10 @@ public class JPAAnalysis {
     public static IClass getRepoParamterType(Framework fw, TypeReference tref) {
         List<TypeName> paramTypes = DivaIRGen.instantiations.getOrDefault(tref, Collections.emptyMap())
                 .getOrDefault(Constants.LSpringJPARepository, null);
+        if (paramTypes == null) {
+            paramTypes = DivaIRGen.instantiations.getOrDefault(tref, Collections.emptyMap())
+                    .getOrDefault(Constants.LSpringRepository, null);
+        }
         if (paramTypes != null) {
             return fw.classHierarchy()
                     .lookupClass(TypeReference.findOrCreate(tref.getClassLoader(), paramTypes.get(0)));
@@ -228,9 +233,9 @@ public class JPAAnalysis {
                 IClass c = null;
 
                 if (tref.getName() == Constants.LSpringJPARepository
-                        || (c = fw.classHierarchy().lookupClass(tref)) != null
-                                && Util.any(c.getAllImplementedInterfaces(),
-                                        c2 -> c2.getName() == Constants.LSpringJPARepository)) {
+                        || (c = fw.classHierarchy().lookupClass(tref)) != null && Util.any(
+                                c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository
+                                        || c2.getName() == Constants.LSpringRepository)) {
 
                     if (ref.getName() == Constants.save || ref.getName() == Constants.saveAndFlush) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
@@ -247,6 +252,17 @@ public class JPAAnalysis {
                         if (typ == null) {
                             SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                             typ = getRepoParamterType(fw, trace, instr.getUse(0));
+                            if (typ == null) {
+                                if (ref.getName() == Constants.existsById || ref.getName() == Constants.deleteAll
+                                        || ref.getName() == Constants.deleteById
+                                        || ref.getName() == Constants.findAll) {
+
+                                } else if (ref.getName() == Constants.delete) {
+                                    typ = c.getClassLoader().lookupClass(ref.getDescriptor().getParameters()[0]);
+                                } else {
+                                    typ = c.getClassLoader().lookupClass(ref.getDescriptor().getReturnType());
+                                }
+                            }
                         }
                         if (typ != null) {
                             for (IField f : typ.getAllFields()) {
@@ -275,6 +291,8 @@ public class JPAAnalysis {
                             }
                         } else {
                             Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
+                            fw.reportSqlStatement(trace, "??");
+
                         }
 
                     } else if (queryDefinitions.containsKey(ref)) {
@@ -283,6 +301,8 @@ public class JPAAnalysis {
                     } else if (parseQueryCreation(ref, tref, trace, fw)) {
                     } else {
                         Util.LOGGER.fine("Couldn't resolve jpa operation: " + ref);
+                        fw.reportSqlStatement(trace, "??");
+
                     }
                 }
 
@@ -445,8 +465,12 @@ public class JPAAnalysis {
             }
             break;
         }
-        if (v == null)
+        if (v == null) {
+            IClass c = trace.node().getMethod().getDeclaringClass().getClassLoader()
+                    .lookupClass(instr.getDeclaredTarget().getDescriptor().getParameters()[0]);
+            populateInsert(fw, trace, c);
             return;
+        }
         // System.out.println(p + ": " + instr + ": " + v);
         if (v.isParam()) {
             TypeReference tref = v.trace().inferType(v);

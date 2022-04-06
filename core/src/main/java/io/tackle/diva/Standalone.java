@@ -127,6 +127,8 @@ public class Standalone {
                     classRoots.add(s);
                 } else if (s.endsWith(".ear") || s.endsWith(".war")) {
                     Framework.unpackArchives(s, temp.resolve("unpacked"), classRoots, jars);
+                } else if (Framework.checkSpringBoot(s)) {
+                    Framework.unpackArchives(s, temp.resolve("unpacked"), classRoots, jars);
                 } else {
                     jars.add(s);
                 }
