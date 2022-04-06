@@ -47,8 +47,7 @@ import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.MutableSparseIntSet;
 
 import io.tackle.diva.Constants;
-import io.tackle.diva.Context;
-import io.tackle.diva.Context.Constraint;
+import io.tackle.diva.Constraint;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
@@ -138,7 +137,7 @@ public class ServletAnalysis {
         }
     }
 
-    public static Trace.NodeVisitor getContextualAnalysis(Framework fw) {
+    public static Trace.InstructionVisitor getContextualAnalysis(Framework fw) {
         return getContextualAnalysisAux(fw, getHttpParameterMatcher().with(SpringBootAnalysis.getJsonRequestMatcher()));
     }
 
@@ -156,7 +155,7 @@ public class ServletAnalysis {
         };
     }
 
-    public static Trace.NodeVisitor getContextualAnalysisAux(Framework fw, Matcher matcher) {
+    public static Trace.InstructionVisitor getContextualAnalysisAux(Framework fw, Matcher matcher) {
         /*
          * Search for branches corresponding to test expressions in the form of
          * 'value.equals(request.getParameter(key))'.
@@ -170,7 +169,7 @@ public class ServletAnalysis {
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
         Map<Integer, MutableIntSet> reachingNodesCache = new LinkedHashMap<>();
 
-        return (Trace trace) -> {
+        return (Trace trace, SSAInstruction instr) -> {
 
             CGNode node = trace.node();
 
@@ -179,179 +178,175 @@ public class ServletAnalysis {
             if (ir == null)
                 return;
 
-            outer: for (SSAInstruction instr : ir.getInstructions()) {
-                if (!(instr instanceof SSAConditionalBranchInstruction))
-                    continue;
-                SSAConditionalBranchInstruction branch = (SSAConditionalBranchInstruction) instr;
-                if (branch.getOperator() != IConditionalBranchInstruction.Operator.EQ)
-                    continue;
-                Trace.Val v1 = trace.getDef(branch.getUse(1));
-                if (v1 == null || !v1.isConstant() || !(v1.constant() instanceof Integer)
-                        || (Integer) v1.constant() != 0)
-                    continue;
+            if (!(instr instanceof SSAConditionalBranchInstruction))
+                return;
+            SSAConditionalBranchInstruction branch = (SSAConditionalBranchInstruction) instr;
+            if (branch.getOperator() != IConditionalBranchInstruction.Operator.EQ)
+                return;
+            Trace.Val v1 = trace.getDef(branch.getUse(1));
+            if (v1 == null || !v1.isConstant() || !(v1.constant() instanceof Integer) || (Integer) v1.constant() != 0)
+                return;
 
-                Trace.Val v0 = trace.getDef(branch.getUse(0));
-                if (v0 == null || v0.isConstant())
-                    continue;
+            Trace.Val v0 = trace.getDef(branch.getUse(0));
+            if (v0 == null || v0.isConstant())
+                return;
 
-                MutableIntSet phiOrigins = new BitVectorIntSet();
+            MutableIntSet phiOrigins = new BitVectorIntSet();
 
-                // System.out.println(ud[branch.getUse(0)]);
-                if (v0.instr() instanceof SSAPhiInstruction) {
-                    if (v0.trace() != trace)
-                        continue outer;
-                    /*
-                     * Handling param.equals("A") || param.equals("B") This is turned to branch on
-                     * phi(true, param.equals("B")) whose originating branch is about
-                     * param.equals("A"). Maybe it's easier to rewrite IR?
-                     */
-                    SSAPhiInstruction phi = (SSAPhiInstruction) v0.instr();
-                    ISSABasicBlock bb = ir.getBasicBlockForInstruction(v0.instr());
-                    if (bb == null)
-                        continue outer;
-                    int i = 0;
-                    v0 = null;
-                    for (ISSABasicBlock pred : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph()
-                            .getPredNodes(bb)) {
-                        Trace.Val v = trace.getDef(phi.getUse(i++));
-                        if (v.isConstant() && v.constant() instanceof Boolean && (Boolean) v.constant()) {
-                            for (ISSABasicBlock pred2 : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph()
-                                    .getPredNodes(pred)) {
-                                if (pred2.getNumber() != pred.getNumber() - 1)
-                                    continue outer;
-                                SSAInstruction last = pred2.getLastInstruction();
-                                if (last == null || !(last instanceof SSAConditionalBranchInstruction))
-                                    continue outer;
-                                phiOrigins.add(last.iIndex());
-                            }
-                        } else if (v0 == null && v.isInstr()) {
-                            v0 = v;
-                        } else {
-                            continue outer;
+            // System.out.println(ud[branch.getUse(0)]);
+            if (v0.instr() instanceof SSAPhiInstruction) {
+                if (v0.trace() != trace)
+                    return;
+                /*
+                 * Handling param.equals("A") || param.equals("B") This is turned to branch on
+                 * phi(true, param.equals("B")) whose originating branch is about
+                 * param.equals("A"). Maybe it's easier to rewrite IR?
+                 */
+                SSAPhiInstruction phi = (SSAPhiInstruction) v0.instr();
+                ISSABasicBlock bb = ir.getBasicBlockForInstruction(v0.instr());
+                if (bb == null)
+                    return;
+                int i = 0;
+                v0 = null;
+                for (ISSABasicBlock pred : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph().getPredNodes(bb)) {
+                    Trace.Val v = trace.getDef(phi.getUse(i++));
+                    if (v.isConstant() && v.constant() instanceof Boolean && (Boolean) v.constant()) {
+                        for (ISSABasicBlock pred2 : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph()
+                                .getPredNodes(pred)) {
+                            if (pred2.getNumber() != pred.getNumber() - 1)
+                                return;
+                            SSAInstruction last = pred2.getLastInstruction();
+                            if (last == null || !(last instanceof SSAConditionalBranchInstruction))
+                                return;
+                            phiOrigins.add(last.iIndex());
                         }
-                        // System.out.println(pred + "->" + bb);
+                    } else if (v0 == null && v.isInstr()) {
+                        v0 = v;
+                    } else {
+                        return;
                     }
-                    if (v0 == null)
-                        continue outer;
+                    // System.out.println(pred + "->" + bb);
                 }
-
-                if (!(v0.instr() instanceof SSAAbstractInvokeInstruction))
-                    continue;
-                SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
-
-                if (invoke.getDeclaredTarget().getName() != Constants.equals
-                        && invoke.getDeclaredTarget().getName() != Constants.equalsIgnoreCase
-                        && invoke.getDeclaredTarget().getName() != Constants.contains)
-                    continue;
-
-                Trace.Val v2 = v0.getDef(invoke.getUse(0));
-                Trace.Val v3 = v0.getDef(invoke.getUse(1));
-
-                // System.out.println("stringeq(" + v2 + ", " + v3 + ")");
-
-                if (v2 == null || v3 == null)
-                    continue;
-                if (v2.isConstant()) {
-                    Trace.Val tmp = v2;
-                    v2 = v3;
-                    v3 = tmp;
-                }
-                if (!v3.isConstant() || !(v3.constant() instanceof String))
-                    continue;
-
-                String key = matcher.apply(fw, v2);
-
-                if (key == null)
-                    continue;
-
-                if (!phiOrigins.isEmpty()) {
-                    MutableIntSet copy = new BitVectorIntSet();
-                    copy.copySet(phiOrigins);
-
-                    for (Map.Entry<String, Map<String, Set<IntPair>>> e : coveringBranches.entrySet()) {
-                        if (!e.getKey().equals(key))
-                            continue;
-                        for (Set<IntPair> s : e.getValue().values()) {
-                            for (IntPair p : s) {
-                                if (p.getX() == node.getGraphNodeId() && phiOrigins.contains(p.getY())) {
-                                    s.add(IntPair.make(node.getGraphNodeId(), branch.iIndex()));
-                                    copy.remove(p.getY());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!copy.isEmpty()) {
-                        LOGGER.info("TODO");
-                    }
-                }
-
-                String val = v3.toString();
-                IntPair branchId = IntPair.make(node.getGraphNodeId(), branch.iIndex());
-
-                if (!coveringBranches.containsKey(key)) {
-                    coveringBranches.put(key, new LinkedHashMap<>());
-                }
-                if (!coveringBranches.get(key).containsKey(val)) {
-                    coveringBranches.get(key).put(val, new LinkedHashSet<>());
-                }
-                coveringBranches.get(key).get(val).add(branchId);
-
-                MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
-                if (reached == null) {
-                    reached = MutableSparseIntSet.makeEmpty();
-                    Stack<CGNode> stack = new Stack<>();
-                    stack.push(node);
-                    while (!stack.isEmpty()) {
-                        CGNode next = stack.pop();
-                        if (reached.contains(next.getGraphNodeId()))
-                            continue;
-                        reached.add(next.getGraphNodeId());
-                        for (CGNode n : (Iterable<CGNode>) () -> fw.callgraph().getPredNodes(next)) {
-                            stack.push(n);
-                        }
-                    }
-                    reachingNodesCache.put(node.getGraphNodeId(), reached);
-                }
-                IntSet reachingNodes = reached;
-
-                fw.recordContraint(new HttpParameterConstraint(key, val) {
-
-                    @Override
-                    public boolean forbids(Constraint other) {
-                        if (other instanceof Context.EntryConstraint) {
-                            return !reachingNodes.contains(((Context.EntryConstraint) other).node().getGraphNodeId());
-                        }
-                        if (other instanceof HttpParameterConstraint) {
-                            return key.equals(((HttpParameterConstraint) other).key);
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public Iterable<IntPair> fallenThruBranches() {
-                        return coveringBranches.get(key).get(val);
-                    }
-
-                    @Override
-                    public Iterable<IntPair> takenBranches() {
-                        Set<IntPair> res = new LinkedHashSet<>();
-                        for (Entry<String, Set<IntPair>> e : coveringBranches.get(key).entrySet()) {
-                            res.addAll(e.getValue());
-                        }
-                        res.removeAll(coveringBranches.get(key).get(val));
-                        return res;
-                    }
-                });
-
-                LOGGER.fine(key + "=" + val);
+                if (v0 == null)
+                    return;
             }
+
+            if (!(v0.instr() instanceof SSAAbstractInvokeInstruction))
+                return;
+            SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
+
+            if (invoke.getDeclaredTarget().getName() != Constants.equals
+                    && invoke.getDeclaredTarget().getName() != Constants.equalsIgnoreCase
+                    && invoke.getDeclaredTarget().getName() != Constants.contains)
+                return;
+
+            Trace.Val v2 = v0.getDef(invoke.getUse(0));
+            Trace.Val v3 = v0.getDef(invoke.getUse(1));
+
+            // System.out.println("stringeq(" + v2 + ", " + v3 + ")");
+
+            if (v2 == null || v3 == null)
+                return;
+            if (v2.isConstant()) {
+                Trace.Val tmp = v2;
+                v2 = v3;
+                v3 = tmp;
+            }
+            if (!v3.isConstant() || !(v3.constant() instanceof String))
+                return;
+
+            String key = matcher.apply(fw, v2);
+
+            if (key == null)
+                return;
+
+            if (!phiOrigins.isEmpty()) {
+                MutableIntSet copy = new BitVectorIntSet();
+                copy.copySet(phiOrigins);
+
+                for (Map.Entry<String, Map<String, Set<IntPair>>> e : coveringBranches.entrySet()) {
+                    if (!e.getKey().equals(key))
+                        continue;
+                    for (Set<IntPair> s : e.getValue().values()) {
+                        for (IntPair p : s) {
+                            if (p.getX() == node.getGraphNodeId() && phiOrigins.contains(p.getY())) {
+                                s.add(IntPair.make(node.getGraphNodeId(), branch.iIndex()));
+                                copy.remove(p.getY());
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!copy.isEmpty()) {
+                    LOGGER.fine("TODO");
+                }
+            }
+
+            String val = v3.toString();
+            IntPair branchId = IntPair.make(node.getGraphNodeId(), branch.iIndex());
+
+            if (!coveringBranches.containsKey(key)) {
+                coveringBranches.put(key, new LinkedHashMap<>());
+            }
+            if (!coveringBranches.get(key).containsKey(val)) {
+                coveringBranches.get(key).put(val, new LinkedHashSet<>());
+            }
+            coveringBranches.get(key).get(val).add(branchId);
+
+            MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
+            if (reached == null) {
+                reached = MutableSparseIntSet.makeEmpty();
+                Stack<CGNode> stack = new Stack<>();
+                stack.push(node);
+                while (!stack.isEmpty()) {
+                    CGNode next = stack.pop();
+                    if (reached.contains(next.getGraphNodeId()))
+                        continue;
+                    reached.add(next.getGraphNodeId());
+                    for (CGNode n : (Iterable<CGNode>) () -> fw.callgraph().getPredNodes(next)) {
+                        stack.push(n);
+                    }
+                }
+                reachingNodesCache.put(node.getGraphNodeId(), reached);
+            }
+            IntSet reachingNodes = reached;
+
+            fw.recordContraint(new HttpParameterConstraint(key, val) {
+
+                @Override
+                public boolean forbids(Constraint other) {
+                    if (other instanceof Constraint.EntryConstraint) {
+                        return !reachingNodes.contains(((Constraint.EntryConstraint) other).node().getGraphNodeId());
+                    }
+                    if (other instanceof HttpParameterConstraint) {
+                        return key.equals(((HttpParameterConstraint) other).key);
+                    }
+                    return false;
+                }
+
+                @Override
+                public Iterable<IntPair> fallenThruBranches() {
+                    return coveringBranches.get(key).get(val);
+                }
+
+                @Override
+                public Iterable<IntPair> takenBranches() {
+                    Set<IntPair> res = new LinkedHashSet<>();
+                    for (Entry<String, Set<IntPair>> e : coveringBranches.get(key).entrySet()) {
+                        res.addAll(e.getValue());
+                    }
+                    res.removeAll(coveringBranches.get(key).get(val));
+                    return res;
+                }
+            });
+
+            LOGGER.fine(key + "=" + val);
 
         };
     }
 
-    public static abstract class HttpParameterConstraint implements Context.BranchingConstraint {
+    public static abstract class HttpParameterConstraint implements Constraint.BranchingConstraint {
         @Override
         public String category() {
             return Report.HTTP_PARAM;

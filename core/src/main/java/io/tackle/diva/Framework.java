@@ -39,6 +39,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -98,6 +99,7 @@ import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -107,14 +109,24 @@ import io.tackle.diva.irgen.DivaPhantomClass;
 
 public class Framework {
 
+    private static final Logger LOGGER = Logger.getLogger(Framework.class.getName());
+
     public Framework(IClassHierarchy cha, CallGraph callgraph) {
         super();
         this.cha = cha;
         this.callgraph = callgraph;
     }
 
+    public Framework(IClassHierarchy cha, CallGraph callgraph, boolean usageAnalysis) {
+        super();
+        this.cha = cha;
+        this.callgraph = callgraph;
+        this.usageAnalysis = usageAnalysis;
+    }
+
     IClassHierarchy cha;
     CallGraph callgraph;
+    public boolean usageAnalysis;
 
     public CallGraph callgraph() {
         return callgraph;
@@ -127,9 +139,9 @@ public class Framework {
     public static String[] loadStandardLib(AnalysisScope scope, Path workDir) throws IOException {
         String javaVersion = System.getProperty("java.specification.version");
         String javaHome = System.getProperty("java.home");
-        Util.LOGGER.info("java.specification.version=" + javaVersion);
-        Util.LOGGER.info("java.home=" + javaHome);
-        // Util.LOGGER.info("java.class.path=" + System.getProperty("java.class.path"));
+        LOGGER.info("java.specification.version=" + javaVersion);
+        LOGGER.info("java.home=" + javaHome);
+        // LOGGER.info("java.class.path=" + System.getProperty("java.class.path"));
 
         List<String> stdlibs = new ArrayList<>();
         if (javaVersion.equals("1.8")) {
@@ -192,7 +204,7 @@ public class Framework {
                 return true;
             }
         } catch (Exception e) {
-            Util.LOGGER.info("Failed to query central: " + name);
+            LOGGER.info("Failed to query central: " + name);
         }
         return false;
     }
@@ -202,6 +214,11 @@ public class Framework {
     public static final Pattern patternClasses = Pattern.compile(".*/classes$");
     static final Pattern patternClass = Pattern.compile(".*/classes/(.*)\\.class$");
     static final Pattern patternXhtml = Pattern.compile(".*\\.xhtml$");
+
+    public static boolean checkSpringBoot(String jarFile) throws IOException, FileNotFoundException {
+        JarFile jar = new java.util.jar.JarFile(jarFile);
+        return jar.getJarEntry("BOOT-INF") != null;
+    }
 
     public static void unpackArchives(String jarFile, Path workDir, List<String> classRoots, List<String> jars)
             throws IOException, FileNotFoundException {
@@ -221,7 +238,7 @@ public class Framework {
             if (mj) {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
-                    Util.LOGGER.info("skpping " + file.getName());
+                    LOGGER.info("skpping " + sha1 + " " + file.getName());
                 } else {
                     jars.add(fileName);
                 }
@@ -344,7 +361,7 @@ public class Framework {
             }
         }
 
-        Util.LOGGER.info("" + relevantJars);
+        LOGGER.info("Relevant jars: " + relevantJars);
 
         for (String jar : relevantJars) {
             relevantClasses.addAll(defines.getOrDefault(jar, Collections.emptySet()));
@@ -371,7 +388,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -416,7 +433,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -516,7 +533,7 @@ public class Framework {
             entryPoints.add(new DefaultEntrypoint(m, cha));
             for (int i = 0; i < m.getNumberOfParameters(); i++) {
                 if (cha.lookupClass(m.getParameterType(i)) == null) {
-                    Util.LOGGER.fine("adding: " + m.getParameterType(i));
+                    LOGGER.fine("adding: " + m.getParameterType(i));
                     cha.addClass(new DivaPhantomClass(m.getParameterType(i), cha));
                 }
             }
@@ -590,38 +607,48 @@ public class Framework {
             visitor.visitCallSite(trace);
 
             String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-            if (klazz.startsWith("Ljava/")) {
+            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/")) {
                 continue;
             }
 
-            Set<CGNode> targets = getFilteredTargets(trace, site);
-
-            if (targets.isEmpty())
-                continue;
-
-            if (targets.size() > 1) {
-                Util.LOGGER.fine("Failing to determine target for " + site);
+            Trace targetTrace = null;
+            if (trace.callLog() != null) {
+                targetTrace = trace.callLog().getOrDefault(site, null);
             }
+            if (targetTrace != null) {
+                stack.push(targetTrace);
+                iters.push(targetTrace.node().getIR().iterateAllInstructions());
 
-            for (CGNode n : targets) {
-                if (pathSensitive) {
-                    if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
-                        continue;
-                } else if (visited.contains(n.getGraphNodeId())) {
+            } else {
+                Set<CGNode> targets = getFilteredTargets(trace, site);
+
+                if (targets.isEmpty())
                     continue;
-                } else {
-                    visited.add(n.getGraphNodeId());
-                }
-                stack.push(new Trace(n, trace));
-                iters.push(n.getIR().iterateAllInstructions());
 
-                if (pathSensitive)
+                if (targets.size() > 1) {
+                    LOGGER.fine("Failing to determine target for " + site);
+                }
+
+                for (CGNode n : targets) {
+                    if (pathSensitive) {
+                        if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
+                            continue;
+                    } else if (visited.contains(n.getGraphNodeId())) {
+                        continue;
+                    } else {
+                        visited.add(n.getGraphNodeId());
+                    }
+
+                    stack.push(new Trace(n, trace));
+                    iters.push(n.getIR().iterateAllInstructions());
+
                     trace.logCall(stack.peek());
 
-                visitor.visitNode(stack.peek());
-                // skip the rest of targets
-                // @TODO: we may create a call-target constraint in such a case.
-                break;
+                    visitor.visitNode(stack.peek());
+                    // skip the rest of targets
+                    // @TODO: we may create a call-target constraint in such a case.
+                    break;
+                }
             }
         }
     }
@@ -650,7 +677,7 @@ public class Framework {
             }
         }
 
-        if (targets.size() > 1) {
+        if (targets.size() > 1 && trace.node().getGraphNodeId() != 0) {
             SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
             IClass self = trace.inferType(this, instr.getUse(0));
             if (self != null) {
@@ -661,14 +688,24 @@ public class Framework {
                 }));
             }
         }
+
+        if (targets.size() > 1) {
+            for (CGNode m : targets) {
+                if (site.getDeclaredTarget() == m.getMethod().getReference()) {
+                    return Collections.singleton(m);
+                }
+            }
+        }
         return targets;
     }
 
     public Report report;
     public Report transaction;
     public int transactionId;
+    public int operationId;
+    public Map<Trace, Integer> callSiteToOp;
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> named, IntSet uses) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put(Report.TXID, transactionId++);
@@ -678,6 +715,10 @@ public class Framework {
             });
         }
         transaction.add((Report.Named map) -> {
+            if (trace.site() != null) {
+                callSiteToOp.put(trace, operationId);
+            }
+            map.put(Report.OPID, operationId++);
             map.put(Report.STACKTRACE, trace, _trace -> (Report stacktrace) -> {
                 for (Trace t : _trace.reversed()) {
                     IMethod m = t.node().getMethod();
@@ -695,11 +736,22 @@ public class Framework {
                 }
             });
             named.accept(map);
+            if (uses != null && !uses.isEmpty()) {
+                map.put("uses", (Report r) -> uses.foreach(i -> r.add(i)));
+            }
         });
+    }
+
+    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
+        reportOperation(trace, named, null);
     }
 
     public void reportSqlStatement(Trace trace, String stmt) {
         reportOperation(trace, map -> map.put(Report.SQL, stmt));
+    }
+
+    public void reportSqlStatement(Trace trace, String stmt, IntSet uses) {
+        reportOperation(trace, map -> map.put(Report.SQL, stmt), uses);
     }
 
     public void reportTxBoundary() {
@@ -715,6 +767,8 @@ public class Framework {
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
+        this.operationId = 0;
+        this.callSiteToOp = new HashMap<>();
         traverse(new Trace(entry, null), visitor, true);
         if (txStarted()) {
             reportTxBoundary();
@@ -727,7 +781,7 @@ public class Framework {
 
     }
 
-    public void recordContraint(Context.Constraint c) {
+    public void recordContraint(Constraint c) {
         Pair<String, String> key = Pair.make(c.category(), c.type());
         if (!constraints.containsKey(key)) {
             constraints.put(key, new ArrayList<>());
@@ -735,6 +789,6 @@ public class Framework {
         constraints.get(key).add(c);
     }
 
-    public Map<Pair<String, String>, List<Context.Constraint>> constraints = new LinkedHashMap<>();
+    public Map<Pair<String, String>, List<Constraint>> constraints = new LinkedHashMap<>();
 
 }

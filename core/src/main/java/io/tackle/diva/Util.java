@@ -118,10 +118,10 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
-//        as = m.getAnnotations();
-//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-//            res.add(a);
-//        }
+        as = m.getAnnotations();
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
         return res;
     }
 
@@ -131,6 +131,7 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
+
         return res;
     }
 
@@ -142,10 +143,10 @@ public class Util {
         for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
             res.add(a);
         }
-//        as = f.getAnnotations();
-//        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
-//            res.add(a);
-//        }
+        as = f.getAnnotations();
+        for (Annotation a : as == null ? Collections.<Annotation>emptySet() : as) {
+            res.add(a);
+        }
         return res;
     }
 
@@ -367,7 +368,6 @@ public class Util {
     public static <S, T> Iterable<T> map(Iterable<S> data, Function<S, T> map) {
         return () -> new Iterator<T>() {
             Iterator<S> i = data.iterator();
-            T next;
 
             @Override
             public boolean hasNext() {
@@ -538,6 +538,11 @@ public class Util {
             list.add(data);
         }
 
+        @Override
+        public void add(Integer data) {
+            list.add(data);
+        }
+
         public static class Named implements Report.Named {
             Map<String, Object> map;
 
@@ -602,6 +607,16 @@ public class Util {
 
         @Override
         public void add(String data) {
+            if (delegate == null) {
+                accept(r -> {
+                    delegate = r;
+                });
+            }
+            delegate.add(data);
+        }
+
+        @Override
+        public void add(Integer data) {
             if (delegate == null) {
                 accept(r -> {
                     delegate = r;

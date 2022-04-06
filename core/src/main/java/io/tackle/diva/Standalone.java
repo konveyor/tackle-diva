@@ -74,6 +74,7 @@ public class Standalone {
         options.addOption("s", "source", true, "source path");
         options.addOption("b", "binary", true, "binary path");
         options.addOption("c", "contexts", true, "contexts yaml file");
+        options.addOption("u", "usage", true, "enable usage analysis");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -125,6 +126,8 @@ public class Standalone {
                 if (new File(s).isDirectory()) {
                     classRoots.add(s);
                 } else if (s.endsWith(".ear") || s.endsWith(".war")) {
+                    Framework.unpackArchives(s, temp.resolve("unpacked"), classRoots, jars);
+                } else if (Framework.checkSpringBoot(s)) {
                     Framework.unpackArchives(s, temp.resolve("unpacked"), classRoots, jars);
                 } else {
                     jars.add(s);
@@ -180,11 +183,11 @@ public class Standalone {
 
         CallGraph cg = gengraph(scope, relevantCha, cgEntries, relevantClasses);
 
-        Framework fw = new Framework(cha, cg);
+        Framework fw = new Framework(cha, cg, cmd.hasOption("usage"));
 
         for (CGNode n : cg) {
             if (entries.contains(n.getMethod())) {
-                fw.recordContraint(new Context.EntryConstraint(n));
+                fw.recordContraint(new Constraint.EntryConstraint(n));
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
@@ -201,15 +204,15 @@ public class Standalone {
 
         for (Context cxt : contexts) {
             CGNode entry = null;
-            for (Context.Constraint c : cxt) {
-                if (c instanceof Context.EntryConstraint) {
-                    entry = ((Context.EntryConstraint) c).node();
+            for (Constraint c : cxt) {
+                if (c instanceof Constraint.EntryConstraint) {
+                    entry = ((Constraint.EntryConstraint) c).node();
                 }
             }
             if (entry != null) {
                 CGNode n = entry;
                 report.add((Report.Named map) -> {
-                    for (Context.Constraint c : cxt) {
+                    for (Constraint c : cxt) {
                         c.report(map);
                     }
                     map.put(Report.TRANSACTIONS, (Report txs) -> {

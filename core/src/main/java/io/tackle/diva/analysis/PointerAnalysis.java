@@ -34,7 +34,7 @@ public class PointerAnalysis {
     public static Trace.Val fromInits(Framework fw, Trace trace, SSAGetInstruction field, boolean nonnull) {
         if (!field.isStatic()) {
             Trace.Val v = trace.getDef(field.getUse(0));
-            if (v.isInstr() && v.instr() instanceof SSAPhiInstruction) {
+            if (v != null && v.isInstr() && v.instr() instanceof SSAPhiInstruction) {
                 Trace.Val v0 = v.getDef(v.instr().getUse(0));
                 if (v0.isInstr() && v0.instr() instanceof SSANewInstruction) {
                     v = v0;
@@ -42,7 +42,7 @@ public class PointerAnalysis {
                     v = v.getDef(v.instr().getUse(1));
                 }
             }
-            if (v.isInstr() && v.instr() instanceof SSANewInstruction) {
+            if (v != null && v.isInstr() && v.instr() instanceof SSANewInstruction) {
                 try {
                     fromDefUse(fw, v, trace.new Val(field), (t, put) -> {
                         if (put.getDeclaredField() == field.getDeclaredField()) {
@@ -97,7 +97,7 @@ public class PointerAnalysis {
                         return;
                     SSAPutInstruction put = (SSAPutInstruction) instr;
                     if (put.getDeclaredField() == field.getDeclaredField()) {
-                        throw new PointerAnalysis.Escape(t.getDefOrParam(put.getUse(1)));
+                        throw new PointerAnalysis.Escape(t.getDefOrParam(put.getUse(0)));
                     }
                 }, true);
             } catch (PointerAnalysis.Escape e) {
