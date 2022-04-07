@@ -23,7 +23,7 @@ $ cd tackle-diva/doa
 Then run the example is as follows:
 
 ```
-bash ./run-doa.sh -i start_up.sh -l oracle -f ./plsql-example 
+bash ./run-doa.sh -i start_up.sh -l oracle -f "$(pwd)/plsql-example"
 ```
 
 Output is as follows:
