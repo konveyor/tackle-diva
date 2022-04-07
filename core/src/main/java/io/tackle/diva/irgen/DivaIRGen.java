@@ -441,28 +441,11 @@ public class DivaIRGen {
         if (annot instanceof NormalAnnotation) {
             NormalAnnotation a1 = (NormalAnnotation) annot;
             for (MemberValuePair kv : (List<MemberValuePair>) a1.values()) {
-                AnnotationsReader.ElementValue ev = null;
-                Object v = kv.getValue().resolveConstantExpressionValue();
-                if (v != null) {
-                    ev = new AnnotationsReader.ConstantElementValue(v);
-                } else if (v == null && kv.getValue() instanceof ArrayInitializer) {
-                    ArrayInitializer i = (ArrayInitializer) kv.getValue();
-                    AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions().size()];
-                    int k = 0;
-                    for (Expression e : (List<Expression>) i.expressions()) {
-                        vs[k] = new AnnotationsReader.ConstantElementValue(i.expressions().get(k));
-                    }
-                    ev = new AnnotationsReader.ArrayElementValue(vs);
-                }
-                namedParams.put(kv.getName().toString(), ev);
-                // System.out.println("HERE:" + name + "/" + kv.getName().toString() + "=" + v);
+                namedParams.put(kv.getName().toString(), processAnnotationAux(kv.getValue()));
             }
         } else if (annot instanceof SingleMemberAnnotation) {
             SingleMemberAnnotation a2 = (SingleMemberAnnotation) annot;
-            Expression e = a2.getValue();
-            Object v = e.resolveConstantExpressionValue();
-            AnnotationsReader.ElementValue ev = new AnnotationsReader.ConstantElementValue(v);
-            namedParams.put("value", ev);
+            namedParams.put("value", processAnnotationAux(a2.getValue()));
         }
         IClass c = cha.getLoader(ClassLoaderReference.Extension).lookupClass(TypeName.findOrCreate(annotType));
         TypeReference t1 = c != null ? c.getReference()
@@ -472,6 +455,25 @@ public class DivaIRGen {
             annotations.put(ref, new ArrayList<>());
         }
         annotations.get(ref).add(a);
+    }
+
+    private static AnnotationsReader.ElementValue processAnnotationAux(Expression e) {
+        AnnotationsReader.ElementValue ev = null;
+
+        if (e instanceof ArrayInitializer) {
+            ArrayInitializer i = (ArrayInitializer) e;
+            AnnotationsReader.ElementValue[] vs = new AnnotationsReader.ElementValue[i.expressions().size()];
+            int k = 0;
+            for (Expression e2 : (List<Expression>) i.expressions()) {
+                vs[k++] = processAnnotationAux(e2);
+            }
+            ev = new AnnotationsReader.ArrayElementValue(vs);
+
+        } else {
+            Object v = e.resolveConstantExpressionValue();
+            ev = new AnnotationsReader.ConstantElementValue(v);
+        }
+        return ev;
     }
 
     // public static void processAnnotations(IBinding binding) {
@@ -827,6 +829,9 @@ public class DivaIRGen {
         if (b.isParameterizedType()) {
             b = b.getErasure();
         }
+        if (b.getName().contains(".")) {
+            return findOrCreatePhantomType(b.getName());
+        }
         if (b.getBinaryName() != null && b.getBinaryName().contains(".")) {
             return findOrCreatePhantomType(b.getBinaryName());
         }
@@ -834,12 +839,17 @@ public class DivaIRGen {
     }
 
     public ITypeBinding findOrCreateUnknownPhantomType(String name) {
-        if (imports.containsKey(name)) {
-            return findOrCreatePhantomType(imports.get(name));
-        } else if (importsKnownToDiva.containsKey(name)) {
-            return findOrCreatePhantomType(importsKnownToDiva.get(name));
+        String suffix = "";
+        if (name.endsWith("[]")) {
+            suffix = name.substring(name.indexOf('['));
+            name = name.substring(0, name.indexOf('['));
         }
-        return findOrCreatePhantomType("unknown." + name);
+        if (imports.containsKey(name)) {
+            return findOrCreatePhantomType(imports.get(name) + suffix);
+        } else if (importsKnownToDiva.containsKey(name)) {
+            return findOrCreatePhantomType(importsKnownToDiva.get(name) + suffix);
+        }
+        return findOrCreatePhantomType("unknown." + name + suffix);
     }
 
     public ITypeBinding findOrCreatePhantomType(String name) {
@@ -852,6 +862,13 @@ public class DivaIRGen {
 
         ITypeBinding[] emptyTypes = new ITypeBinding[0];
         String key = "PHANTOM:" + StringStuff.deployment2CanonicalTypeString(name);
+
+        if (name.endsWith("[]")) {
+            String suffix = name.substring(name.indexOf('['));
+            name = suffix.replace("]", "") + "L" + name.substring(0, name.indexOf('[')) + ";";
+        }
+
+        String theName = name;
 
         Object[] lazyData = new Object[2];
 
@@ -910,7 +927,7 @@ public class DivaIRGen {
 
             @Override
             public String getBinaryName() {
-                return name;
+                return theName;
             }
 
             @Override
@@ -933,7 +950,9 @@ public class DivaIRGen {
 
             @Override
             public ITypeBinding getComponentType() {
-                // TODO Auto-generated method stub
+                if (theName.charAt(0) == '[') {
+                    return findOrCreatePhantomType(theName.substring(1));
+                }
                 return null;
             }
 
@@ -1023,8 +1042,7 @@ public class DivaIRGen {
 
             @Override
             public String getName() {
-                // TODO Auto-generated method stub
-                return name;
+                return theName;
             }
 
             @Override
@@ -1094,8 +1112,7 @@ public class DivaIRGen {
 
             @Override
             public boolean isArray() {
-                // TODO Auto-generated method stub
-                return false;
+                return theName.startsWith("[");
             }
 
             @Override
@@ -1117,7 +1134,7 @@ public class DivaIRGen {
 
             @Override
             public boolean isClass() {
-                return knownAsClasses.contains(name);
+                return knownAsClasses.contains(theName);
             }
 
             @Override
@@ -1140,7 +1157,7 @@ public class DivaIRGen {
 
             @Override
             public boolean isInterface() {
-                return !knownAsClasses.contains(name);
+                return !knownAsClasses.contains(theName);
             }
 
             @Override
@@ -1222,7 +1239,7 @@ public class DivaIRGen {
 
         };
         lazyData[1] = binding;
-        phantomTypes.put(name, binding);
+        phantomTypes.put(theName, binding);
         return binding;
     }
 
