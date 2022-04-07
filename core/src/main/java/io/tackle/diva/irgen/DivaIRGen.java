@@ -863,8 +863,9 @@ public class DivaIRGen {
         ITypeBinding[] emptyTypes = new ITypeBinding[0];
         String key = "PHANTOM:" + StringStuff.deployment2CanonicalTypeString(name);
 
-        while (name.endsWith("[]")) {
-            name = "[" + name.substring(0, name.length() - 2);
+        if (name.endsWith("[]")) {
+            String suffix = name.substring(name.indexOf('['));
+            name = suffix.replace("]", "") + "L" + name.substring(0, name.indexOf('[')) + ";";
         }
 
         String theName = name;
