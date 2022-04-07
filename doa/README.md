@@ -87,7 +87,7 @@ diva-doa     latest    5f9dd8f9f0eb   19 hours ago   1.27GB
 
 ## (1) Analyze target app and generate manifests
 
-> If you want to **DOA for Oracle** functionality inroduced in v2.1.0, see [README-Oracle.md](docs/README-Oracle.md).
+> If you want to **DOA for Oracle** functionality inroduced in v2.1.0, see [README-Oracle.md](README-Oracle.md).
 
 To analyze `trading-app`, executing the wrapper script `run-doa.sh` with arguments:
 

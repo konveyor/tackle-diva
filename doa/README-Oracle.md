@@ -3,7 +3,7 @@
 In version 2.1.0, assessment of SQL files that helps conversion from **PL/SQL (used by Oracle DBMS)** to PostgreSQL is introduced.
 In future version, semi-automatic conversion from PL/SQL to Postgres will also be introduced.
 
-This document is specific for Oracle support. For general document, see [README.md](../README.md).
+This document is specific for Oracle support. For general document, see [README.md](README.md).
 
 ## Example
 
@@ -67,7 +67,7 @@ Statistics of assessment results are also generated at `./output/app/stat/stats.
 
 ----
 
-After the files are generated, continue from step (2) in [README](../README.md).
+After the files are generated, continue from step (2) in [README](README.md).
 Also note that only tables are created in this example.
 
 Here briefly introduces commands and results in the example:
