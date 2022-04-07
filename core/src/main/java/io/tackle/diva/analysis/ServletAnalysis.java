@@ -74,10 +74,12 @@ public class ServletAnalysis {
                 for (Entry<String, ElementValue> e : a.getNamedArguments().entrySet()) {
                     if ("urlPatterns".equals(e.getKey()) || "value".equals(e.getKey())) {
                         ElementValue v = e.getValue();
-                        if (v instanceof ArrayElementValue) {
-                            v = ((ArrayElementValue) v).vals[0];
+                        if (v != null) {
+                            if (v instanceof ArrayElementValue) {
+                                v = ((ArrayElementValue) v).vals[0];
+                            }
+                            urlPattern = "" + ((ConstantElementValue) v).val;
                         }
-                        urlPattern = ((ConstantElementValue) v).val.toString();
                     }
                 }
             }
