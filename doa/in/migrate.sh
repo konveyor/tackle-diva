@@ -31,11 +31,13 @@ ok() {
 }
 
 # process optional arguments
-while getopts o:i: OPT
+while getopts o:i:l:f OPT
 do
     case $OPT in
         o) outdir=${OPTARG};;
         i) init_file=${OPTARG};;
+        l) lang=${OPTARG};;
+        f) files=1;;
         \?) exit 1;;
     esac
 done
@@ -59,9 +61,10 @@ cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
 echo "base_dir = ${WORKDIR}"
-echo "repo URL = ${REPO_URL}"
+echo "use local files = ${files}"
+echo "repo URL (or directory) = ${REPO_URL}"
 echo "init_file (relative to repo dir) = ${init_file}"
-echo "outdir (relative) = ${outdir}"
+# echo "outdir (relative) = ${outdir}"
 echo "outdir (absolute) = ${OUTDIR}"
 echo "user id:"
 id
@@ -70,45 +73,67 @@ id
 echo 
 cyan "setting up..."
 mkdir -p "${OUTDIR}"
-REPO_DIR=`mktemp -d`
-echo "REPO_DIR = ${REPO_DIR}"
-echo "directory for repository created: ${REPO_DIR}"
 
-# main routine
+if [[ -z ${files+x} ]]; then
+    # files is not defined
+    REPO_DIR=`mktemp -d`
+    echo "REPO_DIR = ${REPO_DIR}"
+    echo "directory for repository created: ${REPO_DIR}"
 
-# clone repo
-echo
-cyan "cloning repository..."
-git clone ${REPO_URL} ${REPO_DIR}
+    # main routine
 
-echo
-cyan "analyzing application..."
-APP_NAME=${REPO_URL##*/} # pick up segment after the last "/"
-echo "application name = ${APP_NAME}"
+    # clone repo
+    echo
+    cyan "cloning repository..."
+    git clone ${REPO_URL} ${REPO_DIR}
+
+    echo
+    cyan "analyzing application..."
+    APP_NAME=${REPO_URL##*/} # pick up segment after the last "/"
+    echo "application name = ${APP_NAME}"
+else
+    # file is defined
+    debug "use local files"
+    REPO_DIR="${REPO_URL}"
+    APP_NAME="app"
+    echo "application name = ${APP_NAME}"
+fi
+
+mkdir -p ${OUTDIR}/${APP_NAME}
+OUTDIR=${OUTDIR}/${APP_NAME} # overwrite
+cyan "application directory ${OUTDIR} created."
 
 echo
 cyan "analyzing DBMS settings..."
 echo "analyzing configuration..."
 echo "analyzing credentials..."
-DB_YAML=${OUTDIR}/${APP_NAME}-postgres.yaml
+DB_YAML=${OUTDIR}/postgresql.yaml
 echo "writing postgresql resource manifest to ${DB_YAML}..."
-cp ${WORKDIR}/manifests/database.yaml ${DB_YAML}
+# cp ${WORKDIR}/manifests/postgresql.in.yaml ${DB_YAML}
+jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/postgresql.in.yaml > ${DB_YAML}
 
 echo
 cyan "analyzing SQL scripts..."
 # debug "[under development]: invoking new version of analyzer..."
-PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${REPO_DIR}" -o "${OUTDIR}"
+PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${REPO_DIR}" -o "${OUTDIR}" ${lang+"-l"} ${lang}
+if [[ -f /tmp/out/stats.json ]]; then
+    mkdir -p "${OUTDIR}/stat"
+    cp /tmp/out/stats.json "${OUTDIR}/stat"
+fi
 
 echo 
 cyan "analyzing app start-up scripts..."
 PYTHONPATH=${WORKDIR} python -m analyzers.analyze_initdb -n "${APP_NAME}" -i "${REPO_DIR}" --init-file "${init_file}" -o "${OUTDIR}"
 
 mkdir -p ${OUTDIR}/test
-POD_YAML=${OUTDIR}/test/${APP_NAME}-pod-init.yaml # Pod for test. To be removed in future.
-JOB_YAML=${OUTDIR}/${APP_NAME}-job-init.yaml
+POD_YAML=${OUTDIR}/test/pod-test.yaml # Pod for test. To be removed in future.
+JOB_YAML=${OUTDIR}/job-init.yaml
 echo "writing init Job manifest to ${JOB_YAML}..."
-cp ${WORKDIR}/manifests/pod-init.yaml ${POD_YAML}
-cp ${WORKDIR}/manifests/job-init.yaml ${JOB_YAML}
+# cp ${WORKDIR}/manifests/pod-init.yaml ${POD_YAML}
+# cp ${WORKDIR}/manifests/job-init.yaml ${JOB_YAML}
+jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/job-init.in.yaml > ${JOB_YAML}
+jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/pod-test.in.yaml > ${POD_YAML}
+
 
 echo 
 cyan "post processing..."

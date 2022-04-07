@@ -23,12 +23,17 @@ function abspath() {
 }
 
 usage() {
-    echo "usage: ${APPNAME} -o <out_dir> -i <init_file> [-dh] <repo URL>"
+    echo "usage: ${APPNAME} -o <out_dir> -i <init_file> -l <dialect> [-dfh] <repo URL>"
+    echo
+    echo "arguments:"
+    echo "<repo URL>  Git repository URL of the target app."
     echo
     echo "options:"
-    echo "-o  output directory (if does not exist, will be created)"
+    echo "-o  output directory (if does not exist, will be created) [default: ./output]"
     echo "-i  init_file that include DB init code"
     echo "-d  show debug messages including internal variables."
+    echo "-l  dialect of SQL files to be processed. Currently only 'oracle' is supported."
+    echo "-f  treat <repo URL> as a local directory name."
     echo "-h  show this help and exit."
     echo
 }
@@ -43,13 +48,15 @@ WORKDIR=$(abspath $(dirname $0)) # this script's directory
 
 
 # process optional arguments
-while getopts dho:i: OPT
+while getopts dho:i:l:f OPT
 do
     case $OPT in
         o) outdir=${OPTARG};;
         i) init_file=${OPTARG};;
         d) debug=1;;
         h) usage; exit 1;;
+        l) lang=${OPTARG};;
+        f) files=1;;
         \?) exit 1;;
     esac
 done
@@ -62,9 +69,15 @@ if (($#==0)); then
 fi
 REPO_URL=$1
 
-mkdir -p ${outdir}
+mkdir -p ${outdir:="./output"}
 OUTDIR=$(abspath ${outdir})
 
+# if files is defined, mount spcified directory to /in
+if  [[ -n ${files+x} ]]; then
+    files_flag="-v"
+    files_mount="${REPO_URL}:/in"
+    REPO_URL="/in"
+fi
 
 echo "--------------------"
 echo "DiVA-DOA wrapper"
@@ -78,6 +91,8 @@ if [[ -n ${debug+x} ]]; then
     echo "  docker image to be run = ${IMAGE}"
     echo "* arguments:"
     echo "  repo URL = ${REPO_URL}"
+    echo "  files = ${files}"
+    echo "  SQL dialect = ${lang}"
     echo "  init_file (relative to repo dir) = ${init_file}"
     echo "  outdir (relative) = ${outdir}"
     echo "  outdir (absolute) = ${OUTDIR}"
@@ -90,9 +105,11 @@ fi
 #       if you can use "readlink -f", you can use it instead.
 echo
 echo "running container ${IMAGE}..."
+set -x
 # need to specify "-l" (as login shell) to be able to execute locally installed Python module.
 docker run -it --rm \
     -u vscode \
     -v ${OUTDIR}:/out \
+    ${files_flag} ${files_mount} \
     ${IMAGE} \
-    bash -l /work/migrate.sh -o /out -i "${init_file}" ${REPO_URL} # arguments to migrate.sh in container
+    bash -l /work/migrate.sh -o /out -i "${init_file}" ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container

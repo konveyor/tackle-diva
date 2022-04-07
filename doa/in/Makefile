@@ -9,14 +9,25 @@ DOCKER_CONTEXT=$(base_dir)/doa
 DOCKER_BUILD_OPT=
 
 SAMPLE_REPO_URL=https://github.com/saud-aslam/trading-app
+SAMPLE_DIR=$(base_dir)/plsql-example
 
+OUT_DIR=/tmp/out
+
+# executing run-doa.sh with a debug flag
 run:
-	# executing run-doa.sh with a debug flag
 	rm -rf ./_out
 	bash $(base_dir)/run-doa.sh -d -o ./_out -i start_up.sh $(SAMPLE_REPO_URL)
 	@echo
 	@echo "listing generated files..."
 	ls -lFR --color ./_out
+
+# executing PL/SQL conversion sample
+run-plsql:
+	rm -rf $(OUT_DIR)
+	bash $(base_dir)/run-doa.sh -d -o $(OUT_DIR) -i start_up.sh -l oracle -f $(SAMPLE_DIR)
+	@echo
+	@echo "listing generated files..."
+	ls -lFR --color $(OUT_DIR)
 
 run-direct:
 	rm -rf /tmp/out
