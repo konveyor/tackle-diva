@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: trading-app-test
+  name: {{app_name}}-test
 spec:
   containers:
     - name: container
@@ -31,7 +31,7 @@ spec:
   volumes:
     - name: volume-sqls
       configMap:
-        name: trading-app-cm-sqls
+        name: {{app_name}}-cm-sqls
     - name: volume-init
       configMap:
-        name: trading-app-cm-init-db
+        name: {{app_name}}-cm-init-db

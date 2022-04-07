@@ -39,6 +39,10 @@ info "generating migrate.sh..."
 jinja2 --strict ${INPUT_DIR}/migrate.sh ${ENV_FILE} > "${REPO_ROOT}/doa/migrate.sh"
 info "written to ${REPO_ROOT}/doa/migrate.sh"
 
+info "generating common.sh..."
+jinja2 --strict ${INPUT_DIR}/common.sh ${ENV_FILE} > "${REPO_ROOT}/util/common.sh"
+info "written to ${REPO_ROOT}/util/common.sh"
+
 info "generating __init__.py..."
 jinja2 --strict ${INPUT_DIR}/__init__.py ${ENV_FILE} > "${REPO_ROOT}/doa/analyzers/__init__.py"
 info "written to ${REPO_ROOT}/doa/analyzers/__init__.py"
