@@ -645,9 +645,9 @@ public class Framework {
                     trace.logCall(stack.peek());
 
                     visitor.visitNode(stack.peek());
-                    // skip the rest of targets
-                    // @TODO: we may create a call-target constraint in such a case.
-                    break;
+
+                    if (pathSensitive)
+                        break;
                 }
             }
         }
