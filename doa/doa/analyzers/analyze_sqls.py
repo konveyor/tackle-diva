@@ -39,9 +39,10 @@ def main(app_name: str, in_dir: Path, out_dir: Path, lang: str) -> None:
 
     if lang:
         msg.info(f"converting SQL files, from {lang} to Postgres...")
-        convert(app_name=app_name, in_dir=in_dir, out_dir=Path("/tmp/out"), use_debug_listener=True)
+        convert(app_name=app_name, in_dir=in_dir, out_dir=Path("/tmp/out"),
+                stat_dir=out_dir/"stat", use_debug_listener=True)
         msg.info("converted.")
-        in_dir = Path("/tmp/out") # overwrite
+        in_dir = Path("/tmp/out")  # overwrite
 
     msg.info('searching SQL files...')
     for pth in iglob('**/*.sql', root_dir=in_dir, recursive=True):

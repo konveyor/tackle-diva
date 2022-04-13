@@ -56,7 +56,7 @@ OUTDIR=$(readlink -f ${outdir})
 # log
 echo
 cyan "------------------------"
-cyan "DiVA-DOA v2.1.0"
+cyan "DiVA-DOA v2.2.0rc0"
 cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
@@ -116,10 +116,10 @@ echo
 cyan "analyzing SQL scripts..."
 # debug "[under development]: invoking new version of analyzer..."
 PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${REPO_DIR}" -o "${OUTDIR}" ${lang+"-l"} ${lang}
-if [[ -f /tmp/out/stats.json ]]; then
-    mkdir -p "${OUTDIR}/stat"
-    cp /tmp/out/stats.json "${OUTDIR}/stat"
-fi
+# if [[ -f /tmp/out/stats.json ]]; then
+#     mkdir -p "${OUTDIR}/stat"
+#     cp /tmp/out/stats.json "${OUTDIR}/stat"
+# fi
 
 echo 
 cyan "analyzing app start-up scripts..."

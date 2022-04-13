@@ -11,6 +11,15 @@ WORK_DIR=$(readlink -f $(dirname $0)) # this script's directory
 # DOCKER_BUILD_OPT="--progress=plain"
 DOCKER_BUILD_OPT=""
 
+# process optional arguments
+while getopts f OPT
+do
+    case $OPT in
+        f) force=1 ;;
+        \?) exit 1 ;;
+    esac
+done
+
 show_vars() {
     if [[ -v debug ]]; then
         echo
@@ -28,6 +37,10 @@ show_vars() {
 }
 
 show_vars
+
+if [[ -n ${force+x} ]]; then
+    DOCKER_BUILD_OPT="--no-cache"
+fi
 
 echo
 info "building DiVA-DOA docker image: ${IMAGE_NAME}:${IMAGE_VER}..."

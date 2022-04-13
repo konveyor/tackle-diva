@@ -37,6 +37,14 @@ run-direct:
 	@echo "listing generated files..."
 	ls -lFR --color /tmp/out
 
+# executing PL/SQL conversion sample in dev container.
+run-plsql-direct:
+	rm -rf $(OUT_DIR)
+	bash $(base_dir)/doa/migrate.sh -o $(OUT_DIR) -i start_up.sh -l oracle -f $(SAMPLE_DIR)
+	@echo
+	@echo "listing generated files..."
+	ls -lFR --color $(OUT_DIR)
+
 # test for starting docker container
 docker:
 	-rm -rf ./_out
