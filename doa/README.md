@@ -5,6 +5,10 @@ Tackle-DiVA Database Operator Adaption (DiVA-DOA) toolchain.
 DiVA-DOA generates K8s resource definitions (YAML files) to help migration from an application with legacy DBMS system to cloud native environment that works with HA DB cluster.
 It analyzes DBMS settings, DB definitions and initialization code in the application and generates resource definition files (YAML files) including one for the Postgres Operator, a K8s Operator for HA DB clusters.
 
+DiVA-DOA has several editions for specific database products.
+- [DOA for Oracle](README-Oracle.md)
+
+
 ![Overall architecture](docs/arch-overview.dot.svg)
 
 # Prerequisites
