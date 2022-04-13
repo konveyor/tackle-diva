@@ -105,7 +105,7 @@ public class ServletAnalysis {
         boolean parentImpl = false;
         for (IClass p : Util.superChain(c)) {
             for (IMethod m : p.getDeclaredMethods()) {
-                if (m.isAbstract())
+                if (m.isAbstract() || m.isNative())
                     continue;
                 if (m.getName() == Constants.doGet || m.getName() == Constants.doPost
                         || m.getName() == Constants.doDelete || m.getName() == Constants.doFilter
@@ -214,6 +214,8 @@ public class ServletAnalysis {
                 v0 = null;
                 for (ISSABasicBlock pred : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph().getPredNodes(bb)) {
                     Trace.Val v = trace.getDef(phi.getUse(i++));
+                    if (v == null)
+                        return;
                     if (v.isConstant() && v.constant() instanceof Boolean && (Boolean) v.constant()) {
                         for (ISSABasicBlock pred2 : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph()
                                 .getPredNodes(pred)) {
@@ -230,9 +232,8 @@ public class ServletAnalysis {
                         }
                     } else if (v0 == null && v.isInstr()) {
                         v0 = v;
-                    } else {
+                    } else
                         return;
-                    }
                     // System.out.println(pred + "->" + bb);
                 }
                 if (v0 == null)

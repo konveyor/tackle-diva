@@ -34,6 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -659,6 +663,11 @@ public class Framework {
         if (targets.isEmpty())
             return targets;
 
+        if (Util.any(targets, n -> n.getIR() == null)) {
+            // native methods...
+            targets = Util.makeSet(Util.filter(targets, n -> n.getIR() != null));
+        }
+
         if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
             IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
             outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
@@ -762,6 +771,11 @@ public class Framework {
 
     public boolean txStarted() {
         return transaction != null;
+    }
+
+    public void calculateTransactionsWithTimeout(CGNode entry, Context cxt, Report report, Trace.Visitor visitor)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        CompletableFuture.runAsync(() -> calculateTransactions(entry, cxt, report, visitor)).get(10, TimeUnit.SECONDS);
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
