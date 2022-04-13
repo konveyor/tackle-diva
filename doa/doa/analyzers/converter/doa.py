@@ -1,11 +1,12 @@
 "PL/SQL analyzer and transformer (to be integrated with DiVA-DOA)"
 import os
 from glob import iglob
-from itertools import filterfalse, zip_longest
+from itertools import zip_longest
 from json import dump
 from logging import basicConfig, getLogger
 from multiprocessing.pool import Pool
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from textwrap import indent
 
 from antlr4 import ParseTreeWalker
@@ -18,6 +19,7 @@ from typer import Option, Typer
 from . import __version__
 from .analyzer import DebugListener, MyVisitor
 from .parser import main as _parse
+from .preprocess import preprocess_file
 
 # from wasabi import Printer
 
@@ -75,13 +77,21 @@ def process_file(args):
     """
     Parse the specified file using PL/SQL parser and returns an analysis status.
     """
-    ((in_dir, out_dir, use_debug_listener), file_path) = args
+    ((in_dir, out_dir, use_debug_listener, preprocess), file_path) = args
     msg.debug(f'  in_dir = {in_dir}')
     msg.debug(f'  out_dir = {out_dir}')
-    msg.debug(f'  file: {file_path}')
-    msg.debug(f'  path: {in_dir / file_path}')
+    msg.debug(f'  file = {file_path}')
+    msg.debug(f'  path = {in_dir / file_path}')
+    msg.debug(f'  preprocess = {preprocess}')
 
-    tree, parser = _parse(in_dir/file_path, silent=True, to_console=True)
+    if preprocess:
+        with TemporaryDirectory() as tempdir:
+            msg.debug(tempdir)
+            preprocess_file(in_dir, tempdir, file_path)
+            tree, parser = _parse(Path(tempdir, file_path),
+                                  silent=True, to_console=True)
+    else:
+        tree, parser = _parse(in_dir/file_path, silent=True, to_console=True)
     ist = parser.getTokenStream()
 
     msg.debug(tree.toStringTree(recog=parser))
@@ -117,7 +127,7 @@ def process_file(args):
         #     return (str(file_path), False, status)
         # else:
         msg.info("writing to file...")
-        with open(out_dir/file_path, "w", encoding="utf-8") as f:
+        with open(out_dir/file_path, "w", encoding="utf-8") as f:  # pylint: disable=invalid-name
             f.write(ist.getText(tree.start, tree.stop))
         msg.info(f"successfully written to {out_dir/file_path}.")
         return (str(file_path), True, status)
@@ -125,15 +135,16 @@ def process_file(args):
         return (str(file_path), False, {})
 
 
-def main(app_name: str, in_dir: Path, out_dir: Path, use_debug_listener: bool = False,
-         take: int = -1, file: str = None) -> None:
+def main(app_name: str, in_dir: Path, out_dir: Path, stat_dir: Path,
+         use_debug_listener: bool = False,
+         take: int = -1, file: str = None, preprocess=True) -> None:
     """
     Analyzes a specified app and generates ConfigMap manifests for the app.
     This is the main logic called from cli_main().
     """
-    msg.info(f'DiVA-DOA: SQL files analyzer v{__version__}')
-    msg.debug(f'  module name = "{__name__}"')
-    msg.debug(f'  package name = "{__package__}"')
+    msg.info('DiVA-DOA: SQL files analyzer v%s', __version__)
+    msg.debug('  module name = "%s"', __name__)
+    msg.debug('  package name = "%s"', __package__)
 
     msg.info('setting up...')
     msg.info(f"  cpu count = {os.cpu_count()}")
@@ -143,10 +154,14 @@ def main(app_name: str, in_dir: Path, out_dir: Path, use_debug_listener: bool = 
     with Pool(num_proc) as pool:
         msg.info(f'  application name = "{app_name}"')
         msg.info(f'  input directory = {in_dir}')
+        assert isinstance(out_dir, Path)
         msg.info(f'  output directory = {out_dir}')
         if not out_dir.exists():
-            msg.warn('  creating output directory')
+            msg.warning('  create output directory %s', out_dir)
             out_dir.mkdir(parents=True)
+        if not stat_dir.exists():
+            msg.warning('  create stat directory %s', stat_dir)
+            stat_dir.mkdir(parents=True)
         # out_file: Path = out_dir / 'cm-sqls.yaml'
         # msg.info(f'  output yaml file = {out_file}')
 
@@ -158,7 +173,7 @@ def main(app_name: str, in_dir: Path, out_dir: Path, use_debug_listener: bool = 
             if take >= 0:
                 files_ = _take(take, files_)
         zipped_ = zip_longest([], files_, fillvalue=(
-            in_dir, out_dir, use_debug_listener))
+            in_dir, out_dir, use_debug_listener, preprocess))
         # for i in zipped_:
         #     print(i)
         # for res in pool.imap_unordered(process_file, files_):
@@ -208,10 +223,10 @@ def main(app_name: str, in_dir: Path, out_dir: Path, use_debug_listener: bool = 
         rprint("Analysis results:")
         rprint()
 
-        rprint(f"Total number of SQLs : {stats_['num_files']}")
+        rprint(f"Total number of SQLs: {stats_['num_files']}")
         rprint()
         rprint(
-            f"Number of SQLs (Oracle dialects) : {stats_['has_dialect']} ({stats_['has_dialect']/stats_['num_files']:.1%})")
+            f"Number of SQLs (Oracle dialects): {stats_['has_dialect']} ({stats_['has_dialect']/stats_['num_files']:.1%})")
         rprint(
             f"Number of SQLs (Generic): {stats_['has_not_dialect']} ({stats_['has_not_dialect']/stats_['num_files']:.1%})")
 
@@ -224,12 +239,15 @@ def main(app_name: str, in_dir: Path, out_dir: Path, use_debug_listener: bool = 
         rprint(indent(f"Local Index: {stats_['has_local_index']}", "  "))
         rprint(indent(f"Bitmap Index: {stats_['has_bitmap']}", "  "))
 
-        with open(out_dir/"stats.json", mode="w", encoding="utf-8") as f:
+        with open(stat_dir/"stats.json", mode="w", encoding="utf-8") as f:
+            # some cases, this program cannot write other than out_dir.
             dump(stats_, f, indent=2)
-        msg.info("cleaning up...")
+            rprint()
+            rprint(f"stats file {stat_dir/'stats.json'} is generated.")
+        msg.info("cleaning up process pool...")
+    msg.info("all OK.")
 
-
-@app.command()
+@ app.command()
 def cli_main(
     # repo_url: str = Argument(...,
     #                          help="repository URL of tatget application."),
@@ -248,26 +266,41 @@ def cli_main(
     ),
     out_dir: Path = Option(
         "/tmp/out",
-        "--out-dir", "-o",
+        "--out-dir",
+        "-o",
+        file_okay=False, dir_okay=True,
         help="output directory of generated files."
+    ),
+    stat_dir: Path = Option(
+        "/tmp/stats",
+        file_okay=False, dir_okay=True,
+        help="output directory of statistics."
     ),
     take: int = Option(
         -1,
         help="if specified, it processes only the specified files that are found."
     ),
-    file: str = Option(None,
-                       help="process only the specified file under the in_dir."),
+    file: str = Option(
+        None,
+        help="process only the specified file under the in_dir."
+    ),
     use_debug_listener: bool = Option(
-        False, help="use custom listener for debug, instead of visitor")
+        False,
+        help="use custom listener for debug, instead of visitor"
+    ),
+    preprocess: bool = Option(
+        True,
+        help="if true, preprocessing (encoding conversion to UTF-8, and uppercase conversion) will be performed for each file."
+    )
 ) -> None:
     "Analyzes a specified app and generates ConfigMap manifests for the app."
-    main(app_name=app_name, in_dir=in_dir, out_dir=out_dir, take=take, file=file,
-         use_debug_listener=use_debug_listener)
+    main(app_name=app_name, in_dir=in_dir, out_dir=out_dir, stat_dir=stat_dir, take=take, file=file,
+         use_debug_listener=use_debug_listener, preprocess=preprocess)
 
 
 if __name__ == '__main__':
-    _level = "INFO"
-    # _level = "DEBUG"
+    # _level = "INFO"
+    _level = "DEBUG"
     basicConfig(level=_level, format="%(message)s",
                 datefmt="[%X]", handlers=[RichHandler()])
     app()

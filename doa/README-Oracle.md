@@ -5,6 +5,16 @@ In future version, semi-automatic conversion from PL/SQL to Postgres will also b
 
 This document is specific for Oracle support. For general document, see [README.md](README.md).
 
+## Preprocessing
+
+Before analysis, DOA first performs the following preprocessing to each input file:
+
+- Convert its encoding to UTF-8 using `nkf`.
+- Convert line break to Unix style (`\n`) using `nkf`. 
+- Convert alphabets to uppercase using `tr`.
+
+This is due to limitation of the current PL/SQL grammar. It may be changed in future version.
+
 ## Example
 
 Let us try the PL/SQL file assessment using local files that we provide.
@@ -97,30 +107,10 @@ kubectl get all
 kubectl apply -f test/pod-test.yaml
 ```
 
-```
-kubectl exec app-test -it -- bash
-```
-
-In the pod,
+Then, run `psql` and meta-command `\dt` on the test container:
 
 ```
-psql -h ${DB_HOST} -U postgres
-```
-
-psql session started:
-
-```
-psql (13.4 (Debian 13.4-4.pgdg110+1), server 13.6 (Ubuntu 13.6-1.pgdg18.04+1))
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
-Type "help" for help.
-
-postgres=# 
-```
-
-Show databases:
-
-```
-\dt
+kubectl exec app-test -it -- psql -h app-db -U postgres -c "\dt"
 ```
 
 Output:
@@ -132,19 +122,8 @@ Output:
  public | postgres_log | table | postgres
  public | table1       | table | postgres
  public | table2       | table | postgres
-(3 rows)
-```
-
-Exit psql
-
-```
-\q
-```
-
-Exit from pod
-
-```
-exit
+ public | table3       | table | postgres
+(4 rows)
 ```
 
 Delete test pod:
