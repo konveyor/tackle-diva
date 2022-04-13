@@ -105,6 +105,8 @@ public class ServletAnalysis {
         boolean parentImpl = false;
         for (IClass p : Util.superChain(c)) {
             for (IMethod m : p.getDeclaredMethods()) {
+                if (m.isAbstract())
+                    continue;
                 if (m.getName() == Constants.doGet || m.getName() == Constants.doPost
                         || m.getName() == Constants.doDelete || m.getName() == Constants.doFilter
                         || m.getName() == Constants.doPut || m.getName() == Constants.service
@@ -217,7 +219,11 @@ public class ServletAnalysis {
                                 .getPredNodes(pred)) {
                             if (pred2.getNumber() != pred.getNumber() - 1)
                                 return;
-                            SSAInstruction last = pred2.getLastInstruction();
+                            SSAInstruction last = null;
+                            try {
+                                last = pred2.getLastInstruction();
+                            } catch (RuntimeException e) {
+                            }
                             if (last == null || !(last instanceof SSAConditionalBranchInstruction))
                                 return;
                             phiOrigins.add(last.iIndex());
