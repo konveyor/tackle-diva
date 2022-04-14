@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -310,12 +311,20 @@ public class ServletAnalysis {
                 while (!done) {
                     done = true;
                     for (CGNode n : fw.callgraph()) {
-                        if (!rs.contains(n.getGraphNodeId())
-                                && Util.any((Iterable<CGNode>) () -> fw.callgraph().getSuccNodes(n),
-                                        m -> rs.contains(m.getGraphNodeId()))) {
-                            rs.add(n.getGraphNodeId());
-                            done = false;
+                        if (rs.contains(n.getGraphNodeId()))
+                            continue;
+                        for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                                continue;
+                            if (Util.any(fw.callgraph().getPossibleTargets(n, site),
+                                    m -> rs.contains(m.getGraphNodeId()))) {
+                                rs.add(n.getGraphNodeId());
+                                done = false;
+                                break;
+                            }
                         }
+
                     }
                 }
                 reached = rs;
