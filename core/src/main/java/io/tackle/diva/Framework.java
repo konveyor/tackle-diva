@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -574,6 +577,9 @@ public class Framework {
         visitor.visitNode(stack.peek());
 
         while (!stack.isEmpty()) {
+            if (Thread.interrupted())
+                throw new RuntimeException("Diva interrupted");
+
             Trace trace = stack.peek();
 
             if (!iters.peek().hasNext()) {
@@ -658,6 +664,11 @@ public class Framework {
 
         if (targets.isEmpty())
             return targets;
+
+        if (Util.any(targets, n -> n.getIR() == null)) {
+            // native methods...
+            targets = Util.makeSet(Util.filter(targets, n -> n.getIR() != null));
+        }
 
         if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
             IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
@@ -764,6 +775,33 @@ public class Framework {
         return transaction != null;
     }
 
+    ExecutorService threadPool;
+
+    public void calculateTransactionsWithTimeout(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
+        if (threadPool == null) {
+            threadPool = Executors.newFixedThreadPool(1);
+        }
+        Thread current = Thread.currentThread();
+        Future<?> future = threadPool.submit(() -> {
+            try {
+                Thread.sleep(60000);
+                current.interrupt();
+            } catch (InterruptedException e) {
+            }
+        });
+        try {
+            calculateTransactions(entry, cxt, report, visitor);
+        } finally {
+            while (!future.isDone() && !future.cancel(true)) {
+                try {
+                    Thread.sleep(10); // seems like never reaching here
+                } catch (InterruptedException e) {
+                }
+            }
+            Thread.interrupted(); // assuming no interrupt afterwards
+        }
+    }
+
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
         this.report = report;
         this.transactionId = 0;
@@ -773,6 +811,12 @@ public class Framework {
         if (txStarted()) {
             reportTxBoundary();
         }
+    }
+
+    public void calculateTransactionsWithTimeout(CGNode entry, Context cxt, Report report) {
+        calculateTransactionsWithTimeout(entry, cxt, report,
+                JDBCAnalysis.getTransactionAnalysis(this, cxt).with(SpringBootAnalysis.getTransactionAnalysis(this, cxt)
+                        .with(JPAAnalysis.getTransactionAnalysis(this, cxt))));
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report) {

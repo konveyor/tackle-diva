@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 
+import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -105,6 +105,8 @@ public class ServletAnalysis {
         boolean parentImpl = false;
         for (IClass p : Util.superChain(c)) {
             for (IMethod m : p.getDeclaredMethods()) {
+                if (m.isAbstract() || m.isNative())
+                    continue;
                 if (m.getName() == Constants.doGet || m.getName() == Constants.doPost
                         || m.getName() == Constants.doDelete || m.getName() == Constants.doFilter
                         || m.getName() == Constants.doPut || m.getName() == Constants.service
@@ -212,21 +214,26 @@ public class ServletAnalysis {
                 v0 = null;
                 for (ISSABasicBlock pred : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph().getPredNodes(bb)) {
                     Trace.Val v = trace.getDef(phi.getUse(i++));
+                    if (v == null)
+                        return;
                     if (v.isConstant() && v.constant() instanceof Boolean && (Boolean) v.constant()) {
                         for (ISSABasicBlock pred2 : (Iterable<ISSABasicBlock>) () -> ir.getControlFlowGraph()
                                 .getPredNodes(pred)) {
                             if (pred2.getNumber() != pred.getNumber() - 1)
                                 return;
-                            SSAInstruction last = pred2.getLastInstruction();
+                            SSAInstruction last = null;
+                            try {
+                                last = pred2.getLastInstruction();
+                            } catch (RuntimeException e) {
+                            }
                             if (last == null || !(last instanceof SSAConditionalBranchInstruction))
                                 return;
                             phiOrigins.add(last.iIndex());
                         }
                     } else if (v0 == null && v.isInstr()) {
                         v0 = v;
-                    } else {
+                    } else
                         return;
-                    }
                     // System.out.println(pred + "->" + bb);
                 }
                 if (v0 == null)
@@ -298,18 +305,29 @@ public class ServletAnalysis {
 
             MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
             if (reached == null) {
-                reached = MutableSparseIntSet.makeEmpty();
-                Stack<CGNode> stack = new Stack<>();
-                stack.push(node);
-                while (!stack.isEmpty()) {
-                    CGNode next = stack.pop();
-                    if (reached.contains(next.getGraphNodeId()))
-                        continue;
-                    reached.add(next.getGraphNodeId());
-                    for (CGNode n : (Iterable<CGNode>) () -> fw.callgraph().getPredNodes(next)) {
-                        stack.push(n);
+                MutableIntSet rs = MutableSparseIntSet.makeEmpty();
+                rs.add(node.getGraphNodeId());
+                boolean done = false;
+                while (!done) {
+                    done = true;
+                    for (CGNode n : fw.callgraph()) {
+                        if (rs.contains(n.getGraphNodeId()))
+                            continue;
+                        for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                                continue;
+                            if (Util.any(fw.callgraph().getPossibleTargets(n, site),
+                                    m -> rs.contains(m.getGraphNodeId()))) {
+                                rs.add(n.getGraphNodeId());
+                                done = false;
+                                break;
+                            }
+                        }
+
                     }
                 }
+                reached = rs;
                 reachingNodesCache.put(node.getGraphNodeId(), reached);
             }
             IntSet reachingNodes = reached;

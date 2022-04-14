@@ -72,6 +72,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
+import com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl;
 import com.ibm.wala.cast.java.translator.Java2IRTranslator;
 import com.ibm.wala.cast.java.translator.jdt.JDT2CAstUtils;
 import com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator;
@@ -294,6 +295,10 @@ public class DivaIRGen {
                 @Override
                 public boolean visit(TypeDeclaration node) {
                     ITypeBinding t = node.resolveBinding();
+                    if (t == null) {
+                        // this occurs with class name crash, skip the rest for now
+                        return false;
+                    }
                     Type sup = node.getSuperclassType();
                     if (sup != null) {
                         String superName = sup.resolveBinding().getBinaryName();
@@ -309,6 +314,8 @@ public class DivaIRGen {
                     }
                     List<Type> ifaces = node.superInterfaceTypes();
                     for (Type i : ifaces) {
+                        if (i.resolveBinding() == null)
+                            continue;
                         String ifaceName = i.resolveBinding().getBinaryName();
                         if (knownAsInterfaces == null) {
                             knownAsInterfaces = new HashSet();
@@ -341,6 +348,8 @@ public class DivaIRGen {
                 @Override
                 public boolean visit(AnonymousClassDeclaration node) {
                     ITypeBinding t = node.resolveBinding();
+                    if (t == null)
+                        return false;
                     ITypeBinding sup = t.getSuperclass();
                     if (sup != null) {
                         String superName = sup.getBinaryName();
@@ -355,7 +364,9 @@ public class DivaIRGen {
                 @Override
                 public boolean visit(MethodDeclaration node) {
                     IMethodBinding binding = node.resolveBinding();
-                    if (binding != null) {
+                    if (binding != null && !binding.getDeclaringClass().isAnonymous()) {
+                        // currently we can't know the exact Wala name for anonymous type
+
                         String mname = binding.isConstructor() ? "<init>" : binding.getName();
                         // String name = methodSignature(binding.getDeclaringClass(), mname,
                         // binding.getParameterTypes(),
@@ -711,6 +722,42 @@ public class DivaIRGen {
 
     }
 
+    public static class DoTypeToTypeId {
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter(@Advice.Argument(0) ITypeBinding typ) {
+            return typ.isNullType();
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.Enter boolean skip, @Advice.Return(readOnly = false) String res) {
+            if (skip) {
+                res = "Ljava/lang/Object";
+            }
+        }
+    }
+
+    public static class DoSourceLoaderClassSuperclass {
+
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter() {
+            return true;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.FieldValue("superTypeNames") Collection<TypeName> superTypeNames,
+                @Advice.FieldValue("this$0") JavaSourceLoaderImpl loader, @Advice.Return(readOnly = false) IClass res) {
+            for (TypeName name : superTypeNames) {
+                res = loader.lookupClass(name);
+                if (res != null && !res.isInterface())
+                    break;
+            }
+            if (res == null || res.isInterface()) {
+                res = loader.lookupClass(io.tackle.diva.Constants.LJavaLangObject);
+            }
+        }
+
+    }
+
     public static class DoBytecodeClassSuperclass {
 
         @Advice.OnMethodExit
@@ -775,6 +822,17 @@ public class DivaIRGen {
 
     }
 
+    public static class DoAbstractSSAConversionTop {
+        @Advice.OnMethodExit(onThrowable = AssertionError.class)
+        public static void exit(@Advice.Argument(0) int v, @Advice.Thrown(readOnly = false) AssertionError e,
+                @Advice.Return(readOnly = false) int res) {
+            if (e != null) {
+                res = v;
+                e = null;
+            }
+        }
+    }
+
     @SuppressWarnings("serial")
     public static Map<String, Class<?>> advices() {
         return (new HashMap<String, Class<?>>() {
@@ -798,12 +856,14 @@ public class DivaIRGen {
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
-
+                put("com.ibm.wala.cast.java.translator.jdt.JDTIdentityMapper.typeToTypeID", DoTypeToTypeId.class);
+                put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getSuperclass",
+                        DoSourceLoaderClassSuperclass.class);
                 // binary analysis
                 put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
                 put("com.ibm.wala.ipa.callgraph.cha.CHACallGraph.isRelevantMethod", DoCHACallGraph.class);
                 put("com.ibm.wala.classLoader.BytecodeClass.array2IClassSet", DoBytecodeClassArray2IClassSet.class);
-
+                put("com.ibm.wala.cast.ir.ssa.AbstractSSAConversion.top", DoAbstractSSAConversionTop.class);
             }
         });
     }
@@ -1563,6 +1623,7 @@ public class DivaIRGen {
     }
 
     public static String canonicalTypeString(ITypeBinding p) {
+        p = p.getErasure();
         if (p.isPrimitive()) {
             return p.getBinaryName();
         } else if (p.isArray()) {

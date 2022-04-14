@@ -41,6 +41,8 @@ public class SpringBootAnalysis {
                     continue;
                 if (m.isInit())
                     continue;
+                if (m.isAbstract() || m.isNative())
+                    continue;
                 entries.add(m);
             }
 
@@ -208,7 +210,7 @@ public class SpringBootAnalysis {
         if (v.isConstant())
             return null;
 
-        if (v.instr() instanceof SSAGetInstruction) {
+        if (v.instr() instanceof SSAGetInstruction && v.instr().getNumberOfUses() > 0) {
             FieldReference field = ((SSAGetInstruction) v.instr()).getDeclaredField();
             Trace.Val v2 = v.getDefOrParam(v.instr().getUse(0));
             if (v2 == null)
