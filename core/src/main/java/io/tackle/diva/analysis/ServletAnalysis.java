@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
@@ -305,18 +304,21 @@ public class ServletAnalysis {
 
             MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
             if (reached == null) {
-                reached = MutableSparseIntSet.makeEmpty();
-                Stack<CGNode> stack = new Stack<>();
-                stack.push(node);
-                while (!stack.isEmpty()) {
-                    CGNode next = stack.pop();
-                    if (reached.contains(next.getGraphNodeId()))
-                        continue;
-                    reached.add(next.getGraphNodeId());
-                    for (CGNode n : (Iterable<CGNode>) () -> fw.callgraph().getPredNodes(next)) {
-                        stack.push(n);
+                MutableIntSet rs = MutableSparseIntSet.makeEmpty();
+                rs.add(node.getGraphNodeId());
+                boolean done = false;
+                while (!done) {
+                    done = true;
+                    for (CGNode n : fw.callgraph()) {
+                        if (!rs.contains(n.getGraphNodeId())
+                                && Util.any((Iterable<CGNode>) () -> fw.callgraph().getSuccNodes(n),
+                                        m -> rs.contains(m.getGraphNodeId()))) {
+                            rs.add(n.getGraphNodeId());
+                            done = false;
+                        }
                     }
                 }
+                reached = rs;
                 reachingNodesCache.put(node.getGraphNodeId(), reached);
             }
             IntSet reachingNodes = reached;

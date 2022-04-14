@@ -41,7 +41,7 @@ public class SpringBootAnalysis {
                     continue;
                 if (m.isInit())
                     continue;
-                if (m.isAbstract())
+                if (m.isAbstract() || m.isNative())
                     continue;
                 entries.add(m);
             }
