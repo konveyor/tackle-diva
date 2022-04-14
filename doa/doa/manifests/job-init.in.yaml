@@ -1,12 +1,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: trading-app-init
+  name: {{app_name}}-init
 spec:
   template:
     metadata:
       labels:
-        app: trading-app-init
+        app: {{app_name}}-init
     spec:
       restartPolicy: OnFailure
       containers:
@@ -36,7 +36,7 @@ spec:
       volumes:
         - name: volume-sqls
           configMap:
-            name: trading-app-cm-sqls
+            name: {{app_name}}-cm-sqls
         - name: volume-init
           configMap:
-            name: trading-app-cm-init-db
+            name: {{app_name}}-cm-init-db

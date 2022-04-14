@@ -31,11 +31,13 @@ ok() {
 }
 
 # process optional arguments
-while getopts o:i: OPT
+while getopts o:i:l:f OPT
 do
     case $OPT in
         o) outdir=${OPTARG};;
         i) init_file=${OPTARG};;
+        l) lang=${OPTARG};;
+        f) files=1;;
         \?) exit 1;;
     esac
 done
@@ -54,12 +56,13 @@ OUTDIR=$(readlink -f ${outdir})
 # log
 echo
 cyan "------------------------"
-cyan "DiVA-DOA v2.0.0"
+cyan "DiVA-DOA v2.2.0rc0"
 cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
 echo "base_dir = ${WORKDIR}"
-echo "repo URL = ${REPO_URL}"
+echo "use local files = ${files}"
+echo "repo URL (or directory) = ${REPO_URL}"
 echo "init_file (relative to repo dir) = ${init_file}"
 # echo "outdir (relative) = ${outdir}"
 echo "outdir (absolute) = ${OUTDIR}"
@@ -70,21 +73,32 @@ id
 echo 
 cyan "setting up..."
 mkdir -p "${OUTDIR}"
-REPO_DIR=`mktemp -d`
-echo "REPO_DIR = ${REPO_DIR}"
-echo "directory for repository created: ${REPO_DIR}"
 
-# main routine
+if [[ -z ${files+x} ]]; then
+    # files is not defined
+    REPO_DIR=`mktemp -d`
+    echo "REPO_DIR = ${REPO_DIR}"
+    echo "directory for repository created: ${REPO_DIR}"
 
-# clone repo
-echo
-cyan "cloning repository..."
-git clone ${REPO_URL} ${REPO_DIR}
+    # main routine
 
-echo
-cyan "analyzing application..."
-APP_NAME=${REPO_URL##*/} # pick up segment after the last "/"
-echo "application name = ${APP_NAME}"
+    # clone repo
+    echo
+    cyan "cloning repository..."
+    git clone ${REPO_URL} ${REPO_DIR}
+
+    echo
+    cyan "analyzing application..."
+    APP_NAME=${REPO_URL##*/} # pick up segment after the last "/"
+    echo "application name = ${APP_NAME}"
+else
+    # file is defined
+    debug "use local files"
+    REPO_DIR="${REPO_URL}"
+    APP_NAME="app"
+    echo "application name = ${APP_NAME}"
+fi
+
 mkdir -p ${OUTDIR}/${APP_NAME}
 OUTDIR=${OUTDIR}/${APP_NAME} # overwrite
 cyan "application directory ${OUTDIR} created."
@@ -101,7 +115,11 @@ jinja2 -D app_name=${APP_NAME} ${WORKDIR}/manifests/postgresql.in.yaml > ${DB_YA
 echo
 cyan "analyzing SQL scripts..."
 # debug "[under development]: invoking new version of analyzer..."
-PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${REPO_DIR}" -o "${OUTDIR}"
+PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${REPO_DIR}" -o "${OUTDIR}" ${lang+"-l"} ${lang}
+# if [[ -f /tmp/out/stats.json ]]; then
+#     mkdir -p "${OUTDIR}/stat"
+#     cp /tmp/out/stats.json "${OUTDIR}/stat"
+# fi
 
 echo 
 cyan "analyzing app start-up scripts..."

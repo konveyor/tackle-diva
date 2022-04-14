@@ -17,8 +17,8 @@ RUN if [ "${NODE_VERSION}" != "none" ]; then su vscode -c "umask 0002 && . /usr/
 #    && rm -rf /tmp/pip-tmp
 
 # [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends <your-package-list-here>
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends nkf
 
 # [Optional] Uncomment this line to install global node packages.
 # RUN su vscode -c "source /usr/local/share/nvm/nvm.sh && npm install -g <your-package-here>" 2>&1
@@ -31,6 +31,6 @@ RUN curl -LO "https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl" \
     && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
     && rm kubectl
 
-RUN su vscode -c "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli"
+RUN su vscode -c "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli antlr4-python3-runtime more-itertools rich"
 
 COPY . /work

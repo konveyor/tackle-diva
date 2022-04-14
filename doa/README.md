@@ -5,6 +5,10 @@ Tackle-DiVA Database Operator Adaption (DiVA-DOA) toolchain.
 DiVA-DOA generates K8s resource definitions (YAML files) to help migration from an application with legacy DBMS system to cloud native environment that works with HA DB cluster.
 It analyzes DBMS settings, DB definitions and initialization code in the application and generates resource definition files (YAML files) including one for the Postgres Operator, a K8s Operator for HA DB clusters.
 
+DiVA-DOA has several editions for specific database products.
+- [DOA for Oracle](README-Oracle.md)
+
+
 ![Overall architecture](docs/arch-overview.dot.svg)
 
 # Prerequisites
@@ -70,7 +74,7 @@ Clone this repository and go to `doa` directory.
 
 ```bash
 $ cd /tmp
-$ git clone https://github.com/shinsa82-sgi-2021/tackle-diva.git
+$ git clone https://github.com/konveyor/tackle-diva.git
 $ cd tackle-diva/doa
 ```
 
@@ -86,6 +90,8 @@ diva-doa     latest    5f9dd8f9f0eb   19 hours ago   1.27GB
 ```
 
 ## (1) Analyze target app and generate manifests
+
+> If you want to **DOA for Oracle** functionality inroduced in v2.1.0, see [README-Oracle.md](README-Oracle.md).
 
 To analyze `trading-app`, executing the wrapper script `run-doa.sh` with arguments:
 

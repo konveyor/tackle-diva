@@ -10,12 +10,13 @@ from typer import Abort, Option, Typer
 from wasabi import Printer
 
 from . import __version__
+from .converter.doa import main as convert
 
 app = Typer()
 msg = Printer()
 
 
-def main(app_name: str, in_dir: Path, out_dir: Path) -> None:
+def main(app_name: str, in_dir: Path, out_dir: Path, lang: str) -> None:
     """
     Analyzes a specified app and generates ConfigMap manifests for the app.
     This is the main logic called from cli_main().
@@ -35,6 +36,13 @@ def main(app_name: str, in_dir: Path, out_dir: Path) -> None:
     out_file: Path = out_dir / 'cm-sqls.yaml'
     # out_file: Path = out_dir / f'{app_name}-cm-sqls.yaml'
     msg.info(f'  output yaml file = {out_file}')
+
+    if lang:
+        msg.info(f"converting SQL files, from {lang} to Postgres...")
+        convert(app_name=app_name, in_dir=in_dir, out_dir=Path("/tmp/out"),
+                stat_dir=out_dir/"stat", use_debug_listener=True)
+        msg.info("converted.")
+        in_dir = Path("/tmp/out")  # overwrite
 
     msg.info('searching SQL files...')
     for pth in iglob('**/*.sql', root_dir=in_dir, recursive=True):
@@ -78,10 +86,16 @@ def cli_main(
     out_dir: Path = Option(
         "/tmp/out",
         "--out-dir", "-o",
-        help="output directory of generated files")
+        help="output directory of generated files"),
+    lang: str = Option(
+        ...,
+        "--lang",
+        "-l",
+        help="Convert SQL files based on the dialect specified by this option. Currently only \"oracle\" is supported."
+    ),
 ) -> None:
     "Analyzes a specified app and generates ConfigMap manifests for the app."
-    main(app_name=app_name, in_dir=in_dir, out_dir=out_dir)
+    main(app_name=app_name, in_dir=in_dir, out_dir=out_dir, lang=lang)
 
 
 if __name__ == '__main__':
