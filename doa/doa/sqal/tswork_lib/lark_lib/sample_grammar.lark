@@ -1,7 +1,0 @@
-%import common.WS
-%import common.INT
-%import common.CPP_COMMENT
-%ignore WS
-%ignore CPP_COMMENT
-
-exp : INT ("+" INT)*
