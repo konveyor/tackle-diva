@@ -6,11 +6,11 @@ from glob import iglob
 from pathlib import Path
 from subprocess import CompletedProcess, run
 
+from sqal.doa import main as convert
 from typer import Abort, Option, Typer
 from wasabi import Printer
 
 from . import __version__
-from .converter.doa import main as convert
 
 app = Typer()
 msg = Printer()
@@ -88,7 +88,7 @@ def cli_main(
         "--out-dir", "-o",
         help="output directory of generated files"),
     lang: str = Option(
-        ...,
+        None,
         "--lang",
         "-l",
         help="Convert SQL files based on the dialect specified by this option. Currently only \"oracle\" is supported."

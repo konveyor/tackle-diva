@@ -1,5 +1,6 @@
 # main script. 
 set -e
+# set -x # for debugging
 
 APPNAME=$(basename $0)
 WORKDIR=$(readlink -f $(dirname $0)) # this script's directory
@@ -56,7 +57,7 @@ OUTDIR=$(readlink -f ${outdir})
 # log
 echo
 cyan "------------------------"
-cyan "DiVA-DOA v2.2.0rc0"
+cyan "DiVA-DOA v2.2.0"
 cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
@@ -123,7 +124,10 @@ PYTHONPATH=${WORKDIR} python -m analyzers.analyze_sqls -n "${APP_NAME}" -i "${RE
 
 echo 
 cyan "analyzing app start-up scripts..."
-PYTHONPATH=${WORKDIR} python -m analyzers.analyze_initdb -n "${APP_NAME}" -i "${REPO_DIR}" --init-file "${init_file}" -o "${OUTDIR}"
+if [[ -n ${init_file+x} ]]; then
+    init_file_opt="--init-file ${init_file}"
+fi
+PYTHONPATH=${WORKDIR} python -m analyzers.analyze_initdb -n "${APP_NAME}" -i "${REPO_DIR}" ${init_file_opt} -o "${OUTDIR}"
 
 mkdir -p ${OUTDIR}/test
 POD_YAML=${OUTDIR}/test/pod-test.yaml # Pod for test. To be removed in future.

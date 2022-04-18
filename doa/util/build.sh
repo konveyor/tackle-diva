@@ -8,8 +8,8 @@ set -eu  # abort on error or undefined variable reference
 WORK_DIR=$(readlink -f $(dirname $0)) # this script's directory
 . ${WORK_DIR}/common.sh
 
-# DOCKER_BUILD_OPT="--progress=plain"
-DOCKER_BUILD_OPT=""
+DOCKER_BUILD_OPT="--progress=plain"
+# DOCKER_BUILD_OPT=""
 
 # process optional arguments
 while getopts f OPT
@@ -39,7 +39,7 @@ show_vars() {
 show_vars
 
 if [[ -n ${force+x} ]]; then
-    DOCKER_BUILD_OPT="--no-cache"
+    DOCKER_BUILD_OPT+=" --no-cache"
 fi
 
 echo
@@ -48,6 +48,7 @@ info "building DiVA-DOA docker image: ${IMAGE_NAME}:${IMAGE_VER}..."
 docker build ${DOCKER_BUILD_OPT} \
     -t ${IMAGE_NAME}:${IMAGE_VER} \
     --build-arg IMAGE_VER=${IMAGE_VER} \
+    --target doa \
     -f ${DOCKERFILE} \
     ${DOCKER_CONTEXT}
 docker tag ${IMAGE_NAME}:${IMAGE_VER} ${IMAGE_NAME}:latest

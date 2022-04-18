@@ -79,6 +79,11 @@ if  [[ -n ${files+x} ]]; then
     REPO_URL="/in"
 fi
 
+# if init_file is specified, turn the option on in docker run.
+if [[ -n ${init_file+x} ]]; then
+    init_file_opt="-i ${init_file}"
+fi
+
 echo "--------------------"
 echo "DiVA-DOA wrapper"
 echo "--------------------"
@@ -112,4 +117,4 @@ docker run -it --rm \
     -v ${OUTDIR}:/out \
     ${files_flag} ${files_mount} \
     ${IMAGE} \
-    bash -l /work/migrate.sh -o /out -i "${init_file}" ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container
+    bash -l /work/migrate.sh -o /out ${init_file_opt} ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container

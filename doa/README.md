@@ -251,7 +251,24 @@ NAME                        READY   STATUS      RESTARTS   AGE
 trading-app-init--1-z4zhc   0/1     Completed   4          8m18s
 ```
 
-## (3) Check if the databses has been successfully created
+You can see log of the init Pod by:
+
+```
+kubectl logs -l job-name=app-init
+```
+
+Output is like:
+
+```
+executing /app/sqls/doa-sample-1.sql...
+CREATE TABLE
+executing /app/sqls/doa-sample-2.sql...
+CREATE TABLE
+executing /app/sqls/doa-sample-3.sql...
+CREATE TABLE
+```
+
+## (3) Check if the databases has been successfully created
 
 ### (3.1) Check via Postgres Operator UI
 
