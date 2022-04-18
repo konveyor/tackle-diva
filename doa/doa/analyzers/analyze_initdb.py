@@ -2,13 +2,12 @@
 analyzer and generator for SQL startup.
 """
 import subprocess
-from ast import parse
 from dataclasses import dataclass
-from glob import iglob
+from os import getcwd
 from pathlib import Path
+from shutil import copyfile
 from subprocess import CompletedProcess, run
 from tempfile import TemporaryDirectory
-from typing import Any
 
 from lark import Lark, Tree
 from lark.visitors import Visitor
@@ -16,6 +15,10 @@ from typer import Abort, Option, Typer
 from wasabi import msg
 
 from . import __version__
+
+# from glob import iglob
+# from typing import Any
+# from ast import parse
 
 app = Typer()
 
@@ -31,32 +34,37 @@ def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
     msg.good(f'DiVA-DOA: SQL init file analyzer v{__version__}')
 
     msg.info('setting up...')
+    msg.info(f'  current directory = {getcwd()}')
     msg.info(f'  application name = {app_name}')
     msg.info(f'  input directory = {in_dir}')
     msg.info(f'  output directory = {out_dir}')
     msg.info(f'  init file = {init_file}')
 
-    msg.info('scanning init file for lines containing "psql"...')
-
     with TemporaryDirectory() as d:  # create tempdir
         # read from init_file and write to init_db.sh
         init_db_file = Path(d) / 'init_db.sh'
-        with (open(in_dir / init_file, mode="r", encoding="utf-8") as f,
-              open(init_db_file, mode="w", encoding="utf-8") as g):
-            for line in f.readlines():  # type: str
-                if line.startswith("psql"):
-                    msg.info(f'  found: {line}')
-                    parsed: PsqlStatement = parse_psql(line)
-                    # msg.info(f"  {parsed}")
-                    msg.info(f"  converted to: {parsed.to_statement()}")
-                    g.write(parsed.to_statement()+"\n")
+
+        if init_file:
+            msg.info('scanning init file for lines containing "psql"...')
+            with (open(in_dir / init_file, mode="r", encoding="utf-8") as f,
+                  open(init_db_file, mode="w", encoding="utf-8") as g):
+                for line in f.readlines():  # type: str
+                    if line.startswith("psql"):
+                        msg.info(f'  found: {line}')
+                        parsed: PsqlStatement = parse_psql(line)
+                        # msg.info(f"  {parsed}")
+                        msg.info(f"  converted to: {parsed.to_statement()}")
+                        g.write(parsed.to_statement()+"\n")
+        else:
+            msg.info('using general init file...')
+            copyfile(Path(__file__).parent/"init-db.sh", init_db_file)
 
         out_file = out_dir / "cm-init-db.yaml"
         msg.info('generating manifest...')
         with open(out_file, mode='w', encoding='utf-8') as file:
             _args.extend(['--from-file', init_db_file])
             msg.info(f"  output file: {out_file}")
-            msg.info(f"  command to create: {' '.join(map(str, _args))}")
+            msg.info(f"  k8s command to create: {' '.join(map(str, _args))}")
             comp_proc: CompletedProcess = run(
                 args=_args, stdout=file, stderr=subprocess.PIPE, text=True, check=False)
             if comp_proc.returncode == 0:
@@ -161,7 +169,7 @@ def cli_main(
         "--out-dir", "-o",
         help="output directory of generated files"),
     init_file: Path = Option(
-        ...,
+        None,
         "--init-file",
         help="init file under the repository that includes DB init code")
 ) -> None:
