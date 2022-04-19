@@ -79,6 +79,7 @@ import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyMethodTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultContextSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
+import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.FakeRootMethod;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
@@ -89,7 +90,11 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.ClassConstants;
 import com.ibm.wala.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.ssa.AuxiliaryCache;
+import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.IRFactory;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSACache;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAOptions;
@@ -100,10 +105,13 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.CancelException;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.MapUtil;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
+import com.ibm.wala.util.ref.CacheReference;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
@@ -401,7 +409,59 @@ public class Framework {
         SSAOptions ssaOptions = new SSAOptions();
         ssaOptions.setDefaultValues(SymbolTable::getDefaultValue);
 
-        AnalysisCache cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), ssaOptions);
+        IRFactory<IMethod> irFactory = AstIRFactory.makeDefaultFactory();
+        AnalysisCache cache = new AnalysisCache(irFactory, ssaOptions,
+                new SSACache(irFactory, null, new AuxiliaryCache()) {
+
+                    private HashMap<Pair<IMethod, com.ibm.wala.ipa.callgraph.Context>, Map<SSAOptions, Object>> dictionary = HashMapFactory
+                            .make();
+
+                    @Override
+                    public synchronized IR findOrCreateIR(IMethod m, com.ibm.wala.ipa.callgraph.Context c,
+                            SSAOptions options) {
+                        if (m == null) {
+                            throw new IllegalArgumentException("m is null");
+                        }
+                        if (m.isAbstract() || m.isNative()) {
+                            return null;
+                        }
+
+                        if (irFactory.contextIsIrrelevant(m)) {
+                            c = Everywhere.EVERYWHERE;
+                        }
+
+                        IR ir = find(m, c, options);
+                        if (ir == null) {
+                            ir = irFactory.makeIR(m, c, options);
+                            cache(m, c, options, ir);
+                        }
+                        return ir;
+                    }
+
+                    private void cache(IMethod m, com.ibm.wala.ipa.callgraph.Context c, SSAOptions options, IR ir) {
+                        Pair<IMethod, com.ibm.wala.ipa.callgraph.Context> p = Pair.make(m, c);
+                        Map<SSAOptions, Object> methodMap = MapUtil.findOrCreateMap(dictionary, p);
+                        Object ref = CacheReference.make(ir);
+                        methodMap.put(options, ref);
+                    }
+
+                    private IR find(IMethod m, com.ibm.wala.ipa.callgraph.Context c, SSAOptions options) {
+                        Pair<IMethod, com.ibm.wala.ipa.callgraph.Context> p = Pair.make(m, c);
+                        Map<SSAOptions, Object> methodMap = MapUtil.findOrCreateMap(dictionary, p);
+                        Object ref = methodMap.get(options);
+                        if (ref == null || CacheReference.get(ref) == null) {
+                            return null;
+                        } else {
+                            return (IR) CacheReference.get(ref);
+                        }
+                    }
+
+                    @Override
+                    public void invalidateIR(IMethod method, com.ibm.wala.ipa.callgraph.Context c) {
+                        dictionary.remove(Pair.make(method, c));
+                    }
+
+                });
 
         CHACallGraph cg = new CHACallGraph(cha, true);
 
