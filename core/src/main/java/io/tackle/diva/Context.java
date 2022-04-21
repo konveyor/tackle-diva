@@ -240,4 +240,27 @@ public class Context extends ArrayList<Constraint> {
 
         return result;
     }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        for (Constraint element : this) {
+            result = 31 * result + System.identityHashCode(element);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || !(o instanceof Context))
+            return false;
+        Context other = (Context) o;
+        if (size() != other.size())
+            return false;
+        for (int k = 0; k < size(); k++) {
+            if (get(k) != other.get(k))
+                return false;
+        }
+        return true;
+    }
 }
