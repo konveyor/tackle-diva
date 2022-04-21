@@ -177,13 +177,14 @@ public class ServletAnalysis {
 
             CGNode node = trace.node();
 
-            IMethod method = node.getMethod();
-            IR ir = node.getIR();
-            if (ir == null)
-                return;
-
             if (!(instr instanceof SSAConditionalBranchInstruction))
                 return;
+
+            if (!fw.isRelevant(node))
+                return;
+
+            IR ir = node.getIR();
+
             SSAConditionalBranchInstruction branch = (SSAConditionalBranchInstruction) instr;
             if (branch.getOperator() != IConditionalBranchInstruction.Operator.EQ)
                 return;
@@ -304,7 +305,7 @@ public class ServletAnalysis {
             coveringBranches.get(key).get(val).add(branchId);
 
 
-            fw.recordContraint(new HttpParameterConstraint(key, val) {
+            fw.recordContraint(new HttpParameterConstraint(node, key, val) {
 
                 @Override
                 public boolean forbids(Constraint other) {
@@ -312,7 +313,9 @@ public class ServletAnalysis {
                         return !fw.isReachable(((Constraint.EntryConstraint) other).node(), node);
                     }
                     if (other instanceof HttpParameterConstraint) {
-                        return key.equals(((HttpParameterConstraint) other).key);
+                        if (key.equals(((HttpParameterConstraint) other).key))
+                            return true;
+                        return !fw.isReachable(((HttpParameterConstraint) other).node, node);
                     }
                     return false;
                 }
@@ -357,12 +360,14 @@ public class ServletAnalysis {
         String key;
         String val;
 
-        public HttpParameterConstraint(String key, String val) {
+        public HttpParameterConstraint(CGNode node, String key, String val) {
             super();
             this.key = key;
             this.val = val;
+            this.node = node;
         }
 
+        CGNode node;
     }
 
 }

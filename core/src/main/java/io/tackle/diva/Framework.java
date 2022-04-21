@@ -104,14 +104,15 @@ import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeName;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.MapUtil;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.intset.BimodalMutableIntSet;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
-import com.ibm.wala.util.intset.MutableSparseIntSet;
 import com.ibm.wala.util.ref.CacheReference;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -622,7 +623,7 @@ public class Framework {
         MutableIntSet todo = new BitVectorIntSet();
 
         for (CGNode n : callgraph()) {
-            reachability[n.getGraphNodeId()] = MutableSparseIntSet.makeEmpty();
+            reachability[n.getGraphNodeId()] = new BimodalMutableIntSet();
             todo.add(n.getGraphNodeId());
         }
 
@@ -652,7 +653,7 @@ public class Framework {
     }
 
     public boolean isReachable(CGNode from, CGNode to) {
-        return reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
+        return from == to || reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
     }
 
     public void traverse(CGNode entry, Trace.Visitor visitor) {
@@ -809,6 +810,46 @@ public class Framework {
             }
         }
         return targets;
+    }
+
+    MutableIntSet relevance;
+
+    public boolean isRelevant(CGNode from) {
+        if (relevance == null)
+            return true;
+        if (relevance.contains(from.getGraphNodeId()))
+            return true;
+        IntSet reachable = reachability[from.getGraphNodeId()];
+        if (reachable == null)
+            return false;
+        return relevance.containsAny(reachable);
+    }
+
+    public void relevanceAnalysis(Predicate<IClass>... tests) {
+        relevance = new BitVectorIntSet();
+
+        traverse(callgraph().getNode(0), new Trace.InstructionVisitor() {
+
+            @Override
+            public void visitInstruction(Trace trace, SSAInstruction instr) {
+                if (relevance.contains(trace.node().getGraphNodeId()))
+                    return;
+                if (!(instr instanceof SSAAbstractInvokeInstruction))
+                    return;
+                TypeReference ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget().getDeclaringClass();
+                IClass c = cha.lookupClass(ref);
+                if (c == null)
+                    return;
+                for (Predicate<IClass> t : tests) {
+                    if (t.test(c)) {
+                        relevance.add(trace.node().getGraphNodeId());
+                        return;
+                    }
+                }
+            }
+
+        });
+
     }
 
     public Report report;

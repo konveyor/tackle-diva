@@ -185,8 +185,10 @@ public class Standalone {
 
         Framework fw = new Framework(cha, cg, cmd.hasOption("usage"));
 
+        fw.relevanceAnalysis(JDBCAnalysis::checkRelevance, JPAAnalysis::checkRelevance);
+
         for (CGNode n : cg) {
-            if (entries.contains(n.getMethod())) {
+            if (entries.contains(n.getMethod()) && fw.isRelevant(n)) {
                 fw.recordContraint(new Constraint.EntryConstraint(n));
             }
         }

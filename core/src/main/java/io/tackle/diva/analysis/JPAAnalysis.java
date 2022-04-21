@@ -44,6 +44,10 @@ import io.tackle.diva.irgen.DivaPhantomClass;
 public class JPAAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
 
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LSpringJPARepository || c.getName() == Constants.LSpringRepository;
+    }
+
     public static class TableColumn {
 
         public TableColumn(String tableName, String colName, List<TypeName> tags, TypeReference type) {
@@ -213,10 +217,6 @@ public class JPAAnalysis {
             }
         }
         return typ;
-    }
-
-    public static boolean checkRelevance(IClass c) {
-        return c.getName() == Constants.LSpringJPARepository || c.getName() == Constants.LSpringRepository;
     }
 
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
