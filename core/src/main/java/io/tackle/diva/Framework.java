@@ -111,6 +111,7 @@ import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
+import com.ibm.wala.util.intset.MutableSparseIntSet;
 import com.ibm.wala.util.ref.CacheReference;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -123,9 +124,7 @@ public class Framework {
     private static final Logger LOGGER = Logger.getLogger(Framework.class.getName());
 
     public Framework(IClassHierarchy cha, CallGraph callgraph) {
-        super();
-        this.cha = cha;
-        this.callgraph = callgraph;
+        this(cha, callgraph, false);
     }
 
     public Framework(IClassHierarchy cha, CallGraph callgraph, boolean usageAnalysis) {
@@ -133,6 +132,7 @@ public class Framework {
         this.cha = cha;
         this.callgraph = callgraph;
         this.usageAnalysis = usageAnalysis;
+        reachabilityAnalysis();
     }
 
     IClassHierarchy cha;
@@ -612,6 +612,47 @@ public class Framework {
         CallGraphBuilder<InstanceKey> builder = new ZeroCFABuilderFactory().make(options, cache, cha, scope);
 
         return builder;
+    }
+
+    MutableIntSet[] reachability;
+
+    public void reachabilityAnalysis() {
+        reachability = new MutableIntSet[callgraph().getNumberOfNodes()];
+
+        MutableIntSet todo = new BitVectorIntSet();
+
+        for (CGNode n : callgraph()) {
+            reachability[n.getGraphNodeId()] = MutableSparseIntSet.makeEmpty();
+            todo.add(n.getGraphNodeId());
+        }
+
+        while (!todo.isEmpty()) {
+            MutableIntSet next = new BitVectorIntSet();
+            for (CGNode n : callgraph()) {
+                boolean t = false;
+                MutableIntSet rs = reachability[n.getGraphNodeId()];
+                for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                    String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                    if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                        continue;
+                    for (CGNode m : callgraph().getPossibleTargets(n, site)) {
+                        if (todo.contains(m.getGraphNodeId())) {
+                            t |= rs.add(m.getGraphNodeId());
+                            t |= rs.addAll(reachability[m.getGraphNodeId()]);
+                        }
+                    }
+                }
+                if (t)
+                    next.add(n.getGraphNodeId());
+            }
+            todo = next;
+        }
+
+        LOGGER.info("Done: reachability analysis");
+    }
+
+    public boolean isReachable(CGNode from, CGNode to) {
+        return reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
     }
 
     public void traverse(CGNode entry, Trace.Visitor visitor) {

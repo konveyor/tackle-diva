@@ -123,6 +123,7 @@ public interface Constants {
     TypeName LJavaxWebServlet = TypeName.findOrCreate("Ljavax/servlet/annotation/WebServlet");
     TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");
     TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
+    TypeName LJavaxHttpServletRequest = TypeName.findOrCreate("Ljavax/servlet/http/HttpServletRequest");
 
     // JPA
     TypeName LJavaxPersistenceCascadeType = TypeName.findOrCreate("Ljavax/persistence/CascadeType");

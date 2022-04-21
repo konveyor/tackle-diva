@@ -150,7 +150,8 @@ public class ServletAnalysis {
             if (v.isConstant() || !(v.instr() instanceof SSAAbstractInvokeInstruction))
                 return null;
             SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v.instr();
-            if (invoke.getDeclaredTarget().getName() != Constants.getParameter)
+            if (invoke.getDeclaredTarget().getDeclaringClass().getName() != Constants.LJavaxHttpServletRequest
+                    || invoke.getDeclaredTarget().getName() != Constants.getParameter)
                 return null;
             Trace.Val v2 = v.getDef(invoke.getUse(1));
             if (!v2.isConstant() && !(v2.constant() instanceof String))
@@ -171,7 +172,6 @@ public class ServletAnalysis {
          * irrelevant) entry methods
          */
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
-        Map<Integer, MutableIntSet> reachingNodesCache = new LinkedHashMap<>();
 
         return (Trace trace, SSAInstruction instr) -> {
 
@@ -303,41 +303,13 @@ public class ServletAnalysis {
             }
             coveringBranches.get(key).get(val).add(branchId);
 
-            MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
-            if (reached == null) {
-                MutableIntSet rs = MutableSparseIntSet.makeEmpty();
-                rs.add(node.getGraphNodeId());
-                boolean done = false;
-                while (!done) {
-                    done = true;
-                    for (CGNode n : fw.callgraph()) {
-                        if (rs.contains(n.getGraphNodeId()))
-                            continue;
-                        for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
-                            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-                            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
-                                continue;
-                            if (Util.any(fw.callgraph().getPossibleTargets(n, site),
-                                    m -> rs.contains(m.getGraphNodeId()))) {
-                                rs.add(n.getGraphNodeId());
-                                done = false;
-                                break;
-                            }
-                        }
-
-                    }
-                }
-                reached = rs;
-                reachingNodesCache.put(node.getGraphNodeId(), reached);
-            }
-            IntSet reachingNodes = reached;
 
             fw.recordContraint(new HttpParameterConstraint(key, val) {
 
                 @Override
                 public boolean forbids(Constraint other) {
                     if (other instanceof Constraint.EntryConstraint) {
-                        return !reachingNodes.contains(((Constraint.EntryConstraint) other).node().getGraphNodeId());
+                        return !fw.isReachable(((Constraint.EntryConstraint) other).node(), node);
                     }
                     if (other instanceof HttpParameterConstraint) {
                         return key.equals(((HttpParameterConstraint) other).key);
