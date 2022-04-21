@@ -25,6 +25,11 @@ import io.tackle.diva.Util;
 
 public class QuarkusAnalysis {
 
+    public static boolean checkRelevance(IClass c) {
+        return Util.any(Util.getAnnotations(c),
+                a -> a.getType().getName() == Constants.LMicroprofileReigsterRestClient);
+    }
+
     public static List<IMethod> getEntries(IClassHierarchy cha) throws IOException {
         List<IMethod> entries = new ArrayList<>();
 
