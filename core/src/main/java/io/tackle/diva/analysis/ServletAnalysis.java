@@ -150,7 +150,8 @@ public class ServletAnalysis {
             if (v.isConstant() || !(v.instr() instanceof SSAAbstractInvokeInstruction))
                 return null;
             SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v.instr();
-            if (invoke.getDeclaredTarget().getName() != Constants.getParameter)
+            if (invoke.getDeclaredTarget().getDeclaringClass().getName() != Constants.LJavaxHttpServletRequest
+                    || invoke.getDeclaredTarget().getName() != Constants.getParameter)
                 return null;
             Trace.Val v2 = v.getDef(invoke.getUse(1));
             if (!v2.isConstant() && !(v2.constant() instanceof String))
@@ -171,19 +172,14 @@ public class ServletAnalysis {
          * irrelevant) entry methods
          */
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
-        Map<Integer, MutableIntSet> reachingNodesCache = new LinkedHashMap<>();
 
         return (Trace trace, SSAInstruction instr) -> {
 
             CGNode node = trace.node();
 
-            IMethod method = node.getMethod();
-            IR ir = node.getIR();
-            if (ir == null)
-                return;
-
             if (!(instr instanceof SSAConditionalBranchInstruction))
                 return;
+
             SSAConditionalBranchInstruction branch = (SSAConditionalBranchInstruction) instr;
             if (branch.getOperator() != IConditionalBranchInstruction.Operator.EQ)
                 return;
@@ -196,6 +192,8 @@ public class ServletAnalysis {
                 return;
 
             MutableIntSet phiOrigins = new BitVectorIntSet();
+
+            IR ir = node.getIR();
 
             // System.out.println(ud[branch.getUse(0)]);
             if (v0.instr() instanceof SSAPhiInstruction) {
@@ -242,6 +240,7 @@ public class ServletAnalysis {
 
             if (!(v0.instr() instanceof SSAAbstractInvokeInstruction))
                 return;
+
             SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
 
             if (invoke.getDeclaredTarget().getName() != Constants.equals
@@ -267,6 +266,9 @@ public class ServletAnalysis {
             String key = matcher.apply(fw, v2);
 
             if (key == null)
+                return;
+
+            if (!fw.isRelevant(node))
                 return;
 
             if (!phiOrigins.isEmpty()) {
@@ -303,44 +305,18 @@ public class ServletAnalysis {
             }
             coveringBranches.get(key).get(val).add(branchId);
 
-            MutableIntSet reached = reachingNodesCache.getOrDefault(node.getGraphNodeId(), null);
-            if (reached == null) {
-                MutableIntSet rs = MutableSparseIntSet.makeEmpty();
-                rs.add(node.getGraphNodeId());
-                boolean done = false;
-                while (!done) {
-                    done = true;
-                    for (CGNode n : fw.callgraph()) {
-                        if (rs.contains(n.getGraphNodeId()))
-                            continue;
-                        for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
-                            String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-                            if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
-                                continue;
-                            if (Util.any(fw.callgraph().getPossibleTargets(n, site),
-                                    m -> rs.contains(m.getGraphNodeId()))) {
-                                rs.add(n.getGraphNodeId());
-                                done = false;
-                                break;
-                            }
-                        }
 
-                    }
-                }
-                reached = rs;
-                reachingNodesCache.put(node.getGraphNodeId(), reached);
-            }
-            IntSet reachingNodes = reached;
-
-            fw.recordContraint(new HttpParameterConstraint(key, val) {
+            fw.recordContraint(new HttpParameterConstraint(node, key, val) {
 
                 @Override
                 public boolean forbids(Constraint other) {
                     if (other instanceof Constraint.EntryConstraint) {
-                        return !reachingNodes.contains(((Constraint.EntryConstraint) other).node().getGraphNodeId());
+                        return !fw.isReachable(((Constraint.EntryConstraint) other).node(), node);
                     }
                     if (other instanceof HttpParameterConstraint) {
-                        return key.equals(((HttpParameterConstraint) other).key);
+                        if (key.equals(((HttpParameterConstraint) other).key))
+                            return true;
+                        return !fw.isReachable(((HttpParameterConstraint) other).node, node);
                     }
                     return false;
                 }
@@ -385,12 +361,14 @@ public class ServletAnalysis {
         String key;
         String val;
 
-        public HttpParameterConstraint(String key, String val) {
+        public HttpParameterConstraint(CGNode node, String key, String val) {
             super();
             this.key = key;
             this.val = val;
+            this.node = node;
         }
 
+        CGNode node;
     }
 
 }

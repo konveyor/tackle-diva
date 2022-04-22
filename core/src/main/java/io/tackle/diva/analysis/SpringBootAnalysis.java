@@ -16,7 +16,6 @@ import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
-import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.IntPair;
@@ -28,6 +27,11 @@ import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
 
 public class SpringBootAnalysis {
+
+    public static boolean checkRelevance(IClass c) {
+        return c.getName() == Constants.LSpringJdbcTemplate || c.getName() == Constants.LSpringNamedJdbcTemplate
+                || c.getName() == Constants.LSpringSimpleJdbcInsert;
+    }
 
     public static List<IMethod> getEntries(IClassHierarchy cha) throws IOException {
         List<IMethod> entries = new ArrayList<>();
@@ -87,7 +91,8 @@ public class SpringBootAnalysis {
                 MethodReference ref = site.getDeclaredTarget();
                 boolean isSimpleInsert = false;
                 int pos = -1;
-                if (ref.getDeclaringClass().getName() == Constants.LSpringJdbcTemplate) {
+                if (ref.getDeclaringClass().getName() == Constants.LSpringJdbcTemplate
+                        || ref.getDeclaringClass().getName() == Constants.LSpringNamedJdbcTemplate) {
                     if (ref.getName() == Constants.queryForObject || ref.getName() == Constants.update) {
                         pos = 0;
                     }

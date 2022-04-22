@@ -180,11 +180,10 @@ public class Context extends ArrayList<Constraint> {
 
             for (k = 0; k < cs.length; k++) {
                 Constraint r = cs[k].get(counter[k]);
-                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r))) {
+                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r)))
                     cxt.add(r);
-                }
-            }
 
+            }
             result.add(cxt);
 
             counter[cs.length - 1] += 1;
@@ -239,5 +238,28 @@ public class Context extends ArrayList<Constraint> {
         }
 
         return result;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        for (Constraint element : this) {
+            result = 31 * result + System.identityHashCode(element);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || !(o instanceof Context))
+            return false;
+        Context other = (Context) o;
+        if (size() != other.size())
+            return false;
+        for (int k = 0; k < size(); k++) {
+            if (get(k) != other.get(k))
+                return false;
+        }
+        return true;
     }
 }

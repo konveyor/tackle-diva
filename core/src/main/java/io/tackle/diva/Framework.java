@@ -79,6 +79,7 @@ import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyMethodTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultContextSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
+import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.FakeRootMethod;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
@@ -89,7 +90,11 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.ClassConstants;
 import com.ibm.wala.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.ssa.AuxiliaryCache;
+import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.IRFactory;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
+import com.ibm.wala.ssa.SSACache;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAOptions;
@@ -99,11 +104,16 @@ import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeName;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.MapUtil;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.intset.BimodalMutableIntSet;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
+import com.ibm.wala.util.ref.CacheReference;
 
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
@@ -115,9 +125,7 @@ public class Framework {
     private static final Logger LOGGER = Logger.getLogger(Framework.class.getName());
 
     public Framework(IClassHierarchy cha, CallGraph callgraph) {
-        super();
-        this.cha = cha;
-        this.callgraph = callgraph;
+        this(cha, callgraph, false);
     }
 
     public Framework(IClassHierarchy cha, CallGraph callgraph, boolean usageAnalysis) {
@@ -125,6 +133,7 @@ public class Framework {
         this.cha = cha;
         this.callgraph = callgraph;
         this.usageAnalysis = usageAnalysis;
+        reachabilityAnalysis();
     }
 
     IClassHierarchy cha;
@@ -401,7 +410,59 @@ public class Framework {
         SSAOptions ssaOptions = new SSAOptions();
         ssaOptions.setDefaultValues(SymbolTable::getDefaultValue);
 
-        AnalysisCache cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), ssaOptions);
+        IRFactory<IMethod> irFactory = AstIRFactory.makeDefaultFactory();
+        AnalysisCache cache = new AnalysisCache(irFactory, ssaOptions,
+                new SSACache(irFactory, null, new AuxiliaryCache()) {
+
+                    private HashMap<Pair<IMethod, com.ibm.wala.ipa.callgraph.Context>, Map<SSAOptions, Object>> dictionary = HashMapFactory
+                            .make();
+
+                    @Override
+                    public synchronized IR findOrCreateIR(IMethod m, com.ibm.wala.ipa.callgraph.Context c,
+                            SSAOptions options) {
+                        if (m == null) {
+                            throw new IllegalArgumentException("m is null");
+                        }
+                        if (m.isAbstract() || m.isNative()) {
+                            return null;
+                        }
+
+                        if (irFactory.contextIsIrrelevant(m)) {
+                            c = Everywhere.EVERYWHERE;
+                        }
+
+                        IR ir = find(m, c, options);
+                        if (ir == null) {
+                            ir = irFactory.makeIR(m, c, options);
+                            cache(m, c, options, ir);
+                        }
+                        return ir;
+                    }
+
+                    private void cache(IMethod m, com.ibm.wala.ipa.callgraph.Context c, SSAOptions options, IR ir) {
+                        Pair<IMethod, com.ibm.wala.ipa.callgraph.Context> p = Pair.make(m, c);
+                        Map<SSAOptions, Object> methodMap = MapUtil.findOrCreateMap(dictionary, p);
+                        Object ref = CacheReference.make(ir);
+                        methodMap.put(options, ref);
+                    }
+
+                    private IR find(IMethod m, com.ibm.wala.ipa.callgraph.Context c, SSAOptions options) {
+                        Pair<IMethod, com.ibm.wala.ipa.callgraph.Context> p = Pair.make(m, c);
+                        Map<SSAOptions, Object> methodMap = MapUtil.findOrCreateMap(dictionary, p);
+                        Object ref = methodMap.get(options);
+                        if (ref == null || CacheReference.get(ref) == null) {
+                            return null;
+                        } else {
+                            return (IR) CacheReference.get(ref);
+                        }
+                    }
+
+                    @Override
+                    public void invalidateIR(IMethod method, com.ibm.wala.ipa.callgraph.Context c) {
+                        dictionary.remove(Pair.make(method, c));
+                    }
+
+                });
 
         CHACallGraph cg = new CHACallGraph(cha, true);
 
@@ -552,6 +613,47 @@ public class Framework {
         CallGraphBuilder<InstanceKey> builder = new ZeroCFABuilderFactory().make(options, cache, cha, scope);
 
         return builder;
+    }
+
+    MutableIntSet[] reachability;
+
+    public void reachabilityAnalysis() {
+        reachability = new MutableIntSet[callgraph().getNumberOfNodes()];
+
+        MutableIntSet todo = new BitVectorIntSet();
+
+        for (CGNode n : callgraph()) {
+            reachability[n.getGraphNodeId()] = new BimodalMutableIntSet();
+            todo.add(n.getGraphNodeId());
+        }
+
+        while (!todo.isEmpty()) {
+            MutableIntSet next = new BitVectorIntSet();
+            for (CGNode n : callgraph()) {
+                boolean t = false;
+                MutableIntSet rs = reachability[n.getGraphNodeId()];
+                for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                    String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                    if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                        continue;
+                    for (CGNode m : callgraph().getPossibleTargets(n, site)) {
+                        if (todo.contains(m.getGraphNodeId())) {
+                            t |= rs.add(m.getGraphNodeId());
+                            t |= rs.addAll(reachability[m.getGraphNodeId()]);
+                        }
+                    }
+                }
+                if (t)
+                    next.add(n.getGraphNodeId());
+            }
+            todo = next;
+        }
+
+        LOGGER.info("Done: reachability analysis");
+    }
+
+    public boolean isReachable(CGNode from, CGNode to) {
+        return from == to || reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
     }
 
     public void traverse(CGNode entry, Trace.Visitor visitor) {
@@ -708,6 +810,46 @@ public class Framework {
             }
         }
         return targets;
+    }
+
+    MutableIntSet relevance;
+
+    public boolean isRelevant(CGNode from) {
+        if (relevance == null)
+            return true;
+        if (relevance.contains(from.getGraphNodeId()))
+            return true;
+        IntSet reachable = reachability[from.getGraphNodeId()];
+        if (reachable == null)
+            return false;
+        return reachable.containsAny(relevance);
+    }
+
+    public void relevanceAnalysis(Predicate<IClass>... tests) {
+        relevance = new BitVectorIntSet();
+
+        traverse(callgraph().getNode(0), new Trace.InstructionVisitor() {
+
+            @Override
+            public void visitInstruction(Trace trace, SSAInstruction instr) {
+                if (!(instr instanceof SSAAbstractInvokeInstruction))
+                    return;
+                if (relevance.contains(trace.node().getGraphNodeId()))
+                    return;
+                TypeReference ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget().getDeclaringClass();
+                IClass c = cha.lookupClass(ref);
+                if (c == null)
+                    return;
+                for (Predicate<IClass> t : tests) {
+                    if (t.test(c)) {
+                        relevance.add(trace.node().getGraphNodeId());
+                        return;
+                    }
+                }
+            }
+
+        });
+
     }
 
     public Report report;
