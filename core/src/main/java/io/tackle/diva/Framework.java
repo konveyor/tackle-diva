@@ -822,7 +822,7 @@ public class Framework {
         IntSet reachable = reachability[from.getGraphNodeId()];
         if (reachable == null)
             return false;
-        return relevance.containsAny(reachable);
+        return reachable.containsAny(relevance);
     }
 
     public void relevanceAnalysis(Predicate<IClass>... tests) {
@@ -832,9 +832,9 @@ public class Framework {
 
             @Override
             public void visitInstruction(Trace trace, SSAInstruction instr) {
-                if (relevance.contains(trace.node().getGraphNodeId()))
-                    return;
                 if (!(instr instanceof SSAAbstractInvokeInstruction))
+                    return;
+                if (relevance.contains(trace.node().getGraphNodeId()))
                     return;
                 TypeReference ref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget().getDeclaringClass();
                 IClass c = cha.lookupClass(ref);

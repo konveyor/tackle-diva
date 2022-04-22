@@ -180,11 +180,10 @@ public class Context extends ArrayList<Constraint> {
 
             for (k = 0; k < cs.length; k++) {
                 Constraint r = cs[k].get(counter[k]);
-                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r))) {
+                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r)))
                     cxt.add(r);
-                }
-            }
 
+            }
             result.add(cxt);
 
             counter[cs.length - 1] += 1;

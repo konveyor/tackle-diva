@@ -117,6 +117,8 @@ public interface Constants {
 
     TypeName LSpringRequestBody = TypeName.findOrCreate("Lorg/springframework/web/bind/annotation/RequestBody");
 
+    TypeName LSpringNamedJdbcTemplate = TypeName.findOrCreate("Lorg/springframework/jdbc/core/namedparam/NamedParameterJdbcTemplate");
+
     TypeName LJavaxInject = TypeName.findOrCreate("Ljavax/inject/Inject");
 
     // Servlet

@@ -180,11 +180,6 @@ public class ServletAnalysis {
             if (!(instr instanceof SSAConditionalBranchInstruction))
                 return;
 
-            if (!fw.isRelevant(node))
-                return;
-
-            IR ir = node.getIR();
-
             SSAConditionalBranchInstruction branch = (SSAConditionalBranchInstruction) instr;
             if (branch.getOperator() != IConditionalBranchInstruction.Operator.EQ)
                 return;
@@ -197,6 +192,8 @@ public class ServletAnalysis {
                 return;
 
             MutableIntSet phiOrigins = new BitVectorIntSet();
+
+            IR ir = node.getIR();
 
             // System.out.println(ud[branch.getUse(0)]);
             if (v0.instr() instanceof SSAPhiInstruction) {
@@ -243,6 +240,7 @@ public class ServletAnalysis {
 
             if (!(v0.instr() instanceof SSAAbstractInvokeInstruction))
                 return;
+
             SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
 
             if (invoke.getDeclaredTarget().getName() != Constants.equals
@@ -268,6 +266,9 @@ public class ServletAnalysis {
             String key = matcher.apply(fw, v2);
 
             if (key == null)
+                return;
+
+            if (!fw.isRelevant(node))
                 return;
 
             if (!phiOrigins.isEmpty()) {
