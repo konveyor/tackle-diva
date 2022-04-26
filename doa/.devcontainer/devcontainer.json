@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.209.6/containers/python-3
 {
-	"name": "Python 3",
+	"name": "diva-doa (Python 3.10)",
 	"build": {
 		"dockerfile": "Dockerfile",
 		"context": "../doa",
@@ -13,7 +13,8 @@
 			// Options
 			"NODE_VERSION": "none",
 			"IMAGE_VER": "2.0.0.dev0",
-		}
+		},
+		"target": "base"
 	},
 	// Set *default* container specific settings.json values on container create.
 	"settings": {
@@ -34,13 +35,17 @@
 	"extensions": [
 		"ms-python.python",
 		"ms-python.vscode-pylance",
-		"mhutchie.git-graph"
+		"mhutchie.git-graph",
+		"bungcip.better-toml"
 	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
+
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
-	"postCreateCommand": "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli antlr4-python3-runtime more-itertools rich",
+	// "postCreateCommand": "pip3 install --user colorama typer wasabi lark pyyaml==5.4.1 jinja2-cli antlr4-python3-runtime more-itertools rich",
+	"postCreateCommand": "pip3 install --user -e ./doa/sqal && pip3 install --user -r ./doa/requirements.txt",
+	
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }

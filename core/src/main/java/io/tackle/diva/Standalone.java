@@ -160,8 +160,8 @@ public class Standalone {
 
         Set<IClass> relevantClasses = new HashSet<>();
         Set<IClass> appClasses = new HashSet<>();
-        Framework.relevantJarsAnalysis(cha, relevantClasses, appClasses,
-                c -> JDBCAnalysis.checkRelevance(c) || JPAAnalysis.checkRelevance(c));
+        Framework.relevantJarsAnalysis(cha, relevantClasses, appClasses, c -> JDBCAnalysis.checkRelevance(c)
+                || JPAAnalysis.checkRelevance(c) || SpringBootAnalysis.checkRelevance(c));
 
         IClassHierarchy filteredCha = new FilteredClassHierarchy(cha, appClasses::contains);
         IClassHierarchy relevantCha = new FilteredClassHierarchy(cha, relevantClasses::contains);
@@ -185,8 +185,11 @@ public class Standalone {
 
         Framework fw = new Framework(cha, cg, cmd.hasOption("usage"));
 
+        fw.relevanceAnalysis(JDBCAnalysis::checkRelevance, JPAAnalysis::checkRelevance,
+                SpringBootAnalysis::checkRelevance);
+
         for (CGNode n : cg) {
-            if (entries.contains(n.getMethod())) {
+            if (entries.contains(n.getMethod()) && fw.isRelevant(n)) {
                 fw.recordContraint(new Constraint.EntryConstraint(n));
             }
         }

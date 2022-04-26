@@ -1,2 +1,2 @@
 "DiVA-DOA analyzers"
-__version__ = "2.2.0rc0"
+__version__ = "2.2.0"
