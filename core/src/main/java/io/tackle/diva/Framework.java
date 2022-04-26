@@ -917,13 +917,9 @@ public class Framework {
         return transaction != null;
     }
 
-    ExecutorService threadPool;
-
     public void calculateTransactionsWithTimeout(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
-        if (threadPool == null) {
-            threadPool = Executors.newFixedThreadPool(1);
-        }
         Thread current = Thread.currentThread();
+        ExecutorService threadPool = Executors.newFixedThreadPool(1);
         Future<?> future = threadPool.submit(() -> {
             try {
                 Thread.sleep(60000);
@@ -942,6 +938,7 @@ public class Framework {
             }
             Thread.interrupted(); // assuming no interrupt afterwards
         }
+        threadPool.shutdown();
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {

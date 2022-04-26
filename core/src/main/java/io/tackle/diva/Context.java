@@ -18,6 +18,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -164,6 +165,9 @@ public class Context extends ArrayList<Constraint> {
     public static List<Context> calculateDefaultContexts(Framework fw) throws IOException {
         // calculate cross product of constraint groups
         LinkedHashSet<Context> result = new LinkedHashSet<>();
+
+        if (fw.constraints.isEmpty())
+            return Collections.emptyList();
 
         int[] counter = new int[fw.constraints.size()];
         List<Constraint>[] cs = new List[fw.constraints.size()];
