@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -42,9 +41,7 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntPair;
-import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
-import com.ibm.wala.util.intset.MutableSparseIntSet;
 
 import io.tackle.diva.Constants;
 import io.tackle.diva.Constraint;
@@ -243,7 +240,7 @@ public class ServletAnalysis {
 
             SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) v0.instr();
 
-            if (invoke.getDeclaredTarget().getName() != Constants.equals
+            if (!invoke.isDispatch() || invoke.getDeclaredTarget().getName() != Constants.equals
                     && invoke.getDeclaredTarget().getName() != Constants.equalsIgnoreCase
                     && invoke.getDeclaredTarget().getName() != Constants.contains)
                 return;
@@ -304,7 +301,6 @@ public class ServletAnalysis {
                 coveringBranches.get(key).put(val, new LinkedHashSet<>());
             }
             coveringBranches.get(key).get(val).add(branchId);
-
 
             fw.recordContraint(new HttpParameterConstraint(node, key, val) {
 
