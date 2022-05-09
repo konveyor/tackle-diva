@@ -87,7 +87,6 @@ import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.ModuleEntry;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
-import com.ibm.wala.shrikeBT.Constants;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
@@ -194,14 +193,25 @@ public class DivaIRGen {
     public static final Map<String, String> importsKnownToDiva = new HashMap<>();
 
     static {
-        for (Field f : Constants.class.getDeclaredFields()) {
+        for (Field f : io.tackle.diva.Constants.class.getDeclaredFields()) {
             if (f.getType() == TypeName.class) {
                 try {
-                    String t = ((TypeName) f.get(null)).toString();
+                    String t =  StringStuff.jvmToBinaryName(((TypeName) f.get(null)).toString());
                     String name = t.substring(t.toString().lastIndexOf('.') + 1);
                     importsKnownToDiva.put(name, t);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
                 }
+            }
+        }
+    }
+
+    public static final void loadKnownIntefaces(IClassHierarchy cha) {
+        for (String klazz : importsKnownToDiva.values()) {
+            TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+            IClassLoader loader = cha.getLoader(ClassLoaderReference.Application);
+            if (loader.lookupClass(t) == null) {
+                TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
+                cha.addClass(new DivaPhantomClass(classRef, cha, true));
             }
         }
     }
