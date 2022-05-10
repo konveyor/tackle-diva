@@ -79,7 +79,14 @@ public class JDBCAnalysis {
                         seeds = new ArrayList<>();
                     }
                     sql = analyzeJdbc(fw, trace, site, seeds);
+
+                } else if (ref.getDeclaringClass().getName() == Constants.LJavaSqlStatement
+                        && (ref.getName() == Constants.executeQuery || ref.getName() == Constants.executeUpdate)
+                        && ref.getNumberOfParameters() == 1) {
+                    SSAInstruction instr = trace.instrFromSite(site);
+                    sql = trace.getDef(instr.getUse(1));
                 }
+
                 if (sql != null) {
                     if (!fw.txStarted()) {
                         fw.reportSqlStatement(trace, "BEGIN");
