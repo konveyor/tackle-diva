@@ -197,7 +197,7 @@ public class DivaIRGen {
         for (Field f : io.tackle.diva.Constants.class.getDeclaredFields()) {
             if (f.getType() == TypeName.class) {
                 try {
-                    String t =  StringStuff.jvmToBinaryName(((TypeName) f.get(null)).toString());
+                    String t = StringStuff.jvmToBinaryName(((TypeName) f.get(null)).toString());
                     String name = t.substring(t.toString().lastIndexOf('.') + 1);
                     importsKnownToDiva.put(name, t);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
@@ -432,14 +432,20 @@ public class DivaIRGen {
 
     }
 
-//    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
-//    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
+    // public static Map<String, List<Annotation>> annotations = new
+    // LinkedHashMap<>();
+    // public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations =
+    // new LinkedHashMap<>();
 
     public static Map<Object, List<Annotation>> annotations;
-//    public static Map<TypeReference, List<Annotation>> classAnnotations = new LinkedHashMap<>();
-//    public static Map<MethodReference, List<Annotation>> methodAnnotations = new LinkedHashMap<>();
-//    public static Map<FieldReference, List<Annotation>> fieldAnnotations = new LinkedHashMap<>();
-//    public static Map<Pair<MethodReference, Integer>, List<Annotation>> paramAnnotations = new LinkedHashMap<>();
+    // public static Map<TypeReference, List<Annotation>> classAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<MethodReference, List<Annotation>> methodAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<FieldReference, List<Annotation>> fieldAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<Pair<MethodReference, Integer>, List<Annotation>>
+    // paramAnnotations = new LinkedHashMap<>();
     public static Map<TypeReference, Map<TypeName, List<TypeName>>> instantiations;
 
     public static void init() {
@@ -673,11 +679,22 @@ public class DivaIRGen {
 
     public static class DoGetTypeBinding {
         @Advice.OnMethodExit
-        public static void enter(@Advice.Return(readOnly = false) ITypeBinding binding) {
+        public static void exit(@Advice.Return(readOnly = false) ITypeBinding binding) {
             if (binding != null) {
                 if (isBroken(binding)) {
                     binding = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
                 }
+            }
+        }
+    }
+
+    public static class DoRecoveredBinaryName {
+        @Advice.OnMethodExit
+        public static void exit(@Advice.FieldValue("binding") Object binding,
+                @Advice.Return(readOnly = false) String res) {
+            String bindingStr = binding.toString();
+            if (bindingStr.contains("[closestMatch=[MISSING:")) {
+                res = bindingStr.substring(bindingStr.lastIndexOf(':') + 1, bindingStr.length() - 2);
             }
         }
     }
@@ -692,12 +709,12 @@ public class DivaIRGen {
         }
     }
 
-//    public static class DoGetDirectInterfaces {
-//        @Advice.OnMethodExit(onThrowable = AssertionError.class)
-//        public static void exit(@Advice.Thrown(readOnly = false) AssertionError e) {
-//            e = null;
-//        }
-//    }
+    // public static class DoGetDirectInterfaces {
+    // @Advice.OnMethodExit(onThrowable = AssertionError.class)
+    // public static void exit(@Advice.Thrown(readOnly = false) AssertionError e) {
+    // e = null;
+    // }
+    // }
 
     // public static class DoGetAnnotationType {
     // @Advice.OnMethodExit
@@ -788,6 +805,28 @@ public class DivaIRGen {
 
     }
 
+    public static class DoSourceLoaderClassDirectInterfaces {
+
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter() {
+            return true;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.FieldValue("superTypeNames") Collection<TypeName> superTypeNames,
+                @Advice.FieldValue("this$0") JavaSourceLoaderImpl loader, @Advice.Return(readOnly = false) IClass res) {
+            List<IClass> result = new ArrayList<>();
+            for (TypeName name : superTypeNames) {
+                IClass domoType = loader.lookupClass(name);
+                if (domoType == null) {
+
+                }
+
+            }
+        }
+
+    }
+
     public static class DoBytecodeClassSuperclass {
 
         @Advice.OnMethodExit
@@ -869,7 +908,8 @@ public class DivaIRGen {
             {
                 put("org.eclipse.jdt.core.dom.MethodInvocation.resolveMethodBinding", DoMethodBinding.class);
                 put("org.eclipse.jdt.core.dom.SuperMethodInvocation.resolveMethodBinding", DoSuperMethodBinding.class);
-                put("org.eclipse.jdt.core.dom.SuperConstructorInvocation.resolveConstructorBinding", DoSuperConstructorBinding.class);
+                put("org.eclipse.jdt.core.dom.SuperConstructorInvocation.resolveConstructorBinding",
+                        DoSuperConstructorBinding.class);
                 put("org.eclipse.jdt.core.dom.ClassInstanceCreation.resolveConstructorBinding",
                         DoClassInstanceCreationBinding.class);
                 put("org.eclipse.jdt.core.dom.Name.resolveBinding", DoName.class);
@@ -881,15 +921,17 @@ public class DivaIRGen {
                 put("org.eclipse.jdt.core.dom.MethodBinding.overrides", DoOverrides.class);
                 put("org.eclipse.jdt.core.dom.MethodBinding.getParameterTypes", DoGetParameterTypes.class);
                 put("org.eclipse.jdt.core.dom.DefaultBindingResolver.getTypeBinding", DoGetTypeBinding.class);
+                put("org.eclipse.jdt.core.dom.RecoveredTypeBinding.getBinaryName", DoRecoveredBinaryName.class);
                 put("com.ibm.wala.shrikeCT.ClassReader.<init>", DoShrikeCTParse.class);
-                // put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getDirectInterfaces",
-                // DoGetDirectInterfaces.class);
+
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTIdentityMapper.typeToTypeID", DoTypeToTypeId.class);
                 put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getSuperclass",
                         DoSourceLoaderClassSuperclass.class);
+                // put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl%JavaClass.getDirectInterfaces",
+                // DoSourceLoaderClassDirectInterfaces.class);
                 // binary analysis
                 put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
                 put("com.ibm.wala.ipa.callgraph.cha.CHACallGraph.isRelevantMethod", DoCHACallGraph.class);
@@ -1389,7 +1431,7 @@ public class DivaIRGen {
             klazz = findOrCreatePhantomType("unknown.Unknown");
 
         } else if (node instanceof SuperConstructorInvocation) {
-            SuperConstructorInvocation method = (SuperConstructorInvocation)node;
+            SuperConstructorInvocation method = (SuperConstructorInvocation) node;
             name = "<init>";
             arguments = method.arguments();
             klazz = findOrCreatePhantomType("unknown.Unknown");
@@ -1418,7 +1460,7 @@ public class DivaIRGen {
         }
         ITypeBinding[] params = list.toArray(new ITypeBinding[list.size()]);
 
-        ITypeBinding returnType = isCtor ? klazz : ((Expression)node).resolveTypeBinding();
+        ITypeBinding returnType = isCtor ? klazz : ((Expression) node).resolveTypeBinding();
         if (returnType == null) {
             returnType = findOrCreatePhantomType("unknown.Unknown");
         }
