@@ -301,12 +301,9 @@ public class DivaIRGen {
                         if (!(exp instanceof VariableDeclarationExpression)) {
                             continue;
                         }
-                        for (VariableDeclarationFragment var : (List<VariableDeclarationFragment>) ((VariableDeclarationExpression) exp)
-                                .fragments()) {
-                            ITypeBinding klazz = var.resolveBinding().getType();
-                            if (klazz.isRecovered()) {
-                                findOrCreateCloseable(klazz);
-                            }
+                        ITypeBinding klazz = ((VariableDeclarationExpression) exp).getType().resolveBinding();
+                        if (klazz != null && klazz.isRecovered()) {
+                            findOrCreateCloseable(klazz);
                         }
                     }
                     return super.visit(node);
@@ -453,7 +450,7 @@ public class DivaIRGen {
         instantiations = new LinkedHashMap<>();
     }
 
-    public static void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
+    public void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
                 processAnnotationsAux(cha, ref, (org.eclipse.jdt.core.dom.Annotation) prop);
@@ -461,7 +458,7 @@ public class DivaIRGen {
         }
     }
 
-    public static void processAnnotations(IClassHierarchy cha, Pair<MethodReference, Integer> ref,
+    public void processAnnotations(IClassHierarchy cha, Pair<MethodReference, Integer> ref,
             SingleVariableDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
@@ -470,10 +467,15 @@ public class DivaIRGen {
         }
     }
 
-    private static void processAnnotationsAux(IClassHierarchy cha, Object ref,
-            org.eclipse.jdt.core.dom.Annotation annot) {
-        String annotType = StringStuff.deployment2CanonicalTypeString(
-                annot.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
+    public void processAnnotationsAux(IClassHierarchy cha, Object ref, org.eclipse.jdt.core.dom.Annotation annot) {
+        IAnnotationBinding annotBinding = annot.resolveAnnotationBinding();
+        ITypeBinding binding;
+        if (annotBinding == null) {
+            binding = findOrCreatePhantomType(annot.getTypeName().getFullyQualifiedName());
+        } else {
+            binding = annotBinding.getAnnotationType();
+        }
+        String annotType = StringStuff.deployment2CanonicalTypeString(binding.getBinaryName().toString());
         Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
         if (annot instanceof NormalAnnotation) {
             NormalAnnotation a1 = (NormalAnnotation) annot;
@@ -494,7 +496,7 @@ public class DivaIRGen {
         annotations.get(ref).add(a);
     }
 
-    private static AnnotationsReader.ElementValue processAnnotationAux(Expression e) {
+    public AnnotationsReader.ElementValue processAnnotationAux(Expression e) {
         AnnotationsReader.ElementValue ev = null;
 
         if (e instanceof ArrayInitializer) {
