@@ -65,6 +65,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
@@ -250,6 +251,15 @@ public class DivaIRGen {
                 @Override
                 public boolean visit(SuperMethodInvocation node) {
                     IMethodBinding binding = node.resolveMethodBinding();
+                    if (binding == null) {
+                        binding = findOrCreatePhantomMethod(node);
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean visit(SuperConstructorInvocation node) {
+                    IMethodBinding binding = node.resolveConstructorBinding();
                     if (binding == null) {
                         binding = findOrCreatePhantomMethod(node);
                     }
@@ -536,6 +546,16 @@ public class DivaIRGen {
     public static class DoSuperMethodBinding {
         @Advice.OnMethodExit
         public static void exit(@Advice.This SuperMethodInvocation node,
+                @Advice.Return(readOnly = false) IMethodBinding binding) {
+            if (binding == null) {
+                binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
+            }
+        }
+    }
+
+    public static class DoSuperConstructorBinding {
+        @Advice.OnMethodExit
+        public static void exit(@Advice.This SuperConstructorInvocation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
             if (binding == null) {
                 binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
@@ -849,6 +869,7 @@ public class DivaIRGen {
             {
                 put("org.eclipse.jdt.core.dom.MethodInvocation.resolveMethodBinding", DoMethodBinding.class);
                 put("org.eclipse.jdt.core.dom.SuperMethodInvocation.resolveMethodBinding", DoSuperMethodBinding.class);
+                put("org.eclipse.jdt.core.dom.SuperConstructorInvocation.resolveConstructorBinding", DoSuperConstructorBinding.class);
                 put("org.eclipse.jdt.core.dom.ClassInstanceCreation.resolveConstructorBinding",
                         DoClassInstanceCreationBinding.class);
                 put("org.eclipse.jdt.core.dom.Name.resolveBinding", DoName.class);
@@ -1338,7 +1359,7 @@ public class DivaIRGen {
         return findOrCreatePhantomType("unknown.Unknown");
     }
 
-    public IMethodBinding findOrCreatePhantomMethod(Expression node) {
+    public IMethodBinding findOrCreatePhantomMethod(ASTNode node) {
 
         if (phantomMethods == null) {
             phantomMethods = new IdentityHashMap<>();
@@ -1367,6 +1388,14 @@ public class DivaIRGen {
             arguments = method.arguments();
             klazz = findOrCreatePhantomType("unknown.Unknown");
 
+        } else if (node instanceof SuperConstructorInvocation) {
+            SuperConstructorInvocation method = (SuperConstructorInvocation)node;
+            name = "<init>";
+            arguments = method.arguments();
+            klazz = findOrCreatePhantomType("unknown.Unknown");
+            // TODO: maybe we can record the enclosing type
+            isCtor = true;
+
         } else if (node instanceof ClassInstanceCreation) {
 
             ClassInstanceCreation method = (ClassInstanceCreation) node;
@@ -1389,7 +1418,7 @@ public class DivaIRGen {
         }
         ITypeBinding[] params = list.toArray(new ITypeBinding[list.size()]);
 
-        ITypeBinding returnType = isCtor ? klazz : node.resolveTypeBinding();
+        ITypeBinding returnType = isCtor ? klazz : ((Expression)node).resolveTypeBinding();
         if (returnType == null) {
             returnType = findOrCreatePhantomType("unknown.Unknown");
         }
