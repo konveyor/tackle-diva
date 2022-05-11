@@ -101,3 +101,10 @@ build:
 clean:
 	find $(base_dir) -name __pycache__ | xargs rm -rf 
 	find $(base_dir) -name .pytest_cache | xargs rm -rf 
+
+#
+# tests.
+#
+test:
+	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app && ls -lFR --color /tmp/out/trading-app
+	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -l oracle -f "$(base_dir)/plsql-example" &&	ls -lFR --color /tmp/out/app

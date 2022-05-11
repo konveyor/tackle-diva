@@ -3,8 +3,10 @@
 
 # Note for developers:
 #   if you have "readlink -f" enabled, the following one-liner works:
-#   docker run -it --rm -v $(readlink -f _out):/out diva-migrator:latest \
+#   docker run -it --rm -v $(readlink -f <outdir>):/out diva-migrator:latest \
 #       -o /out https://github.com/saud-aslam/trading-app
+
+set -e  # abort on error
 
 # ensure the given command sequence exists.
 function ensure_command() {
@@ -75,7 +77,7 @@ OUTDIR=$(abspath ${outdir})
 # if files is defined, mount spcified directory to /in
 if  [[ -n ${files+x} ]]; then
     files_flag="-v"
-    files_mount="${REPO_URL}:/in"
+    files_mount="${REPO_URL}":/in
     REPO_URL="/in"
 fi
 
@@ -112,9 +114,17 @@ echo
 echo "running container ${IMAGE}..."
 set -x
 # need to specify "-l" (as login shell) to be able to execute locally installed Python module.
-docker run -it --rm \
-    -u vscode \
-    -v ${OUTDIR}:/out \
-    ${files_flag} ${files_mount} \
-    ${IMAGE} \
-    bash -l /work/migrate.sh -o /out ${init_file_opt} ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container
+if  [[ -n ${files+x} ]]; then
+    docker run -it --rm \
+        -u vscode \
+        -v ${OUTDIR}:/out \
+        -v "${files_mount}" \
+        ${IMAGE} \
+        bash -l /work/migrate.sh -o /out ${init_file_opt} ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container
+else
+    docker run -it --rm \
+        -u vscode \
+        -v ${OUTDIR}:/out \
+        ${IMAGE} \
+        bash -l /work/migrate.sh -o /out ${init_file_opt} ${lang+"-l"} ${lang} ${files:+"-f"} ${REPO_URL} # arguments to migrate.sh in container
+fi
