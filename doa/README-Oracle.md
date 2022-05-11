@@ -30,46 +30,45 @@ $ git clone .../tackle-diva.git
 $ cd tackle-diva/doa
 ```
 
-Then run the example is as follows:
+Then run the example is as follows. Note that you need to specify the **absolute path** of the input directory:
 
 ```
 bash ./run-doa.sh -l oracle -f "$(pwd)/plsql-example"
 ```
 
+> If your environment has `readlink -f` command option, you can also use
+>
+> ```
+> bash ./run-doa.sh -l oracle -f "$(readlink -f ./plsql-example)"
+> ```
+
 Output is as follows:
 
 ```
---------------------
-DiVA-DOA wrapper
---------------------
-
-running container diva-doa:latest...
-
 ------------------------
-DiVA-DOA v2.1.0
+DiVA-DOA v2.2.0
 ------------------------
 ...
 
 analyzing SQL scripts...
 ...
-
 Analysis results:
 
-Total number of SQLs : 2
+Total number of SQLs: 1154
 
-Number of SQLs (Oracle dialects) : 1 (50.0%)
-Number of SQLs (Generic): 1 (50.0%)
+Number of SQLs (Oracle dialects): 1154 (100.0%)
+Number of SQLs (Generic): 0 (0.0%)
 
-Number of SQLs automatically translated for Postgres: 1 (100.0%)
-Number of SQLs requires manual revisions: 0 (0.0%)
-  Local Index: 0
+Number of SQLs automatically translated for Postgres: 1150 (99.7%)
+Number of SQLs required manual revisions: 4 (0.3%)
+  Local Index: 4
   Bitmap Index: 0
 
-...
 [OK] successfully completed.
 ```
 
 Here assessment statistics is shown, which includes total number of files, ones with/without Oracle dialects, and possibility of automatic conversion that preserves its semantics.
+See [docs/conversion-analysis.md](docs/conversion-analysis.md) for detail.
 
 **When successfully executed, manifest files are generated at `./output/app`.
 Note that application name will be "app" when `-f` is specified.

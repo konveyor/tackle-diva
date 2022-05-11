@@ -57,7 +57,7 @@ OUTDIR=$(readlink -f ${outdir})
 # log
 echo
 cyan "------------------------"
-cyan "DiVA-DOA v2.2.0"
+cyan "DiVA-DOA v2.2.1"
 cyan "------------------------"
 echo "this script = $(readlink -f $0)"
 echo "pwd = $(pwd)"
