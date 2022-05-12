@@ -281,14 +281,14 @@ public class DivaIRGen {
                     return true;
                 }
 
-                @Override
-                public boolean visit(SimpleName node) {
-                    IBinding binding = node.resolveBinding();
-                    if (binding == null) {
-                        LOGGER.fine(node + "->" + binding);
-                    }
-                    return true;
-                }
+                // @Override
+                // public boolean visit(SimpleName node) {
+                // IBinding binding = node.resolveBinding();
+                // if (binding == null) {
+                // LOGGER.fine(node + "->" + binding);
+                // }
+                // return true;
+                // }
 
                 @Override
                 public boolean visit(TryStatement node) {
