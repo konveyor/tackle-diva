@@ -65,6 +65,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
@@ -87,7 +88,6 @@ import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.ModuleEntry;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
-import com.ibm.wala.shrikeBT.Constants;
 import com.ibm.wala.shrikeCT.AnnotationsReader;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
@@ -194,14 +194,25 @@ public class DivaIRGen {
     public static final Map<String, String> importsKnownToDiva = new HashMap<>();
 
     static {
-        for (Field f : Constants.class.getDeclaredFields()) {
+        for (Field f : io.tackle.diva.Constants.class.getDeclaredFields()) {
             if (f.getType() == TypeName.class) {
                 try {
-                    String t = ((TypeName) f.get(null)).toString();
+                    String t = StringStuff.jvmToBinaryName(((TypeName) f.get(null)).toString());
                     String name = t.substring(t.toString().lastIndexOf('.') + 1);
                     importsKnownToDiva.put(name, t);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
                 }
+            }
+        }
+    }
+
+    public static final void loadKnownIntefaces(IClassHierarchy cha) {
+        for (String klazz : importsKnownToDiva.values()) {
+            TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+            IClassLoader loader = cha.getLoader(ClassLoaderReference.Application);
+            if (loader.lookupClass(t) == null) {
+                TypeReference classRef = TypeReference.findOrCreate(ClassLoaderReference.Extension, t);
+                cha.addClass(new DivaPhantomClass(classRef, cha, true));
             }
         }
     }
@@ -247,6 +258,15 @@ public class DivaIRGen {
                 }
 
                 @Override
+                public boolean visit(SuperConstructorInvocation node) {
+                    IMethodBinding binding = node.resolveConstructorBinding();
+                    if (binding == null) {
+                        binding = findOrCreatePhantomMethod(node);
+                    }
+                    return true;
+                }
+
+                @Override
                 public boolean visit(ClassInstanceCreation node) {
                     // System.out.println(node);
                     IMethodBinding binding = node.resolveConstructorBinding();
@@ -281,12 +301,9 @@ public class DivaIRGen {
                         if (!(exp instanceof VariableDeclarationExpression)) {
                             continue;
                         }
-                        for (VariableDeclarationFragment var : (List<VariableDeclarationFragment>) ((VariableDeclarationExpression) exp)
-                                .fragments()) {
-                            ITypeBinding klazz = var.resolveBinding().getType();
-                            if (klazz.isRecovered()) {
-                                findOrCreateCloseable(klazz);
-                            }
+                        ITypeBinding klazz = ((VariableDeclarationExpression) exp).getType().resolveBinding();
+                        if (klazz != null && klazz.isRecovered()) {
+                            findOrCreateCloseable(klazz);
                         }
                     }
                     return super.visit(node);
@@ -412,14 +429,20 @@ public class DivaIRGen {
 
     }
 
-//    public static Map<String, List<Annotation>> annotations = new LinkedHashMap<>();
-//    public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations = new LinkedHashMap<>();
+    // public static Map<String, List<Annotation>> annotations = new
+    // LinkedHashMap<>();
+    // public static Map<TypeName, Map<TypeName, List<TypeName>>> instantiations =
+    // new LinkedHashMap<>();
 
     public static Map<Object, List<Annotation>> annotations;
-//    public static Map<TypeReference, List<Annotation>> classAnnotations = new LinkedHashMap<>();
-//    public static Map<MethodReference, List<Annotation>> methodAnnotations = new LinkedHashMap<>();
-//    public static Map<FieldReference, List<Annotation>> fieldAnnotations = new LinkedHashMap<>();
-//    public static Map<Pair<MethodReference, Integer>, List<Annotation>> paramAnnotations = new LinkedHashMap<>();
+    // public static Map<TypeReference, List<Annotation>> classAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<MethodReference, List<Annotation>> methodAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<FieldReference, List<Annotation>> fieldAnnotations = new
+    // LinkedHashMap<>();
+    // public static Map<Pair<MethodReference, Integer>, List<Annotation>>
+    // paramAnnotations = new LinkedHashMap<>();
     public static Map<TypeReference, Map<TypeName, List<TypeName>>> instantiations;
 
     public static void init() {
@@ -427,7 +450,7 @@ public class DivaIRGen {
         instantiations = new LinkedHashMap<>();
     }
 
-    public static void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
+    public void processAnnotations(IClassHierarchy cha, Object ref, BodyDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
                 processAnnotationsAux(cha, ref, (org.eclipse.jdt.core.dom.Annotation) prop);
@@ -435,7 +458,7 @@ public class DivaIRGen {
         }
     }
 
-    public static void processAnnotations(IClassHierarchy cha, Pair<MethodReference, Integer> ref,
+    public void processAnnotations(IClassHierarchy cha, Pair<MethodReference, Integer> ref,
             SingleVariableDeclaration node) {
         for (ASTNode prop : (List<ASTNode>) node.modifiers()) {
             if (prop instanceof org.eclipse.jdt.core.dom.Annotation) {
@@ -444,10 +467,15 @@ public class DivaIRGen {
         }
     }
 
-    private static void processAnnotationsAux(IClassHierarchy cha, Object ref,
-            org.eclipse.jdt.core.dom.Annotation annot) {
-        String annotType = StringStuff.deployment2CanonicalTypeString(
-                annot.resolveAnnotationBinding().getAnnotationType().getBinaryName().toString());
+    public void processAnnotationsAux(IClassHierarchy cha, Object ref, org.eclipse.jdt.core.dom.Annotation annot) {
+        IAnnotationBinding annotBinding = annot.resolveAnnotationBinding();
+        ITypeBinding binding;
+        if (annotBinding == null) {
+            binding = findOrCreatePhantomType(annot.getTypeName().getFullyQualifiedName());
+        } else {
+            binding = annotBinding.getAnnotationType();
+        }
+        String annotType = StringStuff.deployment2CanonicalTypeString(binding.getBinaryName().toString());
         Map<String, AnnotationsReader.ElementValue> namedParams = new LinkedHashMap<>();
         if (annot instanceof NormalAnnotation) {
             NormalAnnotation a1 = (NormalAnnotation) annot;
@@ -468,7 +496,7 @@ public class DivaIRGen {
         annotations.get(ref).add(a);
     }
 
-    private static AnnotationsReader.ElementValue processAnnotationAux(Expression e) {
+    public AnnotationsReader.ElementValue processAnnotationAux(Expression e) {
         AnnotationsReader.ElementValue ev = null;
 
         if (e instanceof ArrayInitializer) {
@@ -526,6 +554,16 @@ public class DivaIRGen {
     public static class DoSuperMethodBinding {
         @Advice.OnMethodExit
         public static void exit(@Advice.This SuperMethodInvocation node,
+                @Advice.Return(readOnly = false) IMethodBinding binding) {
+            if (binding == null) {
+                binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
+            }
+        }
+    }
+
+    public static class DoSuperConstructorBinding {
+        @Advice.OnMethodExit
+        public static void exit(@Advice.This SuperConstructorInvocation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
             if (binding == null) {
                 binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
@@ -643,11 +681,22 @@ public class DivaIRGen {
 
     public static class DoGetTypeBinding {
         @Advice.OnMethodExit
-        public static void enter(@Advice.Return(readOnly = false) ITypeBinding binding) {
+        public static void exit(@Advice.Return(readOnly = false) ITypeBinding binding) {
             if (binding != null) {
                 if (isBroken(binding)) {
                     binding = DivaIRGen.current.findOrCreateUnknownPhantomType(binding);
                 }
+            }
+        }
+    }
+
+    public static class DoRecoveredBinaryName {
+        @Advice.OnMethodExit
+        public static void exit(@Advice.FieldValue("binding") Object binding,
+                @Advice.Return(readOnly = false) String res) {
+            String bindingStr = binding.toString();
+            if (bindingStr.contains("[closestMatch=[MISSING:")) {
+                res = bindingStr.substring(bindingStr.lastIndexOf(':') + 1, bindingStr.length() - 2);
             }
         }
     }
@@ -662,12 +711,12 @@ public class DivaIRGen {
         }
     }
 
-//    public static class DoGetDirectInterfaces {
-//        @Advice.OnMethodExit(onThrowable = AssertionError.class)
-//        public static void exit(@Advice.Thrown(readOnly = false) AssertionError e) {
-//            e = null;
-//        }
-//    }
+    // public static class DoGetDirectInterfaces {
+    // @Advice.OnMethodExit(onThrowable = AssertionError.class)
+    // public static void exit(@Advice.Thrown(readOnly = false) AssertionError e) {
+    // e = null;
+    // }
+    // }
 
     // public static class DoGetAnnotationType {
     // @Advice.OnMethodExit
@@ -758,6 +807,28 @@ public class DivaIRGen {
 
     }
 
+    public static class DoSourceLoaderClassDirectInterfaces {
+
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean enter() {
+            return true;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.FieldValue("superTypeNames") Collection<TypeName> superTypeNames,
+                @Advice.FieldValue("this$0") JavaSourceLoaderImpl loader, @Advice.Return(readOnly = false) IClass res) {
+            List<IClass> result = new ArrayList<>();
+            for (TypeName name : superTypeNames) {
+                IClass domoType = loader.lookupClass(name);
+                if (domoType == null) {
+
+                }
+
+            }
+        }
+
+    }
+
     public static class DoBytecodeClassSuperclass {
 
         @Advice.OnMethodExit
@@ -839,6 +910,8 @@ public class DivaIRGen {
             {
                 put("org.eclipse.jdt.core.dom.MethodInvocation.resolveMethodBinding", DoMethodBinding.class);
                 put("org.eclipse.jdt.core.dom.SuperMethodInvocation.resolveMethodBinding", DoSuperMethodBinding.class);
+                put("org.eclipse.jdt.core.dom.SuperConstructorInvocation.resolveConstructorBinding",
+                        DoSuperConstructorBinding.class);
                 put("org.eclipse.jdt.core.dom.ClassInstanceCreation.resolveConstructorBinding",
                         DoClassInstanceCreationBinding.class);
                 put("org.eclipse.jdt.core.dom.Name.resolveBinding", DoName.class);
@@ -850,15 +923,17 @@ public class DivaIRGen {
                 put("org.eclipse.jdt.core.dom.MethodBinding.overrides", DoOverrides.class);
                 put("org.eclipse.jdt.core.dom.MethodBinding.getParameterTypes", DoGetParameterTypes.class);
                 put("org.eclipse.jdt.core.dom.DefaultBindingResolver.getTypeBinding", DoGetTypeBinding.class);
+                put("org.eclipse.jdt.core.dom.RecoveredTypeBinding.getBinaryName", DoRecoveredBinaryName.class);
                 put("com.ibm.wala.shrikeCT.ClassReader.<init>", DoShrikeCTParse.class);
-                // put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getDirectInterfaces",
-                // DoGetDirectInterfaces.class);
+
                 put("com.ibm.wala.cast.java.translator.jdt.JDTJava2CAstTranslator.visitNode",
                         DoJDT2CastVisitNode.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTTypeDictionary.getCAstTypeFor", DoGetCAstTypeFor.class);
                 put("com.ibm.wala.cast.java.translator.jdt.JDTIdentityMapper.typeToTypeID", DoTypeToTypeId.class);
                 put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl$JavaClass.getSuperclass",
                         DoSourceLoaderClassSuperclass.class);
+                // put("com.ibm.wala.cast.java.loader.JavaSourceLoaderImpl%JavaClass.getDirectInterfaces",
+                // DoSourceLoaderClassDirectInterfaces.class);
                 // binary analysis
                 put("com.ibm.wala.classLoader.BytecodeClass.getSuperclass", DoBytecodeClassSuperclass.class);
                 put("com.ibm.wala.ipa.callgraph.cha.CHACallGraph.isRelevantMethod", DoCHACallGraph.class);
@@ -1328,7 +1403,7 @@ public class DivaIRGen {
         return findOrCreatePhantomType("unknown.Unknown");
     }
 
-    public IMethodBinding findOrCreatePhantomMethod(Expression node) {
+    public IMethodBinding findOrCreatePhantomMethod(ASTNode node) {
 
         if (phantomMethods == null) {
             phantomMethods = new IdentityHashMap<>();
@@ -1357,6 +1432,14 @@ public class DivaIRGen {
             arguments = method.arguments();
             klazz = findOrCreatePhantomType("unknown.Unknown");
 
+        } else if (node instanceof SuperConstructorInvocation) {
+            SuperConstructorInvocation method = (SuperConstructorInvocation) node;
+            name = "<init>";
+            arguments = method.arguments();
+            klazz = findOrCreatePhantomType("unknown.Unknown");
+            // TODO: maybe we can record the enclosing type
+            isCtor = true;
+
         } else if (node instanceof ClassInstanceCreation) {
 
             ClassInstanceCreation method = (ClassInstanceCreation) node;
@@ -1379,7 +1462,7 @@ public class DivaIRGen {
         }
         ITypeBinding[] params = list.toArray(new ITypeBinding[list.size()]);
 
-        ITypeBinding returnType = isCtor ? klazz : node.resolveTypeBinding();
+        ITypeBinding returnType = isCtor ? klazz : ((Expression) node).resolveTypeBinding();
         if (returnType == null) {
             returnType = findOrCreatePhantomType("unknown.Unknown");
         }

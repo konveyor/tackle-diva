@@ -100,6 +100,7 @@ public interface Constants {
 
     // JDBC
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
+    TypeName LJavaSqlStatement = TypeName.findOrCreate("Ljava/sql/Statement");
     TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
     TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");
     TypeName LJavaSqlResultSet = TypeName.findOrCreate("Ljava/sql/ResultSet");

@@ -155,6 +155,8 @@ public class Standalone {
                         return new DivaSourceLoaderImpl(classLoaderReference, parent, cha, stdlibs);
                     }
                 });
+        DivaIRGen.loadKnownIntefaces(cha);
+
         Util.LOGGER.info("Done class hierarchy: " + cha.getNumberOfClasses() + " classes");
         Util.LOGGER.fine(Warnings.asString());
 
