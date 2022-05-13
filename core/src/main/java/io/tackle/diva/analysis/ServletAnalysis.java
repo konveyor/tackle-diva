@@ -312,7 +312,8 @@ public class ServletAnalysis {
                     if (other instanceof HttpParameterConstraint) {
                         if (key.equals(((HttpParameterConstraint) other).key))
                             return true;
-                        return !fw.isReachable(((HttpParameterConstraint) other).node, node);
+                        return !fw.isReachable(((HttpParameterConstraint) other).node, node)
+                                && !fw.isReachable(node, ((HttpParameterConstraint) other).node);
                     }
                     return false;
                 }

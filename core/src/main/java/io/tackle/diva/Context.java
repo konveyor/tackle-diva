@@ -162,6 +162,8 @@ public class Context extends ArrayList<Constraint> {
         return visited;
     }
 
+    public static int MAX_NUM_CONTEXTS = 4096;
+
     public static List<Context> calculateDefaultContexts(Framework fw) throws IOException {
         // calculate cross product of constraint groups
         LinkedHashSet<Context> result = new LinkedHashSet<>();
@@ -179,7 +181,7 @@ public class Context extends ArrayList<Constraint> {
             k++;
         }
 
-        outer: while (true) {
+        outer: while (result.size() < MAX_NUM_CONTEXTS) {
             Context cxt = new Context();
 
             for (k = 0; k < cs.length; k++) {
