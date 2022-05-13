@@ -251,6 +251,7 @@ public class Framework {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
                     LOGGER.info("skpping " + sha1 + " " + file.getName());
+                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" + file.getName() + "\");");
                 } else {
                     jars.add(fileName);
                 }
@@ -937,8 +938,8 @@ public class Framework {
                 }
             }
             Thread.interrupted(); // assuming no interrupt afterwards
+            threadPool.shutdown();
         }
-        threadPool.shutdown();
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {
