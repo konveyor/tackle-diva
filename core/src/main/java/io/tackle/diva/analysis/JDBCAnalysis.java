@@ -212,7 +212,7 @@ public class JDBCAnalysis {
 
     public static String calculateReachingString(Framework fw, Trace.Val value, Set<IntPair> visited) {
 
-        if (value == null) {
+        if (value == null || value.isParam()) {
             return "??";
         }
 
