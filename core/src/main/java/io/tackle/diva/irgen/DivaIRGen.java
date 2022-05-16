@@ -260,7 +260,7 @@ public class DivaIRGen {
                 @Override
                 public boolean visit(SuperConstructorInvocation node) {
                     IMethodBinding binding = node.resolveConstructorBinding();
-                    if (binding == null) {
+                    if (binding == null || binding.getParameterTypes().length != node.arguments().size()) {
                         binding = findOrCreatePhantomMethod(node);
                     }
                     return true;
@@ -565,7 +565,7 @@ public class DivaIRGen {
         @Advice.OnMethodExit
         public static void exit(@Advice.This SuperConstructorInvocation node,
                 @Advice.Return(readOnly = false) IMethodBinding binding) {
-            if (binding == null) {
+            if (binding == null || binding.getParameterTypes().length != node.arguments().size()) {
                 binding = DivaIRGen.current.findOrCreatePhantomMethod(node);
             }
         }
