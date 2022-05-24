@@ -24,6 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -36,7 +37,9 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
-import com.ibm.wala.util.intset.IntPair;
+
+import io.tackle.diva.Constraint.BranchingConstraint;
+import io.tackle.diva.Constraint.EntryConstraint;
 
 public class Context extends ArrayList<Constraint> {
 
@@ -91,26 +94,26 @@ public class Context extends ArrayList<Constraint> {
     }
 
     public BitVector calculateReachable(CGNode n) {
-        BitVector visited = new BitVector();
-        BitVector todo = new BitVector();
-        BitVector fallenThru = new BitVector();
-        BitVector taken = new BitVector();
+        BitVector reachable = null;
 
         for (Constraint con : this) {
-            if (con instanceof Constraint.BranchingConstraint) {
-                Constraint.BranchingConstraint c = (Constraint.BranchingConstraint) con;
-                for (IntPair key : c.fallenThruBranches()) {
-                    if (key.getX() != n.getGraphNodeId())
-                        continue;
-                    fallenThru.set(key.getY());
-                }
-                for (IntPair key : c.takenBranches()) {
-                    if (key.getX() != n.getGraphNodeId())
-                        continue;
-                    taken.set(key.getY());
+            if (con instanceof BranchingConstraint) {
+                Map<Integer, BitVector> reaching = ((BranchingConstraint) con).reachingInstrs();
+                if (reaching.containsKey(n.getGraphNodeId())) {
+                    if (reachable == null) {
+                        reachable = reaching.get(n.getGraphNodeId());
+                    } else {
+                        reachable = BitVector.and(reachable, reaching.get(n.getGraphNodeId()));
+                    }
                 }
             }
         }
+        if (reachable != null)
+            return reachable;
+
+        // otherwise select non-exceptional code
+        BitVector visited = new BitVector();
+        BitVector todo = new BitVector();
 
         IR ir = n.getIR();
         int i = 0;
@@ -126,15 +129,12 @@ public class Context extends ArrayList<Constraint> {
             SSAInstruction instr = ir.getInstructions()[i];
 
             if (instr instanceof SSAConditionalBranchInstruction) {
-                if (!fallenThru.get(i)) {
-                    SSAConditionalBranchInstruction c = (SSAConditionalBranchInstruction) instr;
-                    if (c.getTarget() >= 0 && !visited.contains(c.getTarget())) {
-                        todo.set(c.getTarget());
-                    }
+
+                SSAConditionalBranchInstruction c = (SSAConditionalBranchInstruction) instr;
+                if (c.getTarget() >= 0 && !visited.contains(c.getTarget())) {
+                    todo.set(c.getTarget());
                 }
-                if (taken.get(i)) {
-                    continue;
-                }
+
             } else if (instr instanceof SSASwitchInstruction) {
                 SSASwitchInstruction c = (SSASwitchInstruction) instr;
                 for (int l : c.getCasesAndLabels()) {
@@ -166,42 +166,38 @@ public class Context extends ArrayList<Constraint> {
 
     public static List<Context> calculateDefaultContexts(Framework fw) throws IOException {
         // calculate cross product of constraint groups
+
         LinkedHashSet<Context> result = new LinkedHashSet<>();
 
         if (fw.constraints.isEmpty())
             return Collections.emptyList();
 
-        int[] counter = new int[fw.constraints.size()];
-        List<Constraint>[] cs = new List[fw.constraints.size()];
-
-        int k = 0;
-        for (List<Constraint> c : fw.constraints.values()) {
-            counter[k] = 0;
-            cs[k] = c;
-            k++;
+        List<Constraint> cons = new ArrayList<>();
+        for (List<Constraint> cs : fw.constraints.values()) {
+            cons.addAll(cs);
         }
 
-        outer: while (result.size() < MAX_NUM_CONTEXTS) {
+        Stack<Stack<Integer>> stack = new Stack<>();
+        stack.add(new Stack<>());
+        while (result.size() < MAX_NUM_CONTEXTS && !stack.isEmpty()) {
+            Stack<Integer> v = stack.pop();
+            for (int k = v.isEmpty() ? 0 : v.peek() + 1; k < cons.size(); k++) {
+                Constraint c = cons.get(k);
+                if (v.isEmpty() && !(c instanceof EntryConstraint))
+                    continue;
+                if (Util.any(v, i -> cons.get(i).forbids(c) || c.forbids(cons.get(i))))
+                    continue;
+                Stack<Integer> w = new Stack<>();
+                w.addAll(v);
+                w.add(k);
+                stack.push(w);
+            }
+            if (v.isEmpty())
+                continue;
             Context cxt = new Context();
-
-            for (k = 0; k < cs.length; k++) {
-                Constraint r = cs[k].get(counter[k]);
-                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r)))
-                    cxt.add(r);
-
-            }
+            for (Constraint c2 : Util.map(v, cons::get))
+                cxt.add(c2);
             result.add(cxt);
-
-            counter[cs.length - 1] += 1;
-            for (k = cs.length - 1; k >= 0; k--) {
-                if (counter[k] < cs[k].size()) {
-                    break;
-                }
-                if (k == 0)
-                    break outer;
-                counter[k] = 0;
-                counter[k - 1] += 1;
-            }
         }
 
         List<Object> json = new ArrayList<>();
