@@ -13,6 +13,7 @@ limitations under the License.
 
 package io.tackle.diva;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -484,15 +485,18 @@ public class Trace extends Util.Chain<Trace> {
                 return this.new Val(phi);
             }
         }
-        for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
+        Collection<ISSABasicBlock> preds = ir.getControlFlowGraph().getNormalPredecessors(bb);
+        for (ISSABasicBlock pred : preds) {
             if (pred.getFirstInstructionIndex() > index)
                 continue;
-            int bbid = pred.getNumber();
-            IntPair key = IntPair.make(this.node().getGraphNodeId(), bbid);
-            if (visited.contains(key)) {
-                continue;
+            if (preds.size() > 1) {
+                int bbid = pred.getNumber();
+                IntPair key = IntPair.make(this.node().getGraphNodeId(), bbid);
+                if (visited.contains(key)) {
+                    continue;
+                }
+                visited.add(key);
             }
-            visited.add(key);
             Trace.Val v0 = getReceiverUseOrDef(pred, index, number, visited);
             if (v0 != null)
                 return v0;
