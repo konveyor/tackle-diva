@@ -19,11 +19,13 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -93,8 +95,10 @@ public class Context extends ArrayList<Constraint> {
     public Context() {
     }
 
-    public BitVector calculateReachable(CGNode n) {
+    public BitVector calculateReachable(Framework fw, CGNode n) {
         BitVector reachable = null;
+
+        Set<Pair<String, String>> knownKeys = new HashSet<>();
 
         for (Constraint con : this) {
             if (con instanceof BranchingConstraint) {
@@ -107,7 +111,24 @@ public class Context extends ArrayList<Constraint> {
                     }
                 }
             }
+            knownKeys.add(Pair.make(con.category(), con.type()));
         }
+
+        for (Map.Entry<Pair<String, String>, List<Constraint>> e : fw.constraints.entrySet()) {
+            if (!knownKeys.contains(e.getKey()) && e.getValue().get(0) instanceof BranchingConstraint) {
+                Map<Integer, BitVector> reaching = ((BranchingConstraint) e.getValue().get(0)).defaultConstraint()
+                        .reachingInstrs();
+                if (reaching.containsKey(n.getGraphNodeId())) {
+                    if (reachable == null) {
+                        reachable = reaching.get(n.getGraphNodeId());
+                    } else {
+                        reachable = BitVector.and(reachable, reaching.get(n.getGraphNodeId()));
+                    }
+                }
+            }
+
+        }
+
         if (reachable != null)
             return reachable;
 
@@ -173,8 +194,15 @@ public class Context extends ArrayList<Constraint> {
             return Collections.emptyList();
 
         List<Constraint> cons = new ArrayList<>();
-        for (List<Constraint> cs : fw.constraints.values()) {
-            cons.addAll(cs);
+
+        for (Constraint c : Util.flatMap(fw.constraints.values(), v -> v)) {
+            if (c instanceof EntryConstraint)
+                cons.add(c);
+        }
+        for (Constraint c : Util.flatMap(fw.constraints.values(), v -> v)) {
+            if (c instanceof EntryConstraint)
+                continue;
+            cons.add(c);
         }
 
         Stack<Stack<Integer>> stack = new Stack<>();

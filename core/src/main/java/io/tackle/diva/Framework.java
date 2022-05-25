@@ -700,7 +700,7 @@ public class Framework {
                 SSAInstruction instr = (SSAInstruction) o;
                 if (instr instanceof SSAPhiInstruction)
                     continue;
-                if (!trace.in(instr))
+                if (!trace.in(this, instr))
                     continue;
                 visitor.visitInstruction(trace, instr);
                 if (!(instr instanceof SSAAbstractInvokeInstruction))

@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -56,6 +57,7 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
+import com.ibm.wala.util.intset.IntIterator;
 
 import io.tackle.diva.irgen.DivaIRGen;
 import net.bytebuddy.ByteBuddy;
@@ -145,8 +147,7 @@ public class Util {
         // String key = f.getDeclaringClass().getName() + " " + f.getName();
         Collection<Annotation> as;
         if (f.getDeclaringClass().getClassLoader() instanceof JavaSourceLoaderImpl) {
-            as = DivaIRGen.annotations
-                    .get(Pair.make(f.getDeclaringClass().getReference(), f.getName()));
+            as = DivaIRGen.annotations.get(Pair.make(f.getDeclaringClass().getReference(), f.getName()));
         } else {
             as = f.getAnnotations();
         }
@@ -425,6 +426,82 @@ public class Util {
             @Override
             public E next() {
                 return j == null ? i.next() : j.next();
+            }
+        };
+    }
+
+    public static <E, F> Iterable<F> flatMap(Iterable<E> a, Function<E, Iterable<F>> b) {
+        return () -> new Iterator<F>() {
+            Iterator<E> i = a.iterator();
+            Iterator<F> j = null;
+
+            @Override
+            public boolean hasNext() {
+                while (true) {
+                    if (j != null && j.hasNext()) {
+                        return true;
+                    } else if (i.hasNext()) {
+                        j = b.apply(i.next()).iterator();
+                        continue;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            @Override
+            public F next() {
+                if (j == null && !hasNext()) {
+                    return null;
+                }
+                return j.next();
+            }
+        };
+    }
+
+    static Iterator<?> EMPTY_ITER = new Iterator<Object>() {
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+        @Override
+        public Object next() {
+            return null;
+        }
+    };
+
+    public static <E> Iterable<E> empty() {
+        return () -> (Iterator<E>) EMPTY_ITER;
+    }
+
+    public static Iterable<Integer> range(int x) {
+        return () -> new Iterator<Integer>() {
+            int i = 0;
+
+            @Override
+            public boolean hasNext() {
+                return i < x;
+            }
+
+            @Override
+            public Integer next() {
+                return i++;
+            }
+        };
+    }
+
+    public static Iterable<Integer> makeIterable(Supplier<IntIterator> x) {
+        return () -> new Iterator<Integer>() {
+            IntIterator i = x.get();
+
+            @Override
+            public boolean hasNext() {
+                return i.hasNext();
+            }
+
+            @Override
+            public Integer next() {
+                return i.next();
             }
         };
     }

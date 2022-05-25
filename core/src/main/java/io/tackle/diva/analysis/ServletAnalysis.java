@@ -171,7 +171,7 @@ public class ServletAnalysis {
          * irrelevant) entry methods
          */
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
-        Map<String, Constraint.BranchingConstraint> otherwiseCache = new LinkedHashMap<>();
+        Map<String, Constraint.BranchingConstraint> defaultConstraintCache = new LinkedHashMap<>();
 
         return (Trace trace, SSAInstruction instr) -> {
 
@@ -323,11 +323,11 @@ public class ServletAnalysis {
                 }
 
                 @Override
-                public BranchingConstraint otherwise() {
-                    if (!otherwiseCache.containsKey(key)) {
-                        otherwiseCache.put(key, new HttpParameterConstraint(fw, key, "") {
+                public BranchingConstraint defaultConstraint() {
+                    if (!defaultConstraintCache.containsKey(key)) {
+                        defaultConstraintCache.put(key, new HttpParameterConstraint(fw, key, "") {
                             @Override
-                            public BranchingConstraint otherwise() {
+                            public BranchingConstraint defaultConstraint() {
                                 return this;
                             }
                             @Override
@@ -344,7 +344,7 @@ public class ServletAnalysis {
                             }
                         });
                     }
-                    return otherwiseCache.get(key);
+                    return defaultConstraintCache.get(key);
                 }
             });
 

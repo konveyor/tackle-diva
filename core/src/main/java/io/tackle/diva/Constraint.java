@@ -33,7 +33,7 @@ public interface Constraint {
 
         public abstract Set<IntPair> takenBranches();
 
-        public abstract BranchingConstraint otherwise();
+        public abstract BranchingConstraint defaultConstraint();
 
         public Map<Integer, BitVector> reachingInstrs;
 
@@ -138,7 +138,7 @@ public interface Constraint {
                 IR ir = n.getIR();
                 SSAInstruction[] instrs = ir.getInstructions();
                 BitVector thatReachingInstrs = that.reachingInstrs().getOrDefault(e.getKey(), null);
-                BitVector otherwiseReachingInstrs = otherwise().reachingInstrs().getOrDefault(e.getKey(), null);
+                BitVector defaultReachingInstrs = defaultConstraint().reachingInstrs().getOrDefault(e.getKey(), null);
                 Set<IntPair> thatBranches = that.fallenThruBranches();
                 for (int i = 0; i < instrs.length; i++) {
                     if (!(instrs[i] instanceof SSAAbstractInvokeInstruction))
@@ -153,7 +153,7 @@ public interface Constraint {
 
                     if (thatReachingInstrs != null && !thatReachingInstrs.contains(i))
                         return true;
-                    if (otherwiseReachingInstrs != null && otherwiseReachingInstrs.contains(i))
+                    if (defaultReachingInstrs != null && defaultReachingInstrs.contains(i))
                         continue;
 
                     for (CGNode m : fw.callgraph.getPossibleTargets(n, site)) {
