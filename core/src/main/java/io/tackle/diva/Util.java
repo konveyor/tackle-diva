@@ -58,6 +58,7 @@ import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
 import com.ibm.wala.util.intset.IntIterator;
+import com.ibm.wala.util.intset.IntSet;
 
 import io.tackle.diva.irgen.DivaIRGen;
 import net.bytebuddy.ByteBuddy;
@@ -490,9 +491,9 @@ public class Util {
         };
     }
 
-    public static Iterable<Integer> makeIterable(Supplier<IntIterator> x) {
+    public static Iterable<Integer> makeIterable(IntSet x) {
         return () -> new Iterator<Integer>() {
-            IntIterator i = x.get();
+            IntIterator i = x.intIterator();
 
             @Override
             public boolean hasNext() {

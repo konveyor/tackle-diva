@@ -39,10 +39,13 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
+import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.IntSet;
 
 import io.tackle.diva.Constraint.BranchingConstraint;
 import io.tackle.diva.Constraint.EntryConstraint;
 
+@SuppressWarnings("serial")
 public class Context extends ArrayList<Constraint> {
 
     public abstract class CallSiteVisitor implements Trace.CallSiteVisitor {
@@ -205,25 +208,24 @@ public class Context extends ArrayList<Constraint> {
             cons.add(c);
         }
 
-        Stack<Stack<Integer>> stack = new Stack<>();
-        stack.add(new Stack<>());
+        Stack<IntSet> stack = new Stack<>();
+        stack.add(new BitVectorIntSet());
         while (result.size() < MAX_NUM_CONTEXTS && !stack.isEmpty()) {
-            Stack<Integer> v = stack.pop();
-            for (int k = v.isEmpty() ? 0 : v.peek() + 1; k < cons.size(); k++) {
+            IntSet v = stack.pop();
+            for (int k = v.isEmpty() ? 0 : v.max() + 1; k < cons.size(); k++) {
                 Constraint c = cons.get(k);
                 if (v.isEmpty() && !(c instanceof EntryConstraint))
                     continue;
-                if (Util.any(v, i -> cons.get(i).forbids(c) || c.forbids(cons.get(i))))
+                if (Util.any(Util.makeIterable(v), i -> cons.get(i).forbids(c) || c.forbids(cons.get(i))))
                     continue;
-                Stack<Integer> w = new Stack<>();
-                w.addAll(v);
+                BitVectorIntSet w = new BitVectorIntSet(v);
                 w.add(k);
                 stack.push(w);
             }
             if (v.isEmpty())
                 continue;
             Context cxt = new Context();
-            for (Constraint c2 : Util.map(v, cons::get))
+            for (Constraint c2 : Util.map(Util.makeIterable(v), cons::get))
                 cxt.add(c2);
             result.add(cxt);
         }
@@ -248,6 +250,7 @@ public class Context extends ArrayList<Constraint> {
     public static List<Context> loadContexts(Framework fw, String file)
             throws JsonParseException, JsonMappingException, IOException {
 
+        @SuppressWarnings("unchecked")
         List<Map<String, Map<String, List<String>>>> data = (List<Map<String, Map<String, List<String>>>>) Util.YAML_SERIALIZER
                 .readValue(new File(file), Object.class);
 
