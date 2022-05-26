@@ -4,7 +4,7 @@
 
     <groupId>com.github.konveyor.tackle-diva</groupId>
     <artifactId>diva-parent</artifactId>
-    <version>0.1.10</version>
+    <version>0.1.11</version>
     <packaging>pom</packaging>
 
     <name>Tackle-DiVA parent</name>
