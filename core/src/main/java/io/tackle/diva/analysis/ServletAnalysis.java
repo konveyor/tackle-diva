@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -17,6 +17,7 @@ import static io.tackle.diva.Util.LOGGER;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,6 +50,7 @@ import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
 import io.tackle.diva.Util;
+import io.tackle.diva.Constraint.BranchingConstraint;
 
 public class ServletAnalysis {
 
@@ -169,6 +171,7 @@ public class ServletAnalysis {
          * irrelevant) entry methods
          */
         Map<String, Map<String, Set<IntPair>>> coveringBranches = new LinkedHashMap<>();
+        Map<String, Constraint.BranchingConstraint> defaultConstraintCache = new LinkedHashMap<>();
 
         return (Trace trace, SSAInstruction instr) -> {
 
@@ -302,34 +305,46 @@ public class ServletAnalysis {
             }
             coveringBranches.get(key).get(val).add(branchId);
 
-            fw.recordContraint(new HttpParameterConstraint(node, key, val) {
+            fw.recordContraint(new HttpParameterConstraint(fw, key, val) {
 
                 @Override
-                public boolean forbids(Constraint other) {
-                    if (other instanceof Constraint.EntryConstraint) {
-                        return !fw.isReachable(((Constraint.EntryConstraint) other).node(), node);
-                    }
-                    if (other instanceof HttpParameterConstraint) {
-                        if (key.equals(((HttpParameterConstraint) other).key))
-                            return true;
-                        return !fw.isReachable(((HttpParameterConstraint) other).node, node);
-                    }
-                    return false;
-                }
-
-                @Override
-                public Iterable<IntPair> fallenThruBranches() {
+                public Set<IntPair> fallenThruBranches() {
                     return coveringBranches.get(key).get(val);
                 }
 
                 @Override
-                public Iterable<IntPair> takenBranches() {
+                public Set<IntPair> takenBranches() {
                     Set<IntPair> res = new LinkedHashSet<>();
                     for (Entry<String, Set<IntPair>> e : coveringBranches.get(key).entrySet()) {
                         res.addAll(e.getValue());
                     }
                     res.removeAll(coveringBranches.get(key).get(val));
                     return res;
+                }
+
+                @Override
+                public BranchingConstraint defaultConstraint() {
+                    if (!defaultConstraintCache.containsKey(key)) {
+                        defaultConstraintCache.put(key, new HttpParameterConstraint(fw, key, "") {
+                            @Override
+                            public BranchingConstraint defaultConstraint() {
+                                return this;
+                            }
+                            @Override
+                            public Set<IntPair> takenBranches() {
+                                Set<IntPair> res = new LinkedHashSet<>();
+                                for (Entry<String, Set<IntPair>> e : coveringBranches.get(key).entrySet()) {
+                                    res.addAll(e.getValue());
+                                }
+                                return res;
+                            }
+                            @Override
+                            public Set<IntPair> fallenThruBranches() {
+                                return Collections.emptySet();
+                            }
+                        });
+                    }
+                    return defaultConstraintCache.get(key);
                 }
             });
 
@@ -338,7 +353,7 @@ public class ServletAnalysis {
         };
     }
 
-    public static abstract class HttpParameterConstraint implements Constraint.BranchingConstraint {
+    public static abstract class HttpParameterConstraint extends Constraint.BranchingConstraint {
         @Override
         public String category() {
             return Report.HTTP_PARAM;
@@ -357,14 +372,11 @@ public class ServletAnalysis {
         String key;
         String val;
 
-        public HttpParameterConstraint(CGNode node, String key, String val) {
-            super();
+        public HttpParameterConstraint(Framework fw, String key, String val) {
+            super(fw);
             this.key = key;
             this.val = val;
-            this.node = node;
         }
-
-        CGNode node;
     }
 
 }

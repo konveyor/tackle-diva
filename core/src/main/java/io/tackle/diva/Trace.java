@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -13,6 +13,7 @@ limitations under the License.
 
 package io.tackle.diva;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -427,17 +428,17 @@ public class Trace extends Util.Chain<Trace> {
         return null;
     }
 
-    public boolean in(CallSiteReference site) {
-        return in(instrFromSite(site));
+    public boolean in(Framework fw, CallSiteReference site) {
+        return in(fw, instrFromSite(site));
     }
 
-    public boolean in(SSAInstruction instr) {
+    public boolean in(Framework fw, SSAInstruction instr) {
         if (cache.context == null)
             return true;
         if (instr == null || instr.iIndex() < 0)
             return false;
         if (cache.reachingInstrs == null) {
-            cache.reachingInstrs = cache.context.calculateReachable(cache.node);
+            cache.reachingInstrs = cache.context.calculateReachable(fw, cache.node);
         }
         return cache.reachingInstrs.contains(instr.iIndex());
     }
@@ -484,15 +485,18 @@ public class Trace extends Util.Chain<Trace> {
                 return this.new Val(phi);
             }
         }
-        for (ISSABasicBlock pred : ir.getControlFlowGraph().getNormalPredecessors(bb)) {
+        Collection<ISSABasicBlock> preds = ir.getControlFlowGraph().getNormalPredecessors(bb);
+        for (ISSABasicBlock pred : preds) {
             if (pred.getFirstInstructionIndex() > index)
                 continue;
-            int bbid = pred.getNumber();
-            IntPair key = IntPair.make(this.node().getGraphNodeId(), bbid);
-            if (visited.contains(key)) {
-                continue;
+            if (preds.size() > 1) {
+                int bbid = pred.getNumber();
+                IntPair key = IntPair.make(this.node().getGraphNodeId(), bbid);
+                if (visited.contains(key)) {
+                    continue;
+                }
+                visited.add(key);
             }
-            visited.add(key);
             Trace.Val v0 = getReceiverUseOrDef(pred, index, number, visited);
             if (v0 != null)
                 return v0;

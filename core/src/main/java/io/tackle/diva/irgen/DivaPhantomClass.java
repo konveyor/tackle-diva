@@ -6,6 +6,7 @@ import java.util.Collections;
 import com.ibm.wala.cast.loader.AstMethod;
 import com.ibm.wala.cast.loader.AstMethod.LexicalParent;
 import com.ibm.wala.cast.tree.CAstQualifier;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.PhantomClass;
@@ -45,6 +46,41 @@ public class DivaPhantomClass extends PhantomClass {
     }
 
     @Override
+    public Collection<IField> getAllInstanceFields() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<? extends IClass> getDirectInterfaces() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<IClass> getAllImplementedInterfaces() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<IField> getAllStaticFields() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<IField> getAllFields() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<? extends IMethod> getAllMethods() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
+    public Collection<IField> getDeclaredStaticFields() {
+        return Collections.EMPTY_SET;
+    }
+
+    @Override
     public IMethod getClassInitializer() {
         return getMethod(Selector.make("<clinit>()V"));
     }
@@ -53,6 +89,7 @@ public class DivaPhantomClass extends PhantomClass {
     public boolean isInterface() {
         return isInterface;
     }
+
 
     @Override
     public IMethod getMethod(Selector selector) {

@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -251,6 +251,7 @@ public class Framework {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
                     LOGGER.info("skpping " + sha1 + " " + file.getName());
+                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" + file.getName() + "\");");
                 } else {
                     jars.add(fileName);
                 }
@@ -699,7 +700,7 @@ public class Framework {
                 SSAInstruction instr = (SSAInstruction) o;
                 if (instr instanceof SSAPhiInstruction)
                     continue;
-                if (!trace.in(instr))
+                if (!trace.in(this, instr))
                     continue;
                 visitor.visitInstruction(trace, instr);
                 if (!(instr instanceof SSAAbstractInvokeInstruction))
@@ -937,8 +938,8 @@ public class Framework {
                 }
             }
             Thread.interrupted(); // assuming no interrupt afterwards
+            threadPool.shutdown();
         }
-        threadPool.shutdown();
     }
 
     public void calculateTransactions(CGNode entry, Context cxt, Report report, Trace.Visitor visitor) {

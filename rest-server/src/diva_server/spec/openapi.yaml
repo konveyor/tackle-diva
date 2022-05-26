@@ -5,7 +5,7 @@ info:
   description: "Data-centric application code analysis that import a set of application codes and provides database/transaction analysis results."
   version: 1.0.0
   license:
-    name: "Eclipse Public License 2.0"
+    name: "Apache Public License 2.0"
     url: "https://github.com/konveyor/tackle-diva/blob/main/LICENSE"
 
 tags:

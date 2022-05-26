@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -100,6 +100,7 @@ public interface Constants {
 
     // JDBC
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
+    TypeName LJavaSqlStatement = TypeName.findOrCreate("Ljava/sql/Statement");
     TypeName LJavaSqlPreparedStatement = TypeName.findOrCreate("Ljava/sql/PreparedStatement");
     TypeName LJavaSqlCallableStatement = TypeName.findOrCreate("Ljava/sql/CallableStatement");
     TypeName LJavaSqlResultSet = TypeName.findOrCreate("Ljava/sql/ResultSet");

@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -79,7 +79,14 @@ public class JDBCAnalysis {
                         seeds = new ArrayList<>();
                     }
                     sql = analyzeJdbc(fw, trace, site, seeds);
+
+                } else if (ref.getDeclaringClass().getName() == Constants.LJavaSqlStatement
+                        && (ref.getName() == Constants.executeQuery || ref.getName() == Constants.executeUpdate)
+                        && ref.getNumberOfParameters() == 1) {
+                    SSAInstruction instr = trace.instrFromSite(site);
+                    sql = trace.getDef(instr.getUse(1));
                 }
+
                 if (sql != null) {
                     if (!fw.txStarted()) {
                         fw.reportSqlStatement(trace, "BEGIN");
@@ -205,7 +212,7 @@ public class JDBCAnalysis {
 
     public static String calculateReachingString(Framework fw, Trace.Val value, Set<IntPair> visited) {
 
-        if (value == null) {
+        if (value == null || value.isParam()) {
             return "??";
         }
 

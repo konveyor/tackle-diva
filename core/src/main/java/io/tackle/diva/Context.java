@@ -1,7 +1,7 @@
 /*
 Copyright IBM Corporation 2021
 
-Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
+Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -19,11 +19,14 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -36,8 +39,13 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
-import com.ibm.wala.util.intset.IntPair;
+import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.IntSet;
 
+import io.tackle.diva.Constraint.BranchingConstraint;
+import io.tackle.diva.Constraint.EntryConstraint;
+
+@SuppressWarnings("serial")
 public class Context extends ArrayList<Constraint> {
 
     public abstract class CallSiteVisitor implements Trace.CallSiteVisitor {
@@ -90,27 +98,46 @@ public class Context extends ArrayList<Constraint> {
     public Context() {
     }
 
-    public BitVector calculateReachable(CGNode n) {
-        BitVector visited = new BitVector();
-        BitVector todo = new BitVector();
-        BitVector fallenThru = new BitVector();
-        BitVector taken = new BitVector();
+    public BitVector calculateReachable(Framework fw, CGNode n) {
+        BitVector reachable = null;
+
+        Set<Pair<String, String>> knownKeys = new HashSet<>();
 
         for (Constraint con : this) {
-            if (con instanceof Constraint.BranchingConstraint) {
-                Constraint.BranchingConstraint c = (Constraint.BranchingConstraint) con;
-                for (IntPair key : c.fallenThruBranches()) {
-                    if (key.getX() != n.getGraphNodeId())
-                        continue;
-                    fallenThru.set(key.getY());
-                }
-                for (IntPair key : c.takenBranches()) {
-                    if (key.getX() != n.getGraphNodeId())
-                        continue;
-                    taken.set(key.getY());
+            if (con instanceof BranchingConstraint) {
+                Map<Integer, BitVector> reaching = ((BranchingConstraint) con).reachingInstrs();
+                if (reaching.containsKey(n.getGraphNodeId())) {
+                    if (reachable == null) {
+                        reachable = reaching.get(n.getGraphNodeId());
+                    } else {
+                        reachable = BitVector.and(reachable, reaching.get(n.getGraphNodeId()));
+                    }
                 }
             }
+            knownKeys.add(Pair.make(con.category(), con.type()));
         }
+
+        for (Map.Entry<Pair<String, String>, List<Constraint>> e : fw.constraints.entrySet()) {
+            if (!knownKeys.contains(e.getKey()) && e.getValue().get(0) instanceof BranchingConstraint) {
+                Map<Integer, BitVector> reaching = ((BranchingConstraint) e.getValue().get(0)).defaultConstraint()
+                        .reachingInstrs();
+                if (reaching.containsKey(n.getGraphNodeId())) {
+                    if (reachable == null) {
+                        reachable = reaching.get(n.getGraphNodeId());
+                    } else {
+                        reachable = BitVector.and(reachable, reaching.get(n.getGraphNodeId()));
+                    }
+                }
+            }
+
+        }
+
+        if (reachable != null)
+            return reachable;
+
+        // otherwise select non-exceptional code
+        BitVector visited = new BitVector();
+        BitVector todo = new BitVector();
 
         IR ir = n.getIR();
         int i = 0;
@@ -126,15 +153,12 @@ public class Context extends ArrayList<Constraint> {
             SSAInstruction instr = ir.getInstructions()[i];
 
             if (instr instanceof SSAConditionalBranchInstruction) {
-                if (!fallenThru.get(i)) {
-                    SSAConditionalBranchInstruction c = (SSAConditionalBranchInstruction) instr;
-                    if (c.getTarget() >= 0 && !visited.contains(c.getTarget())) {
-                        todo.set(c.getTarget());
-                    }
+
+                SSAConditionalBranchInstruction c = (SSAConditionalBranchInstruction) instr;
+                if (c.getTarget() >= 0 && !visited.contains(c.getTarget())) {
+                    todo.set(c.getTarget());
                 }
-                if (taken.get(i)) {
-                    continue;
-                }
+
             } else if (instr instanceof SSASwitchInstruction) {
                 SSASwitchInstruction c = (SSASwitchInstruction) instr;
                 for (int l : c.getCasesAndLabels()) {
@@ -162,44 +186,50 @@ public class Context extends ArrayList<Constraint> {
         return visited;
     }
 
+    public static int MAX_NUM_CONTEXTS = 4096;
+
     public static List<Context> calculateDefaultContexts(Framework fw) throws IOException {
         // calculate cross product of constraint groups
+
         LinkedHashSet<Context> result = new LinkedHashSet<>();
 
         if (fw.constraints.isEmpty())
             return Collections.emptyList();
 
-        int[] counter = new int[fw.constraints.size()];
-        List<Constraint>[] cs = new List[fw.constraints.size()];
+        List<Constraint> cons = new ArrayList<>();
 
-        int k = 0;
-        for (List<Constraint> c : fw.constraints.values()) {
-            counter[k] = 0;
-            cs[k] = c;
-            k++;
+        for (Constraint c : Util.flatMap(fw.constraints.values(), v -> v)) {
+            if (c instanceof EntryConstraint)
+                cons.add(c);
+        }
+        for (Constraint c : Util.flatMap(fw.constraints.values(), v -> v)) {
+            if (c instanceof EntryConstraint)
+                continue;
+            if (c instanceof BranchingConstraint && !((BranchingConstraint) c).isRelevant())
+                continue;
+            cons.add(c);
         }
 
-        outer: while (true) {
+        Stack<IntSet> stack = new Stack<>();
+        stack.add(new BitVectorIntSet());
+        while (result.size() < MAX_NUM_CONTEXTS && !stack.isEmpty()) {
+            IntSet v = stack.pop();
+            for (int k = v.isEmpty() ? 0 : v.max() + 1; k < cons.size(); k++) {
+                Constraint c = cons.get(k);
+                if (v.isEmpty() && !(c instanceof EntryConstraint))
+                    continue;
+                if (Util.any(Util.makeIterable(v), i -> cons.get(i).forbids(c) || c.forbids(cons.get(i))))
+                    continue;
+                BitVectorIntSet w = new BitVectorIntSet(v);
+                w.add(k);
+                stack.push(w);
+            }
+            if (v.isEmpty())
+                continue;
             Context cxt = new Context();
-
-            for (k = 0; k < cs.length; k++) {
-                Constraint r = cs[k].get(counter[k]);
-                if (!Util.any(cxt, r2 -> r.forbids(r2) || r2.forbids(r)))
-                    cxt.add(r);
-
-            }
+            for (Constraint c2 : Util.map(Util.makeIterable(v), cons::get))
+                cxt.add(c2);
             result.add(cxt);
-
-            counter[cs.length - 1] += 1;
-            for (k = cs.length - 1; k >= 0; k--) {
-                if (counter[k] < cs[k].size()) {
-                    break;
-                }
-                if (k == 0)
-                    break outer;
-                counter[k] = 0;
-                counter[k - 1] += 1;
-            }
         }
 
         List<Object> json = new ArrayList<>();
@@ -222,6 +252,7 @@ public class Context extends ArrayList<Constraint> {
     public static List<Context> loadContexts(Framework fw, String file)
             throws JsonParseException, JsonMappingException, IOException {
 
+        @SuppressWarnings("unchecked")
         List<Map<String, Map<String, List<String>>>> data = (List<Map<String, Map<String, List<String>>>>) Util.YAML_SERIALIZER
                 .readValue(new File(file), Object.class);
 

@@ -45,8 +45,10 @@ public class JPAAnalysis {
     static Logger logger = Logger.getLogger(JDBCAnalysis.class.getName());
 
     public static boolean checkRelevance(IClass c) {
-        return c.getName() == Constants.LJavaxPersistenceEntityManager || Util.any(c.getAllImplementedInterfaces(),
-                c2 -> c2.getName() == Constants.LSpringJPARepository || c2.getName() == Constants.LSpringRepository);
+        return c.getName() == Constants.LJavaxPersistenceEntityManager || c.getName() == Constants.LSpringRepository
+                || c.getName() == Constants.LSpringJPARepository
+                || Util.any(c.getAllImplementedInterfaces(), c2 -> c2.getName() == Constants.LSpringJPARepository
+                        || c2.getName() == Constants.LSpringRepository);
     }
 
     public static class TableColumn {
@@ -311,7 +313,9 @@ public class JPAAnalysis {
                     if (ref.getName() == Constants.createQuery) {
                         SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
                         Trace.Val v = trace.getDef(instr.getUse(1));
-                        if (v.isConstant()) {
+                        if (v == null) {
+                            fw.reportSqlStatement(trace, "??");
+                        } else if (v.isConstant()) {
                             fw.reportSqlStatement(trace, (String) v.constant());
                         } else {
                             fw.reportSqlStatement(trace, JDBCAnalysis.calculateReachingString(fw, v, new HashSet<>()));
