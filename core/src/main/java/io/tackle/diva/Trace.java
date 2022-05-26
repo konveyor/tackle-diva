@@ -428,17 +428,17 @@ public class Trace extends Util.Chain<Trace> {
         return null;
     }
 
-    public boolean in(CallSiteReference site) {
-        return in(instrFromSite(site));
+    public boolean in(Framework fw, CallSiteReference site) {
+        return in(fw, instrFromSite(site));
     }
 
-    public boolean in(SSAInstruction instr) {
+    public boolean in(Framework fw, SSAInstruction instr) {
         if (cache.context == null)
             return true;
         if (instr == null || instr.iIndex() < 0)
             return false;
         if (cache.reachingInstrs == null) {
-            cache.reachingInstrs = cache.context.calculateReachable(cache.node);
+            cache.reachingInstrs = cache.context.calculateReachable(fw, cache.node);
         }
         return cache.reachingInstrs.contains(instr.iIndex());
     }
