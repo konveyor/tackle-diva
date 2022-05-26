@@ -166,6 +166,36 @@ public interface Constraint {
             return false;
         }
 
+        public boolean isRelevant() {
+            for (Map.Entry<Integer, BitVector> e : reachingInstrs().entrySet()) {
+                CGNode n = fw.callgraph().getNode(e.getKey());
+                if (fw.relevance.contains(n.getGraphNodeId()))
+                    return true;
+                IR ir = n.getIR();
+                SSAInstruction[] instrs = ir.getInstructions();
+                BitVector defaultReachingInstrs = defaultConstraint().reachingInstrs().getOrDefault(e.getKey(), null);
+                for (int i = 0; i < instrs.length; i++) {
+                    if (!(instrs[i] instanceof SSAAbstractInvokeInstruction))
+                        continue;
+                    if (!e.getValue().contains(i))
+                        continue;
+                    CallSiteReference site = ((SSAAbstractInvokeInstruction) instrs[i]).getCallSite();
+                    String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                    if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/")) {
+                        continue;
+                    }
+
+                    if (defaultReachingInstrs != null && defaultReachingInstrs.contains(i))
+                        continue;
+
+                    for (CGNode m : fw.callgraph.getPossibleTargets(n, site)) {
+                        if (fw.isRelevant(m))
+                            return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
 
     class EntryConstraint implements Constraint {

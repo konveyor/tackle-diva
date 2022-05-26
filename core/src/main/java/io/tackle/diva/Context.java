@@ -205,6 +205,8 @@ public class Context extends ArrayList<Constraint> {
         for (Constraint c : Util.flatMap(fw.constraints.values(), v -> v)) {
             if (c instanceof EntryConstraint)
                 continue;
+            if (c instanceof BranchingConstraint && !((BranchingConstraint) c).isRelevant())
+                continue;
             cons.add(c);
         }
 
