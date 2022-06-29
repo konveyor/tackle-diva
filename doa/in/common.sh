@@ -6,6 +6,7 @@
 
 which tput >/dev/null && tput_found=1
 
+# yellow
 debug() {
     if [[ -v tput_found ]]; then
         tput setaf 11; echo "$1"; tput sgr0
@@ -14,12 +15,18 @@ debug() {
     fi
 }
 
+# cyan
 info() {
     if [[ -v tput_found ]]; then
         tput setaf 14; echo "$1"; tput sgr0
     else
         echo "$1"
     fi
+}
+
+# green
+ok() {
+    tput setaf 10 ; echo "$1" ; tput sgr0
 }
 
 show_vars() {
@@ -41,6 +48,7 @@ REPO_ROOT=$(readlink -f "${WORK_DIR}/..")
 
 # constants 
 
+DOA_VERSION={{version}}
 IMAGE_NAME={{image_name}}
 IMAGE_VER={{version}}
 RUN_IMAGE=${IMAGE_NAME}:latest

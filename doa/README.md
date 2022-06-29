@@ -64,11 +64,11 @@ Note that `minikube service postgres-operator-ui` automatically opens a window f
 
 See [util/start-minikube.sh](util/start-minikube.sh) to (stop and) start a new minikube cluster and install operators using `bash` on macOS.
 
-# Quickstart
+# Quickstart using `trading-app`
 
 Let us demonstrate the toolchain to adapt a `trading-app` app by saud-aslam (https://github.com/saud-aslam/trading-app).
 
-## (0) Build `diva-doa` docker image
+## (0) Clone this repository
 
 Clone this repository and go to `doa` directory.
 
@@ -78,17 +78,6 @@ $ git clone https://github.com/konveyor/tackle-diva.git
 $ cd tackle-diva/doa
 ```
 
-Build an image, needed to run just once.
-
-```bash
-$ bash util/build.sh
-
-$ docker image ls diva-doa
-REPOSITORY   TAG       IMAGE ID       CREATED        SIZE
-diva-doa     2.0.0     5f9dd8f9f0eb   19 hours ago   1.27GB
-diva-doa     latest    5f9dd8f9f0eb   19 hours ago   1.27GB
-```
-
 ## (1) Analyze target app and generate manifests
 
 > If you want to **DOA for Oracle** functionality inroduced in v2.1.0, see [README-Oracle.md](README-Oracle.md).
@@ -96,7 +85,7 @@ diva-doa     latest    5f9dd8f9f0eb   19 hours ago   1.27GB
 To analyze `trading-app`, executing the wrapper script `run-doa.sh` with arguments:
 
 ```bash
-$ bash ./run-doa.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app
+$ bash ./doa-gen-yaml.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app
 --------------------
 DiVA-DOA wrapper
 --------------------
@@ -104,7 +93,7 @@ DiVA-DOA wrapper
 running container diva-doa:latest...
 
 ------------------------
-DiVA-DOA v2.0.0
+DiVA-DOA v2.4.0
 ------------------------
 ...
 

@@ -6,6 +6,7 @@
 
 which tput >/dev/null && tput_found=1
 
+# yellow
 debug() {
     if [[ -v tput_found ]]; then
         tput setaf 11; echo "$1"; tput sgr0
@@ -14,12 +15,18 @@ debug() {
     fi
 }
 
+# cyan
 info() {
     if [[ -v tput_found ]]; then
         tput setaf 14; echo "$1"; tput sgr0
     else
         echo "$1"
     fi
+}
+
+# green
+ok() {
+    tput setaf 10 ; echo "$1" ; tput sgr0
 }
 
 show_vars() {
@@ -41,8 +48,9 @@ REPO_ROOT=$(readlink -f "${WORK_DIR}/..")
 
 # constants 
 
+DOA_VERSION=2.3.0
 IMAGE_NAME=diva-doa
-IMAGE_VER=2.2.1
+IMAGE_VER=2.3.0
 RUN_IMAGE=${IMAGE_NAME}:latest
 DOCKERFILE=${REPO_ROOT}/.devcontainer/Dockerfile
 DOCKER_CONTEXT=${REPO_ROOT}/doa

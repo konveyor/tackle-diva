@@ -105,6 +105,10 @@ clean:
 #
 # tests.
 #
-test:
+test-normal:
 	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app && ls -lFR --color /tmp/out/trading-app
+
+test-oracle:
 	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -l oracle -f "$(base_dir)/plsql-example" &&	ls -lFR --color /tmp/out/app
+
+test: test-normal test-oracle

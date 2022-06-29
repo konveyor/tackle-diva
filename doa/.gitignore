@@ -1,3 +1,6 @@
 ~*
-/output/
+output/
+out/
 stats.json
+.test.sh
+.venv

@@ -1,21 +1,29 @@
 # Development Policy, Design Document and Implementation
 
-This is a working draft of design document and development policy.
+This is a document for architecture and development convention.
 
-# Development
-
-## Overall
+# Notation
 
 We write [${ROOT}](..) for directory `tackle-diva/doa` of the `tackle-diva` repository.
 
-## Past Releases (Tags)
+# Architecture Overview
 
-- `v1.0.0`: Internal first release. (Nov., 2021)
-- `v2.0.0`: The second release (and the first public release). (Jan., 2022)
+Files related to DOA is just as follows:
 
-CHANGELOG file will be provided later.
+- ${ROOT} (`tackle-diva/doa`)
+  - [doa/](..): Root directory of DOA. All resources for developing/deploying DOA is here.
+  - [python-doa-cli/](../doa-cli): A Python library for the frontend CLI.
+  - [python-doa-lib/](../doa-lib): A Python library that implements DOA main logic. You can install it by `pip install [-e] python-doa-lib`. It is also installed in the `diva-doa` container.
 
-## Development env.
+- [doa/](../doa-cli) is a frontend CLI as an Python package. This starts `diva-doa` container 
+  - [doa-cli/](../doa-cli) is a frontend CLI as an Python package. This starts `diva-doa` container and run one of the main scripts below.
+  - [doa/](../doa) contains main logic, that will be mounted on `/work` in the `diva-doa` containter.
+    - [sqal](../doa/sqal) is an original Python package for SQL analysis, that is installed in the `diva-doa` container.
+    - [translate.sh](../doa/translate.sh) is the main script for SQL conversion.
+    - [migrate.sh](../doa/migrate.sh) is the main script for generation of YAMLs.
+    - [verify.sh](../doa/verify.sh) is the main script for SQL migration verification.
+
+# Development Environment
 
 Use Dev-container (a function of VS Code) to development code run in `diva-doa` container.
 
@@ -56,6 +64,14 @@ To generate diagrams,
 $ bash ${ROOT}/docs/build.sh  # in docs directory, not in util directory
 ```
 
+## Past Releases/Tags
+
+- `v1.0.0`: Internal first release. (Nov., 2021)
+- `v2.0.0`: The second release (and the first public release). (Jan., 2022)
+
+The CHANGELOG file will be provided later.
+
+
 ----
 # Architecture
 
@@ -67,26 +83,6 @@ The figure below shows an architecture overview of DiVA-DOA.
 See [Main Logic](#main-logic) section below for (1) and (2) in the diagram.
 
 ![Architecture overview](arch-overview.dot.svg)
-
-## Overall
-
-We write [${ROOT}](..) for the directory `tackle-diva/doa` of `tackle-diva` repository.
-Files related to tool main logic is just as follows:
-
-```
-${ROOT}
-├── doa/
-└── run-doa.sh
-```
-
-- [${ROOT}/doa](../doa) contains main logic and mounted on `/work` in the Docker image.
-  - [${ROOT}/doa/migrate.sh](../doa/migrate.sh) is the main script.
-- [${ROOT}/run-doa.sh](../run-doa.sh) is a wrapper script, This starts a container of `diva-doa` image and run the main script. 
-
-## Main Logic
-
-Hereafter, app directory in the container `/work` is denoted by `${WORK}` and `${APP_ROOT}` as a root of the target app.
-A main script [${WORK}/migrate.sh](../doa/migrate.sh) will be executed.
 
 ## (*) DBMS config. analysis
 
