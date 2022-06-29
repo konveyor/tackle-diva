@@ -1,0 +1,107 @@
+files:
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_00.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_00.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_01.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_01.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_02.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_02.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_03.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_03.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_04.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_04.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_05.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_05.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_06.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_06.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_07.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_07.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_08.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_08.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_09.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_09.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_10.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_10.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_11.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_11.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+- cp: CompletedProcess(args=['psql', '--set', 'ON_ERROR_STOP=on', '-f', '/workspaces/a.results/Oracle_Northwind_1_CreateObjects_12.sql'],
+    returncode=0, stdout='CREATE TABLE\n', stderr='')
+  file: Oracle_Northwind_1_CreateObjects_12.sql
+  returncode: 0
+  stderr: ''
+  stdout: 'CREATE TABLE
+
+    '
+root_dir: a.results
+root_dir_fullpath: /workspaces/a.results

@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  app:
+    image: diva-doa:latest
+
+    environment:
+      # to connect DB
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPASSWORD: postgres
+
+    depends_on:
+      - db
+
+    # command: sleep infinity
+    command: psql -c "\\dt" && psql -c "select * from information_schema.tables"
+
+  db:
+    image: postgres:13.5-alpine
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres

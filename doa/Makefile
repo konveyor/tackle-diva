@@ -1,7 +1,8 @@
 base_dir=$(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 IMAGE_NAME=diva-doa
-IMAGE_VER=2.2.1
+IMAGE_VER=2.4.0
+QUAY_IMAGE=quay.io/konveyor/tackle-diva-doa:latest
 RUN_IMAGE=$(IMAGE_NAME):latest
 DOCKERFILE=$(base_dir)/.devcontainer/Dockerfile
 DOCKER_CONTEXT=$(base_dir)/doa
@@ -13,6 +14,20 @@ SAMPLE_DIR=$(base_dir)/plsql-example
 
 OUT_DIR=/tmp/out
 STAT_DIR=/tmp/stats
+
+
+# execute this in devcontainer-cli
+test-build-local:
+	make -C container-image build test-build
+
+test-northwind-local:
+	doa convert -i devcontainer-container/0.in-oracle -o ./out -v
+
+test-build:
+	docker run --rm -it $(QUAY_IMAGE) python -m doa.cli --help
+
+test-northwind:
+	doa convert -i devcontainer-container/0.in-oracle -o ./out -v
 
 # executing run-doa.sh with a debug flag
 run:
@@ -82,6 +97,12 @@ docker-dev:
 bash:
 	docker run -it --rm --entrypoint=/bin/bash $(RUN_IMAGE)
 
+# copy generated plsql library
+copy-plsql:
+	rm -r $(base_dir)/doa/sqal/sqal/plsql
+	cp -r $(base_dir)/doa/sqal/java-env/plsql $(base_dir)/doa/sqal/sqal
+	touch $(base_dir)/doa/sqal/sqal/plsql/__init__.py
+
 # dev utilities
 build:
 	@echo "building Docker image of DiVA migrator..."
@@ -105,6 +126,26 @@ clean:
 #
 # tests.
 #
-test:
+test-normal:
 	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -i start_up.sh https://github.com/saud-aslam/trading-app && ls -lFR --color /tmp/out/trading-app
+
+test-oracle:
 	cd $(base_dir) && bash ./run-doa.sh -o /tmp/out -l oracle -f "$(base_dir)/plsql-example" &&	ls -lFR --color /tmp/out/app
+
+test: test-normal test-oracle
+
+test-verify:
+	docker run --rm -d \
+		--name=doa-verify \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_DB=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+		-e PGHOST=localhost \
+    	-e PGUSER=postgres \
+    	-e PGDATABASE=postgres \
+    	-e PGPASSWORD=postgres \
+		-v "$(base_dir)/doa/verify.sh:/app/verify.sh" \
+		postgres:13.5-alpine
+	sleep 5
+	docker exec -it doa-verify /app/verify.sh
+	docker stop doa-verify
