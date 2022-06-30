@@ -8,7 +8,7 @@ CASE_A_DIR=/tmp/a.results
 LOCAL_OUT_DIR=./output
 
 clean:
-	rm -rf $(CASE_A_DIR)
+	rm -rf $(CASE_A_DIR) $(LOCAL_OUT_DIR)
 
 distclean:
 	find doa -name __pycache__ | xargs rm -rf 

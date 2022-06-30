@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "doa-cli"
-version = "2.4.0"
+version = "2.4.1"
 description = "Fontend CLI for Tackle-DiVA Database Operator Adaption (DOA) toolsuite."
 authors = ["Shin Saito <shinsa82@gmail.com>"]
 

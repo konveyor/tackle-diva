@@ -9,17 +9,19 @@ IMAGE_NAME=
 IMAGE_VERSION=
 
 
-all: build-image
+all: build
 
 build: get-vars init-context
 	$(CONTAINER_COMMAND) build -t $(IMAGE_NAME):$(IMAGE_VERSION) -f ./Dockerfile ./context --progress=$(PROGRESS)
 	$(CONTAINER_COMMAND) tag $(IMAGE_NAME):$(IMAGE_VERSION) $(IMAGE_NAME):latest
 	$(CONTAINER_COMMAND) tag $(IMAGE_NAME):$(IMAGE_VERSION) quay.io/konveyor/tackle-diva-doa:$(IMAGE_VERSION)
+	$(CONTAINER_COMMAND) tag $(IMAGE_NAME):$(IMAGE_VERSION) quay.io/konveyor/tackle-diva-doa:latest
 
 # push image to quay.io using robot account
 # only admins of the tacke-diva-doa repo know credential and are allowed to push. 
 push: get-vars
 	docker push quay.io/konveyor/tackle-diva-doa:$(IMAGE_VERSION)
+	docker push quay.io/konveyor/tackle-diva-doa:latest
 
 init-context:
 	cp -r ../python-doa-lib ./context/

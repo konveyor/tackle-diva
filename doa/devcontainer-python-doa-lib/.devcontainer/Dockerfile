@@ -23,6 +23,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 ENV POETRY_VIRTUALENVS_CREATE=false
 ENV POETRY_VIRTUALENVS_IN_PROJECT=false
 
+# to enable color in rich.pager
+ENV LESS=-R
+
 # installing poetry, Python tool for package developers
 RUN su vscode -c "curl -sSL https://install.python-poetry.org | python3 -"
 # RUN /home/vscode/.local/bin/poetry completions bash > /etc/bash_completion.d/poetry.bash-completion

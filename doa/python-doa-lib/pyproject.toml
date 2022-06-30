@@ -3,7 +3,7 @@ authors = ["Shin Saito <shinsa82@gmail.com>"]
 description = "Tackle-DiVA-DOA: Analyzer Libraray for Assessment and Migration to PostgreSQL"
 license = "Apache-2.0"
 name = "doa"
-version = "2.4.0"
+version = "2.4.1"
 
 [tool.poetry.dependencies]
 PyYAML = "^6.0"

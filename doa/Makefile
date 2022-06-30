@@ -1,7 +1,7 @@
 base_dir=$(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 IMAGE_NAME=diva-doa
-IMAGE_VER=2.4.0
+IMAGE_VER=2.4.1
 QUAY_IMAGE=quay.io/konveyor/tackle-diva-doa:latest
 RUN_IMAGE=$(IMAGE_NAME):latest
 DOCKERFILE=$(base_dir)/.devcontainer/Dockerfile

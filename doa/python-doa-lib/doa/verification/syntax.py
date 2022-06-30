@@ -123,8 +123,8 @@ def verify_dir(in_dir: Path, out_dir: Path, init_command: str = None,
 
         g = partial(verify_file, in_dir=in_dir, out_dir=out_dir,
                     silent=silent, verbose=verbose)
-        # iterate by file (TODO: parallelize)
-        for f in iglob('**/*.sql', root_dir=in_dir, recursive=True):
+        # iterate by file 
+        for f in sorted(iglob('**/*.sql', root_dir=in_dir, recursive=True)):
             _logger.debug("file = %s", f)
             info.files.append(g(file_name=f))
 
