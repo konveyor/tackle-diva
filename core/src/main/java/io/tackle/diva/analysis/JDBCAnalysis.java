@@ -25,8 +25,6 @@ import java.util.logging.Logger;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
-import com.ibm.wala.shrikeBT.BinaryOpInstruction;
-import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
@@ -192,106 +190,8 @@ public class JDBCAnalysis {
         if (v.isConstant()) {
             fw.reportSqlStatement(trace, (String) v.constant(), uses);
         } else {
-            fw.reportSqlStatement(trace, calculateReachingString(fw, v, new HashSet<>()), uses);
+            fw.reportSqlStatement(trace, StringAnalysis.calculateReachingString(fw, v, new HashSet<>()), uses);
         }
-    }
-
-    public static SSAAbstractInvokeInstruction getConstructorForNew(IR ir, SSANewInstruction alloc) {
-        for (int i = alloc.iIndex() + 1; i < ir.getInstructions().length; i++) {
-            SSAInstruction instr = ir.getInstructions()[i];
-            if (instr == null || !(instr instanceof SSAAbstractInvokeInstruction) || instr.getNumberOfUses() == 0
-                    || instr.getUse(0) != alloc.getDef())
-                continue;
-            SSAAbstractInvokeInstruction constr = (SSAAbstractInvokeInstruction) instr;
-            if (constr.getDeclaredTarget().getName() != Constants.theInit)
-                return null;
-            return constr;
-        }
-        return null;
-    }
-
-    public static String calculateReachingString(Framework fw, Trace.Val value, Set<IntPair> visited) {
-
-        if (value == null || value.isParam()) {
-            return "??";
-        }
-
-        if (value.isConstant()) {
-            if (value.constant() == null)
-                return "??";
-            return value.constant().toString();
-        }
-
-        SSAInstruction instr = value.instr();
-
-        if (instr instanceof SSABinaryOpInstruction) {
-            SSABinaryOpInstruction bin = (SSABinaryOpInstruction) instr;
-            if (bin.getOperator() == BinaryOpInstruction.Operator.ADD) {
-                return calculateReachingString(fw, value.getDef(bin.getUse(0)), visited)
-                        + calculateReachingString(fw, value.getDef(bin.getUse(1)), new HashSet<>());
-            }
-
-        } else if (instr instanceof SSAGetInstruction) {
-            Trace.Val v = PointerAnalysis.fromInits(fw, value.trace(), (SSAGetInstruction) instr);
-            if (v != null) {
-                return calculateReachingString(fw, v, visited);
-            }
-
-        } else if (instr instanceof SSAPhiInstruction) {
-            SSAPhiInstruction phi = (SSAPhiInstruction) instr;
-            Trace.Val lhs = value.getDef(phi.getUse(0));
-            Trace.Val rhs = value.getDef(phi.getUse(1));
-
-            if (lhs.isConstant()) {
-                return calculateReachingString(fw, lhs, visited);
-            } else if (rhs.isConstant()) {
-                return calculateReachingString(fw, rhs, visited);
-            }
-            int bbid = lhs.trace().node().getIR().getBasicBlockForInstruction(lhs.instr()).getNumber();
-            IntPair key = IntPair.make(value.trace().node().getGraphNodeId(), bbid);
-            if (visited.contains(key)) {
-                return calculateReachingString(fw, rhs, visited);
-            }
-            visited.add(key);
-            return calculateReachingString(fw, lhs, visited);
-
-        } else if (instr instanceof SSAAbstractInvokeInstruction) {
-            MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
-            if (mref.getDeclaringClass().getName() == Constants.LJavaLangStringBuffer
-                    || mref.getDeclaringClass().getName() == Constants.LJavaLangStringBuilder) {
-
-                if (mref.getName() == Constants.toString) {
-                    Trace.Val lastVal = value.getReceiverUseOrDef(visited);
-                    return calculateReachingString(fw, lastVal, visited);
-                } else if (mref.getName() == Constants.append) {
-                    Trace.Val lastVal = value.getReceiverUseOrDef(visited);
-                    return calculateReachingString(fw, lastVal, visited)
-                            + calculateReachingString(fw, value.getDef(instr.getUse(1)), new HashSet<>());
-                } else if (mref.getName() == Constants.theInit) {
-                    if (mref.getNumberOfParameters() == 0) {
-                        return "";
-                    } else if (mref.getParameterType(0).isPrimitiveType()) {
-                        return "";
-                    }
-                    return calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
-                }
-            }
-
-        } else if (instr instanceof SSANewInstruction) {
-            SSANewInstruction alloc = (SSANewInstruction) instr;
-            if (alloc.getConcreteType().getName() == Constants.LJavaLangString) {
-                SSAAbstractInvokeInstruction constr = getConstructorForNew(value.trace().node().getIR(), alloc);
-                if (constr.getNumberOfUses() == 2) {
-                    return calculateReachingString(fw, value.trace().getDef(constr.getUse(1)), visited);
-                }
-            }
-
-        } else if (instr instanceof SSAReturnInstruction) {
-            Trace.Val lastVal = value.getReceiverUseOrDef(visited);
-            return calculateReachingString(fw, lastVal, visited);
-        }
-
-        return "??";
     }
 
     public static IntSet getUsingOps(Framework fw, List<Trace.Val> seeds) {
@@ -366,7 +266,7 @@ public class JDBCAnalysis {
 
                 if (alloc.getConcreteType().getName() == Constants.LJavaLangString
                         || alloc.getConcreteType().getName() == Constants.LJavaLangInteger) {
-                    SSAAbstractInvokeInstruction constr = getConstructorForNew(v.trace().node().getIR(), alloc);
+                    SSAAbstractInvokeInstruction constr = StringAnalysis.getConstructorForNew(v.trace().node().getIR(), alloc);
                     if (constr.getNumberOfUses() == 2) {
                         handler.accept(v.trace().getDef(constr.getUse(1)));
                     }

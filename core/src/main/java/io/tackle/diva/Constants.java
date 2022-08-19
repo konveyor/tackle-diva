@@ -64,6 +64,10 @@ public interface Constants {
 
     Atom toString = Atom.findOrCreateUnicodeAtom("toString");
     Atom append = Atom.findOrCreateUnicodeAtom("append");
+    Atom trim = Atom.findOrCreateUnicodeAtom("trim");
+    Atom strip = Atom.findOrCreateUnicodeAtom("strip");
+    Atom toUpperCase = Atom.findOrCreateUnicodeAtom("toUpperCase");
+    Atom toLowerCase = Atom.findOrCreateUnicodeAtom("toLowerCase");
 
     Atom equals = Atom.findOrCreateUnicodeAtom("equals");
     Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
@@ -88,6 +92,9 @@ public interface Constants {
     Atom getDouble = Atom.findOrCreateUnicodeAtom("getDouble");
     Atom getTimestamp = Atom.findOrCreateUnicodeAtom("getTimestamp");
 
+    Atom get = Atom.findOrCreateUnicodeAtom("get");
+    Atom getProperty = Atom.findOrCreateUnicodeAtom("getProperty");
+
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
 
     TypeName LJavaLangInteger = TypeName.findOrCreate("Ljava/lang/Integer");
@@ -97,6 +104,9 @@ public interface Constants {
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
     TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+    TypeName LJavaUtilHashtable = TypeName.findOrCreate("Ljava/util/Hashtable");
+    TypeName LJavaUtilHashMap = TypeName.findOrCreate("Ljava/util/HashMap");
+    TypeName LJavaUtilProperties = TypeName.findOrCreate("Ljava/util/Properties");
 
     // JDBC
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");

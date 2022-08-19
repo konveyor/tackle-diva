@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,6 +104,7 @@ import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
@@ -251,7 +253,8 @@ public class Framework {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
                     LOGGER.info("skpping " + sha1 + " " + file.getName());
-                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" + file.getName() + "\");");
+                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" +
+                    // file.getName() + "\");");
                 } else {
                     jars.add(fileName);
                 }
@@ -619,37 +622,44 @@ public class Framework {
     MutableIntSet[] reachability;
 
     public void reachabilityAnalysis() {
+        LOGGER.info("Started: reachability analysis");
+
         reachability = new MutableIntSet[callgraph().getNumberOfNodes()];
 
+        MutableIntSet[] backedges = new MutableIntSet[callgraph().getNumberOfNodes()];
         MutableIntSet todo = new BitVectorIntSet();
 
         for (CGNode n : callgraph()) {
+            backedges[n.getGraphNodeId()] = new BimodalMutableIntSet();
             reachability[n.getGraphNodeId()] = new BimodalMutableIntSet();
-            todo.add(n.getGraphNodeId());
         }
 
+        for (CGNode n : callgraph()) {
+            for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                    continue;
+                for (CGNode m : callgraph().getPossibleTargets(n, site)) {
+                    if (reachability[n.getGraphNodeId()].add(m.getGraphNodeId())) {
+                        todo.add(n.getGraphNodeId());
+                    }
+                    backedges[m.getGraphNodeId()].add(n.getGraphNodeId());
+                }
+            }
+        }
+
+        // Transitive closure algorithm -- faster than Warshall's algorithm?
         while (!todo.isEmpty()) {
             MutableIntSet next = new BitVectorIntSet();
-            for (CGNode n : callgraph()) {
-                boolean t = false;
-                MutableIntSet rs = reachability[n.getGraphNodeId()];
-                for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
-                    String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-                    if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
-                        continue;
-                    for (CGNode m : callgraph().getPossibleTargets(n, site)) {
-                        if (todo.contains(m.getGraphNodeId())) {
-                            t |= rs.add(m.getGraphNodeId());
-                            t |= rs.addAll(reachability[m.getGraphNodeId()]);
-                        }
+            for (int j : Util.makeIterable(todo)) {
+                for (int i : Util.makeIterable(backedges[j])) {
+                    if (reachability[i].addAll(reachability[j])) {
+                        next.add(i);
                     }
                 }
-                if (t)
-                    next.add(n.getGraphNodeId());
             }
             todo = next;
         }
-
         LOGGER.info("Done: reachability analysis");
     }
 
@@ -851,6 +861,18 @@ public class Framework {
 
         });
 
+    }
+
+    public Map<String, String> stringDictionary = new LinkedHashMap<>();
+
+    public void populateStringDictionary(Map<String, String> dict) {
+        stringDictionary.putAll(dict);
+    }
+
+    public Set<MethodReference> methodsTreatedAsIdentity = new LinkedHashSet<>();
+
+    public void registerIdentityMethod(MethodReference mref) {
+        methodsTreatedAsIdentity.add(mref);
     }
 
     public Report report;

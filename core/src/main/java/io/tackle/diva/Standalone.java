@@ -57,6 +57,7 @@ import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.DispatchAnalysis;
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
@@ -196,6 +197,7 @@ public class Standalone {
             }
         }
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
+        // fw.traverse(cg.getNode(0), DispatchAnalysis.getContextualAnalysis(fw));
 
         List<Context> contexts;
         if (!cmd.hasOption("contexts")) {
