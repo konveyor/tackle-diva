@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,6 +104,7 @@ import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
@@ -251,7 +253,8 @@ public class Framework {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
                     LOGGER.info("skpping " + sha1 + " " + file.getName());
-                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" + file.getName() + "\");");
+                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" +
+                    // file.getName() + "\");");
                 } else {
                     jars.add(fileName);
                 }
@@ -858,6 +861,18 @@ public class Framework {
 
         });
 
+    }
+
+    public Map<String, String> stringDictionary = new LinkedHashMap<>();
+
+    public void populateStringDictionary(Map<String, String> dict) {
+        stringDictionary.putAll(dict);
+    }
+
+    public Set<MethodReference> methodsTreatedAsIdentity = new LinkedHashSet<>();
+
+    public void registerIdentityMethod(MethodReference mref) {
+        methodsTreatedAsIdentity.add(mref);
     }
 
     public Report report;

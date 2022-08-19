@@ -318,7 +318,7 @@ public class JPAAnalysis {
                         } else if (v.isConstant()) {
                             fw.reportSqlStatement(trace, (String) v.constant());
                         } else {
-                            fw.reportSqlStatement(trace, JDBCAnalysis.calculateReachingString(fw, v, new HashSet<>()));
+                            fw.reportSqlStatement(trace, StringAnalysis.calculateReachingString(fw, v, new HashSet<>()));
 
                         }
                     }
