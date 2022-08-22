@@ -158,6 +158,8 @@ public interface Constants {
     TypeName LJavaxPersistenceEntityManager = TypeName.findOrCreate("Ljavax/persistence/EntityManager");
     TypeName LJavaxPersistenceQuery = TypeName.findOrCreate("Ljavax/persistence/QUery");
 
+    TypeName LJakartaPersistenceEntityManager = TypeName.findOrCreate("Ljakarta/persistence/EntityManager");
+
     TypeName LSpringRepository = TypeName.findOrCreate("Lorg/springframework/data/repository/Repository");
     TypeName LSpringJPARepository = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/JpaRepository");
     TypeName LSpringJPAQuery = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/Query");

@@ -1,12 +1,16 @@
 package io.tackle.diva.analysis;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.types.MethodReference;
 
 import io.tackle.diva.Framework;
@@ -42,5 +46,56 @@ public class DispatchAnalysis {
                 System.out.println(site + " => " + nodes);
             }
         };
+    }
+
+    public static Set<CGNode> getFilteredTargets(Framework fw, Trace trace, CallSiteReference site) {
+        Set<CGNode> targets = fw.callgraph.getPossibleTargets(trace.node(), site);
+
+        if (targets.isEmpty())
+            return targets;
+
+        if (Util.any(targets, n -> n.getIR() == null)) {
+            // native methods...
+            targets = Util.makeSet(Util.filter(targets, n -> n.getIR() != null));
+        }
+
+        if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
+            IClass c = fw.classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
+            outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
+                if (e.getKey() == c
+                        || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                                i -> i == e.getKey())) {
+                    for (IClass d : Util.superChain(e.getValue())) {
+                        Set<CGNode> ts = Util
+                                .makeSet(Util.filter(targets, n -> n.getMethod().getDeclaringClass() == d));
+                        if (!ts.isEmpty()) {
+                            targets = ts;
+                            break outer;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (targets.size() > 1 && trace.node().getGraphNodeId() != 0) {
+            SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
+            IClass self = trace.inferType(fw, instr.getUse(0));
+            if (self != null) {
+                targets = Util.makeSet(Util.filter(targets, n -> {
+                    IClass c = n.getMethod().getDeclaringClass();
+                    return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
+                            i -> i == self);
+                }));
+            }
+        }
+
+        if (targets.size() > 1) {
+            for (CGNode m : targets) {
+                if (site.getDeclaredTarget() == m.getMethod().getReference()) {
+                    return Collections.singleton(m);
+                }
+            }
+        }
+        return targets;
     }
 }

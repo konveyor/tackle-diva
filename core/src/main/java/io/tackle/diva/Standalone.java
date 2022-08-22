@@ -173,6 +173,10 @@ public class Standalone {
         entries.addAll(ServletAnalysis.getEntries(filteredCha));
         entries.addAll(SpringBootAnalysis.getEntries(filteredCha));
 
+        if (cmd.hasOption("contexts")) {
+            Context.loadEntriesFromContexts(cha, cmd.getOptionValue("contexts"), entries);
+        }
+
         List<IMethod> cgEntries = new ArrayList<>();
         cgEntries.addAll(entries);
         cgEntries.addAll(SpringBootAnalysis.getInits(relevantCha));
