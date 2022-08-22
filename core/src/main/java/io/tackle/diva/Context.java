@@ -29,18 +29,27 @@ import java.util.Set;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IClassLoader;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAGotoInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
+import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVector;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
+import com.ibm.wala.util.strings.StringStuff;
 
 import io.tackle.diva.Constraint.BranchingConstraint;
 import io.tackle.diva.Constraint.EntryConstraint;
@@ -262,7 +271,8 @@ public class Context extends ArrayList<Constraint> {
             Context cxt = new Context();
             for (Entry<String, Map<String, List<String>>> e2 : e.entrySet()) {
                 for (Entry<String, List<String>> e3 : e2.getValue().entrySet()) {
-                    for (Constraint c : fw.constraints.get(Pair.make(e2.getKey(), e3.getKey()))) {
+                    for (Constraint c : fw.constraints.getOrDefault(Pair.make(e2.getKey(), e3.getKey()),
+                            Collections.emptyList())) {
                         if (e3.getValue().contains(c.value())) {
                             cxt.add(c);
                         }
@@ -273,6 +283,43 @@ public class Context extends ArrayList<Constraint> {
         }
 
         return result;
+    }
+
+    public static void loadEntriesFromContexts(IClassHierarchy cha, String file, List<IMethod> entries)
+            throws StreamReadException, DatabindException, IOException {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Map<String, List<String>>>> data = (List<Map<String, Map<String, List<String>>>>) Util.YAML_SERIALIZER
+                .readValue(new File(file), Object.class);
+
+        IClassLoader apploader = cha.getLoader(JavaSourceAnalysisScope.SOURCE);
+        if (apploader == null) {
+            apploader = cha.getLoader(ClassLoaderReference.Application);
+        }
+
+        for (Map<String, Map<String, List<String>>> e : data) {
+            Context cxt = new Context();
+            if (!e.containsKey("entry"))
+                continue;
+            Map<String, List<String>> e2 = e.get("entry");
+            if (!e2.containsKey("methods"))
+                continue;
+            for (String v : e2.get("methods")) {
+                String klazz = v.substring(0, v.lastIndexOf('.'));
+                String method = v.substring(klazz.length() + 1);
+                TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+                IClass c = apploader.lookupClass(t);
+                if (c == null)
+                    continue;
+                for (IMethod m : c.getDeclaredMethods()) {
+                    if (m.getName().toString().equals(method)) {
+                        entries.add(m);
+                    }
+                }
+
+            }
+
+        }
+
     }
 
     @Override

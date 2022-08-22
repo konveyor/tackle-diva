@@ -176,6 +176,24 @@ public class JDBCAnalysis {
                     break;
 
                 }
+
+                if (!fw.stringDictionary.isEmpty() && instr.getNumberOfUses() == 2
+                        && (mref.getDeclaringClass().getName() == Constants.LJavaUtilHashtable
+                                || mref.getDeclaringClass().getName() == Constants.LJavaUtilHashMap)
+                        && mref.getName() == Constants.get) {
+
+                    // Some framework is doing key-based prepared statement lookup ...
+                    String key = StringAnalysis.calculateReachingString(fw, v.getDef(instr.getUse(1)), visited);
+                    if (fw.stringDictionary.containsKey(key)) {
+                        sql = trace.new Val(fw.stringDictionary.get(key));
+                        break;
+                    }
+                }
+
+            } else if (instr instanceof SSACheckCastInstruction) {
+                v = v.getDef(instr.getUse(0));
+                continue;
+
             }
             break;
         }
@@ -266,7 +284,8 @@ public class JDBCAnalysis {
 
                 if (alloc.getConcreteType().getName() == Constants.LJavaLangString
                         || alloc.getConcreteType().getName() == Constants.LJavaLangInteger) {
-                    SSAAbstractInvokeInstruction constr = StringAnalysis.getConstructorForNew(v.trace().node().getIR(), alloc);
+                    SSAAbstractInvokeInstruction constr = StringAnalysis.getConstructorForNew(v.trace().node().getIR(),
+                            alloc);
                     if (constr.getNumberOfUses() == 2) {
                         handler.accept(v.trace().getDef(constr.getUse(1)));
                     }

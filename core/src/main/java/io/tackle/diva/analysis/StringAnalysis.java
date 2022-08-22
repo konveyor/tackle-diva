@@ -98,17 +98,15 @@ public class StringAnalysis {
                 return calculateReachingString(fw, value.getDef(instr.getUse(0)), visited);
             }
 
-            if (instr.getNumberOfUses() == 2
+            if (!fw.stringDictionary.isEmpty() && instr.getNumberOfUses() == 2
                     && (mref.getDeclaringClass().getName() == Constants.LJavaUtilHashtable
                             || mref.getDeclaringClass().getName() == Constants.LJavaUtilHashMap
                             || mref.getDeclaringClass().getName() == Constants.LJavaUtilProperties)
                     && (mref.getName() == Constants.get || mref.getName() == Constants.getProperty)) {
 
-                if (!fw.stringDictionary.isEmpty()) {
-                    String key = calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
-                    if (fw.stringDictionary.containsKey(key)) {
-                        return fw.stringDictionary.get(key);
-                    }
+                String key = calculateReachingString(fw, value.getDef(instr.getUse(1)), visited);
+                if (fw.stringDictionary.containsKey(key)) {
+                    return fw.stringDictionary.get(key);
                 }
             }
 

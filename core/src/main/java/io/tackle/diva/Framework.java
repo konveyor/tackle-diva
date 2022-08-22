@@ -117,6 +117,7 @@ import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.ref.CacheReference;
 
+import io.tackle.diva.analysis.DispatchAnalysis;
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
@@ -139,7 +140,7 @@ public class Framework {
     }
 
     IClassHierarchy cha;
-    CallGraph callgraph;
+    public CallGraph callgraph;
     public boolean usageAnalysis;
 
     public CallGraph callgraph() {
@@ -739,7 +740,7 @@ public class Framework {
                 iters.push(targetTrace.node().getIR().iterateAllInstructions());
 
             } else {
-                Set<CGNode> targets = getFilteredTargets(trace, site);
+                Set<CGNode> targets = DispatchAnalysis.getFilteredTargets(this, trace, site);
 
                 if (targets.isEmpty())
                     continue;
@@ -770,57 +771,6 @@ public class Framework {
                 }
             }
         }
-    }
-
-    public Set<CGNode> getFilteredTargets(Trace trace, CallSiteReference site) {
-        Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
-
-        if (targets.isEmpty())
-            return targets;
-
-        if (Util.any(targets, n -> n.getIR() == null)) {
-            // native methods...
-            targets = Util.makeSet(Util.filter(targets, n -> n.getIR() != null));
-        }
-
-        if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
-            IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
-            outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
-                if (e.getKey() == c
-                        || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                                i -> i == e.getKey())) {
-                    for (IClass d : Util.superChain(e.getValue())) {
-                        Set<CGNode> ts = Util
-                                .makeSet(Util.filter(targets, n -> n.getMethod().getDeclaringClass() == d));
-                        if (!ts.isEmpty()) {
-                            targets = ts;
-                            break outer;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (targets.size() > 1 && trace.node().getGraphNodeId() != 0) {
-            SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
-            IClass self = trace.inferType(this, instr.getUse(0));
-            if (self != null) {
-                targets = Util.makeSet(Util.filter(targets, n -> {
-                    IClass c = n.getMethod().getDeclaringClass();
-                    return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                            i -> i == self);
-                }));
-            }
-        }
-
-        if (targets.size() > 1) {
-            for (CGNode m : targets) {
-                if (site.getDeclaredTarget() == m.getMethod().getReference()) {
-                    return Collections.singleton(m);
-                }
-            }
-        }
-        return targets;
     }
 
     MutableIntSet relevance;
