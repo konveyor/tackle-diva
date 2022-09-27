@@ -66,3 +66,7 @@ The other frameworks to be supported.
 
 - [opensource.com article](https://opensource.com/article/21/6/tackle-diva-kubernetes)
 - [Youtube recording](https://youtu.be/UJi1tGFMw2M)
+
+
+## Code of Conduct
+Refer to Konveyor's Code of Conduct [here](https://github.com/konveyor/community/blob/main/CODE_OF_CONDUCT.md).
