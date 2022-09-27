@@ -68,6 +68,7 @@ public interface Constants {
     Atom strip = Atom.findOrCreateUnicodeAtom("strip");
     Atom toUpperCase = Atom.findOrCreateUnicodeAtom("toUpperCase");
     Atom toLowerCase = Atom.findOrCreateUnicodeAtom("toLowerCase");
+    Atom replaceAll = Atom.findOrCreateUnicodeAtom("replaceAll");
 
     Atom equals = Atom.findOrCreateUnicodeAtom("equals");
     Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
@@ -95,7 +96,13 @@ public interface Constants {
     Atom get = Atom.findOrCreateUnicodeAtom("get");
     Atom getProperty = Atom.findOrCreateUnicodeAtom("getProperty");
 
+    Atom newInstance = Atom.findOrCreateUnicodeAtom("newInstance");
+    Atom forName = Atom.findOrCreateUnicodeAtom("forName");
+    Atom loadClass = Atom.findOrCreateUnicodeAtom("loadClass");
+
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
+    TypeName LJavaLangClass = TypeName.findOrCreate("Ljava/lang/Class");
+    TypeName LJavaLangClassLoader = TypeName.findOrCreate("Ljava/lang/ClassLoader");
 
     TypeName LJavaLangInteger = TypeName.findOrCreate("Ljava/lang/Integer");
 

@@ -92,9 +92,9 @@ public class StringAnalysis {
                 }
             }
 
-            if (instr.getNumberOfUses() == 1 && (mref.getDeclaringClass().getName() == Constants.LJavaLangString)
-                    && (mref.getName() == Constants.trim || mref.getName() == Constants.strip
-                            || mref.getName() == Constants.toUpperCase || mref.getName() == Constants.toLowerCase)) {
+            if (mref.getDeclaringClass().getName() == Constants.LJavaLangString && (mref.getName() == Constants.trim
+                    || mref.getName() == Constants.strip || mref.getName() == Constants.toUpperCase
+                    || mref.getName() == Constants.toLowerCase || mref.getName() == Constants.replaceAll)) {
                 return calculateReachingString(fw, value.getDef(instr.getUse(0)), visited);
             }
 
