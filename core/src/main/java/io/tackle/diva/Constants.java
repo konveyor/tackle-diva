@@ -100,6 +100,11 @@ public interface Constants {
     Atom forName = Atom.findOrCreateUnicodeAtom("forName");
     Atom loadClass = Atom.findOrCreateUnicodeAtom("loadClass");
 
+    Atom include = Atom.findOrCreateUnicodeAtom("include");
+    Atom forward = Atom.findOrCreateUnicodeAtom("forward");
+    Atom setAttribute = Atom.findOrCreateUnicodeAtom("setAttribute");
+
+    TypeName LUnknown = TypeName.findOrCreate("Lunknown/Unknown");
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
     TypeName LJavaLangClass = TypeName.findOrCreate("Ljava/lang/Class");
     TypeName LJavaLangClassLoader = TypeName.findOrCreate("Ljava/lang/ClassLoader");
@@ -144,6 +149,9 @@ public interface Constants {
     TypeName LJavaxWebFilter = TypeName.findOrCreate("Ljavax/servlet/annotation/WebFilter");
     TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
     TypeName LJavaxHttpServletRequest = TypeName.findOrCreate("Ljavax/servlet/http/HttpServletRequest");
+
+    TypeName LJavaxServletContext = TypeName.findOrCreate("Ljavax/servlet/ServletContext");
+    TypeName LJavaxRequestDispatcher = TypeName.findOrCreate("Ljavax/servlet/RequestDispatcher");
 
     // JPA
     TypeName LJavaxPersistenceCascadeType = TypeName.findOrCreate("Ljavax/persistence/CascadeType");

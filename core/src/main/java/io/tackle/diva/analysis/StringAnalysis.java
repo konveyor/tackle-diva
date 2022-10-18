@@ -21,6 +21,10 @@ import io.tackle.diva.Trace;
 
 public class StringAnalysis {
 
+    public static String calculateReachingString(Framework fw, Trace.Val value) {
+        return calculateReachingString(fw, value, new HashSet<>());
+    }
+
     public static String calculateReachingString(Framework fw, Trace.Val value, Set<IntPair> visited) {
 
         if (value == null || value.isParam()) {

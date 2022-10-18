@@ -9,7 +9,6 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
-import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.types.TypeReference;
 
@@ -34,14 +33,7 @@ public class PointerAnalysis {
     public static Trace.Val fromInits(Framework fw, Trace trace, SSAGetInstruction field, boolean nonnull) {
         if (!field.isStatic()) {
             Trace.Val v = trace.getDef(field.getUse(0));
-            if (v != null && v.isInstr() && v.instr() instanceof SSAPhiInstruction) {
-                Trace.Val v0 = v.getDef(v.instr().getUse(0));
-                if (v0.isInstr() && v0.instr() instanceof SSANewInstruction) {
-                    v = v0;
-                } else {
-                    v = v.getDef(v.instr().getUse(1));
-                }
-            }
+            v = v.reachingValue(v0 -> v0.isInstr() && v0.instr() instanceof SSANewInstruction);
             if (v != null && v.isInstr() && v.instr() instanceof SSANewInstruction) {
                 try {
                     fromDefUse(fw, v, trace.new Val(field), (t, put) -> {

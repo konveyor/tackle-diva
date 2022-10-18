@@ -24,7 +24,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.function.Supplier;
@@ -60,8 +59,8 @@ import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.strings.StringStuff;
 import com.ibm.wala.util.warnings.Warnings;
 
+import io.tackle.diva.analysis.InfoFlowAnalysis;
 import io.tackle.diva.analysis.JDBCAnalysis;
-import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
@@ -330,7 +329,7 @@ public class DaytraderTest {
             throws IOException, JsonProcessingException {
         Framework fw = new Framework(cha, cg, true);
 
-        //fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
+        // fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
         fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
         List<Object> res = new ArrayList<>();
@@ -339,11 +338,14 @@ public class DaytraderTest {
         for (CGNode n : cg) {
             if (n.getMethod() == entries.get(0)) {
                 for (Constraint c : fw.constraints.get(Pair.make("http-param", "action"))) {
+                    Context cxt = new Context();
+                    cxt.add(new Constraint.EntryConstraint(n));
+                    cxt.add(c);
                     report.add((Report.Named map) -> {
-                        map.put("entry", n.getMethod().toString());
-                        c.report(map);
+                        cxt.report(map);
                         map.put("transactions", (Report txs) -> {
-                            fw.calculateTransactions(n, new Context(Collections.singleton(c)), txs);
+                            fw.calculateTransactions(n, cxt, txs, JDBCAnalysis.getTransactionAnalysis(fw, cxt)
+                                    .with(InfoFlowAnalysis.getTransactionAnalysis(fw, cxt)));
                         });
                     });
                 }

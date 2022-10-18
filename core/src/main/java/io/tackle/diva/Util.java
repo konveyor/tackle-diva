@@ -343,6 +343,22 @@ public class Util {
         };
     }
 
+    public static Iterable<Integer> makeIterable(int[] data) {
+        return () -> new Iterator<Integer>() {
+            int i = 0;
+
+            @Override
+            public boolean hasNext() {
+                return i < data.length;
+            }
+
+            @Override
+            public Integer next() {
+                return hasNext() ? data[i++] : null;
+            }
+        };
+    }
+
     public static <T> Iterable<T> filter(Iterable<T> data, Predicate<T> filter) {
         return () -> new Iterator<T>() {
             Iterator<T> i = data.iterator();
@@ -498,6 +514,7 @@ public class Util {
             }
         };
     }
+
 
     public static Iterable<Integer> makeIterable(IntSet x) {
         return () -> new Iterator<Integer>() {
