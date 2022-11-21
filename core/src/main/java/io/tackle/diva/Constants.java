@@ -104,12 +104,18 @@ public interface Constants {
     Atom forward = Atom.findOrCreateUnicodeAtom("forward");
     Atom setAttribute = Atom.findOrCreateUnicodeAtom("setAttribute");
 
+    Atom getReference = Atom.findOrCreateUnicodeAtom("getReference");
+
     TypeName LUnknown = TypeName.findOrCreate("Lunknown/Unknown");
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
     TypeName LJavaLangClass = TypeName.findOrCreate("Ljava/lang/Class");
     TypeName LJavaLangClassLoader = TypeName.findOrCreate("Ljava/lang/ClassLoader");
 
     TypeName LJavaLangInteger = TypeName.findOrCreate("Ljava/lang/Integer");
+    TypeName LJavaLangLong = TypeName.findOrCreate("Ljava/lang/Long");
+    TypeName LJavaLangFloat = TypeName.findOrCreate("Ljava/lang/Float");
+    TypeName LJavaLangDouble = TypeName.findOrCreate("Ljava/lang/Double");
+    TypeName LJavaMathBigDecimal = TypeName.findOrCreate("Ljava/math/BigDecimal");
 
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
@@ -192,5 +198,8 @@ public interface Constants {
     // RestEasy
     TypeName LMicroprofileReigsterRestClient = TypeName
             .findOrCreate("Lorg/eclipse/microprofile/rest/client/inject/RegisterRestClient");
+
+    //SPI
+    TypeName LSpiBeanManager = TypeName.findOrCreate("Ljavax/enterprise/inject/spi/BeanManager");
 
 }

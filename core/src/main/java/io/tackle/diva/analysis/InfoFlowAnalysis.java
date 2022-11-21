@@ -1,5 +1,6 @@
 package io.tackle.diva.analysis;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -24,7 +25,10 @@ import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.Selector;
+import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
+import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.IntPair;
 
 import io.tackle.diva.Constants;
@@ -155,6 +159,23 @@ public class InfoFlowAnalysis {
         };
     }
 
+    public static List<Pair<Pair<TypeName, Selector>, List<Integer>>> flowRules = Arrays.asList(
+            Pair.make(
+                    Pair.make(Constants.LJavaMathBigDecimal,
+                            Selector.make("multiply(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;")),
+                    Arrays.asList(0, 1)),
+            Pair.make(
+                    Pair.make(Constants.LJavaMathBigDecimal,
+                            Selector.make("subtract(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;")),
+                    Arrays.asList(0, 1)),
+            Pair.make(Pair.make(Constants.LJavaMathBigDecimal,
+                    Selector.make("add(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;")), Arrays.asList(0, 1)),
+            Pair.make(Pair.make(Constants.LJavaMathBigDecimal, Selector.make("negate()Ljava/math/BigDecimal;")),
+                    Arrays.asList(0)),
+            Pair.make(Pair.make(Constants.LJavaLangString, Selector.make("trim()Ljava/lang/String;")),
+                    Arrays.asList(0))
+    );
+
     public static void handleReachingValues(Framework fw, List<Trace.Val> seeds,
             BiConsumer<Trace.Val, Consumer<Trace.Val>> cont) {
 
@@ -194,7 +215,11 @@ public class InfoFlowAnalysis {
                 SSANewInstruction alloc = (SSANewInstruction) instr;
 
                 if (alloc.getConcreteType().getName() == Constants.LJavaLangString
-                        || alloc.getConcreteType().getName() == Constants.LJavaLangInteger) {
+                        || alloc.getConcreteType().getName() == Constants.LJavaLangInteger
+                        || alloc.getConcreteType().getName() == Constants.LJavaLangLong
+                        || alloc.getConcreteType().getName() == Constants.LJavaLangFloat
+                        || alloc.getConcreteType().getName() == Constants.LJavaLangDouble
+                        || alloc.getConcreteType().getName() == Constants.LJavaMathBigDecimal) {
                     SSAAbstractInvokeInstruction constr = StringAnalysis.getConstructorForNew(v.trace().node().getIR(),
                             alloc);
                     if (constr.getNumberOfUses() == 2) {
@@ -204,12 +229,27 @@ public class InfoFlowAnalysis {
 
             } else if (instr instanceof SSAAbstractInvokeInstruction) {
                 MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
+                boolean doCont = true;
 
                 if (instr.getNumberOfUses() == 1 && (mref.getName() == Constants.toString
                         || mref.getName() == Constants.intValue || mref.getName() == Constants.longValue
                         || mref.getName() == Constants.floatValue || mref.getName() == Constants.doubleValue)) {
                     handler.accept(v.getDef(instr.getUse(0)));
+                    doCont = false;
+
                 } else {
+                    for (Pair<Pair<TypeName, Selector>, List<Integer>> rule : flowRules) {
+                        if (mref.getDeclaringClass().getName() == rule.fst.fst
+                                && mref.getSelector().equals(rule.fst.snd)) {
+                            for (int use : rule.snd) {
+                                handler.accept(v.getDef(instr.getUse(use)));
+                            }
+                            doCont = false;
+                        }
+                    }
+                }
+
+                if (doCont) {
                     cont.accept(v, handler);
                 }
 
