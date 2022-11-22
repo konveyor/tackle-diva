@@ -460,6 +460,14 @@ public class Util {
         };
     }
 
+    public static <E> int count(Iterable<E> input) {
+        int c = 0;
+        for (E e : input) {
+            c++;
+        }
+        return c;
+    }
+
     static Iterator<?> EMPTY_ITER = new Iterator<Object>() {
         @Override
         public boolean hasNext() {

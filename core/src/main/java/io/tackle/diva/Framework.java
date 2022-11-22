@@ -116,6 +116,7 @@ import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.ref.CacheReference;
+import com.ibm.wala.util.strings.Atom;
 
 import io.tackle.diva.analysis.DispatchAnalysis;
 import io.tackle.diva.analysis.JDBCAnalysis;
@@ -668,9 +669,17 @@ public class Framework {
         return from == to || reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
     }
 
+    public int maxRecursion = 1;
+
+    public void setMaxRecursion(int k) {
+        maxRecursion = k;
+    }
+
     public void traverse(CGNode entry, Trace.Visitor visitor) {
         traverse(new Trace(entry, null), visitor, false);
     }
+
+    public static Atom CALL = Atom.findOrCreateUnicodeAtom("call");
 
     public void traverse(Trace trace0, Trace.Visitor visitor, boolean pathSensitive) {
 
@@ -740,7 +749,10 @@ public class Framework {
                 iters.push(targetTrace.node().getIR().iterateAllInstructions());
 
             } else {
-                Set<CGNode> targets = DispatchAnalysis.getFilteredTargets(this, trace, site);
+//                if (pathSensitive && site.getDeclaredTarget().getName().toString().equals("exec")) {
+//                    System.out.println("BREAK HERE");
+//                }
+                Set<CGNode> targets = DispatchAnalysis.getFilteredTargets(this, trace, site, pathSensitive);
 
                 if (targets.isEmpty())
                     continue;
@@ -751,7 +763,8 @@ public class Framework {
 
                 for (CGNode n : targets) {
                     if (pathSensitive) {
-                        if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
+                        if (Util.count(Util.filter(trace,
+                                t -> t.node().getGraphNodeId() == n.getGraphNodeId())) >= maxRecursion)
                             continue;
                     } else if (visited.contains(n.getGraphNodeId())) {
                         continue;

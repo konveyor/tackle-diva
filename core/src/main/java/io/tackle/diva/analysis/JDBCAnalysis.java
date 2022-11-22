@@ -155,8 +155,8 @@ public class JDBCAnalysis {
                 if (uses != null) {
                     MethodReference mref = ((SSAAbstractInvokeInstruction) instr).getDeclaredTarget();
                     if (mref.getName() == Constants.setInt || mref.getName() == Constants.setString
-                            || mref.getName() == Constants.setBigDecimal || mref.getName() == Constants.getFloat
-                            || mref.getName() == Constants.getDouble) {
+                            || mref.getName() == Constants.setBigDecimal || mref.getName() == Constants.setFloat
+                            || mref.getName() == Constants.setDouble) {
                         Trace.Val d = v.getDef(instr.getUse(2));
                         if (d != null) {
                             uses.add(d);
