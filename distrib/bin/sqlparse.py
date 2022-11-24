@@ -104,7 +104,7 @@ def literal(s):
         return (r[0], [])
     return ()
 
-def variable(s):
+def variable0(s):
     r = token(s)
     if r and r[1][0][0] == ":":
         return (r[0], [])
@@ -141,6 +141,8 @@ def split(n):
         return (n[:p], n[p+1:])
 
 qname = seq(name, star(seq(op('.'), name)))
+
+variable = choice(variable0, seq(op('#'), op('{'), token, op('}')))
 
 paren = seq(op('('), star(seq(until('(', ')'), lambda s : paren(s))), until('(', ')'), op(')'))
 
@@ -181,7 +183,7 @@ caseexp = seq(
 
 colexp0 = choice(
     literal,
-    variable,
+    match(variable, lambda s, v: s + [(v,)]),
     seq(op('current'), name),
     callexp,
     caseexp,
@@ -258,7 +260,7 @@ def withcxt(e, fix):
                 lambda s: nestedexp(s))), e),
         e)
 
-colexp1 = choice(seq(qname, op('(+)')), colexp)
+colexp2 = choice(seq(qname, op('(+)')), colexp)
 
 condexp = seq(choice(
     seq(op('('),
@@ -268,12 +270,12 @@ condexp = seq(choice(
         lambda s : condexp(s)),
     seq(op('exists'),
         choice(colexp, lambda s: nestedexp(s))),
-    seq(colexp1,
+    seq(colexp2,
         choice(
             seq(choice(
                 op('='), op('<'), op('>'), op('<='), op('>='), op('<>'), op('!='), op('*='), op('=*'),
                 seq(op('is'), option(op('not')))),
-                colexp1),
+                colexp2),
             seq(option(op('not')), choice(
                 seq(op('in'),
                     choice(colexp, lambda s :nestedexp(s))),
@@ -305,9 +307,10 @@ havingexp = seq(op('having'), condexp)
 grpexp = seq(op('group'), op('by'), comma_sep(choice(qname, variable)))
 orderexp = seq(op('order'), op('by'), comma_sep(seq(colexp, option(choice(op('asc'), op('desc'))))))
 
-assignexp = seq(choice(match(qname, lambda s,v: s +[(v,)]),
+assignexp = match(seq(choice(match(qname, lambda s,v: s +[(v,)]),
                        seq(op('('), comma_sep(match(qname, lambda s,v: s +[(v,)])), op(')'))),
-                op('='), colexp)
+                      op('='), colexp),
+                  lambda s,v: [s])
 assignsexp = seq(assignexp, star(seq(op(','), assignexp)))
 
 frmspec = seq(
@@ -349,7 +352,7 @@ if __name__ == '__main__':
     print(updexp('UPDATE accountejb SET LOGOUTCOUNT = ? WHERE (ACCOUNTID = ?)'.lower()))
     print(selexp('SELECT t1.HOLDINGID, t1.PURCHASEDATE, t1.PURCHASEPRICE, t1.QUANTITY, t1.ACCOUNT_ACCOUNTID, t1.QUOTE_SYMBOL FROM accountejb t0, holdingejb t1 WHERE ((t0.PROFILE_USERID = ?) AND (t0.ACCOUNTID = t1.ACCOUNT_ACCOUNTID))'.lower()))
     print(sqlexp('INSERT INTO holdingejb (HOLDINGID, PURCHASEDATE, PURCHASEPRICE, QUANTITY, ACCOUNT_ACCOUNTID, QUOTE_SYMBOL) VALUES (?, ?, ?, ?, ?, ?)'.lower()))
-    print(sqlexp('DELETE FROM orderejb WHERE (ORDERID = ?'.lower()))
+    print(sqlexp('DELETE FROM orderejb WHERE (ORDERID = ?)'.lower()))
     print(sqlexp('select dept, LISTAGG(name, \',\') WITHIN GROUP (order by saraly desc nulls last, a asc) csv_name from listagg_sample group by dept'.lower()))
     print(sqlexp('select a as x from b t, (select c from d) u'))
     print(sqlexp('select a as x from b t left outer join ( select * from d ) u on t.i = u.i, e w'))
@@ -360,7 +363,7 @@ if __name__ == '__main__':
     print(sqlexp("select case when true then 'abc' else col end from t"))
     print(sqlexp('select * from t group by x, y'))
     print(sqlexp('select a.*, count(*) over (partition by id) as c from a, b'))
-    print(sqlexp('DELETE orderejb WHERE (ORDERID = ?'.lower()))
+    print(sqlexp('DELETE orderejb WHERE ORDERID = ?'.lower()))
     print(sqlexp("select * from ((select * from t) union (select * from d) order by x)"))
     print(sqlexp('select * from t for update'))
     print(condexp("a like '%' || ? ||'%'"))
@@ -369,3 +372,11 @@ if __name__ == '__main__':
     print(sqlexp('select t.a, s.a from s, (select * from x union select * from y) as t'))
     print(selexp('select a into b from c'))
     print(selexp('select set (a) into b from c'))
+    print(sqlexp('update accountejb set lastLogin=?, logincount=logincount+1 where profile_userid=?'))
+    print(sqlexp('update accountejb set balance = balance + ? where accountid = ?'))
+    print(ascxt(match(qname))('a as b'))
+    print(ascxt(colexp)('a'))
+    print(ascxt(colexp)('a b'))
+    print(colexp1('a'))
+    print(colexp1('a b'))
+    
