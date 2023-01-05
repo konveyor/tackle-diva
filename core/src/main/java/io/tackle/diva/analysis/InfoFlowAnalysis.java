@@ -1,5 +1,6 @@
 package io.tackle.diva.analysis;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -15,7 +16,6 @@ import java.util.function.Consumer;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
-import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSABinaryOpInstruction;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
@@ -48,10 +48,9 @@ public class InfoFlowAnalysis {
             @Override
             public void visitCallSite(Trace trace) {
 
-                CGNode node = trace.node();
                 CallSiteReference site = trace.site();
                 MethodReference ref = site.getDeclaredTarget();
-                Trace.Val sql = null;
+
                 if ((ref.getDeclaringClass().getName() == Constants.LJavaxRequestDispatcher
                         || ref.getDeclaringClass().getName() == Constants.LUnknown)
                         && (ref.getName() == Constants.include || ref.getName() == Constants.forward)) {
@@ -173,8 +172,36 @@ public class InfoFlowAnalysis {
             Pair.make(Pair.make(Constants.LJavaMathBigDecimal, Selector.make("negate()Ljava/math/BigDecimal;")),
                     Arrays.asList(0)),
             Pair.make(Pair.make(Constants.LJavaLangString, Selector.make("trim()Ljava/lang/String;")),
-                    Arrays.asList(0))
-    );
+                    Arrays.asList(0)));
+
+    public static void handleList(Trace t, SSAInstruction instr, int vn, Consumer<Trace.Val> handler) {
+
+        handler.accept(t.getDef(vn));
+        Stack<Iterable<Trace.Val>> todo = new Stack<>();
+        todo.push(t.receiverUseChain(instr, vn));
+
+        while (!todo.isEmpty()) {
+            for (Trace.Val v : todo.pop()) {
+                MethodReference mref;
+                if (v.isInstr() && v.instr() instanceof SSAAbstractInvokeInstruction
+                        && (mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget()).getDeclaringClass()
+                                .getName() == Constants.LJavaUtilList
+                        && (mref.getName() == Constants.addAll || mref.getName() == Constants.add)) {
+                    handler.accept(v.getDef(v.instr().getUse(1)));
+                    if (mref.getName() == Constants.addAll) {
+                        todo.push(v.trace().receiverUseChain(v.instr(), v.instr().getUse(1)));
+                    }
+                }
+            }
+        }
+    }
+
+    public static void handleReachingValuesForList(Framework fw, Trace t, SSAInstruction instr, int vn,
+            BiConsumer<Trace.Val, Consumer<Trace.Val>> cont) {
+        List<Trace.Val> seeds = new ArrayList<>();
+        handleList(t, instr, vn, seeds::add);
+        handleReachingValues(fw, seeds, cont);
+    }
 
     public static void handleReachingValues(Framework fw, List<Trace.Val> seeds,
             BiConsumer<Trace.Val, Consumer<Trace.Val>> cont) {
@@ -202,7 +229,12 @@ public class InfoFlowAnalysis {
 
             SSAInstruction instr = v.instr();
             if (instr instanceof SSAGetInstruction) {
-                v = PointerAnalysis.fromInits(fw, v.trace(), (SSAGetInstruction) instr);
+                Trace.Val v0 = PointerAnalysis.fromInits(fw, v.trace(), (SSAGetInstruction) instr, true, true);
+                if (v0 == null) {
+                    cont.accept(v, handler);
+                    continue;
+                }
+                v = v0;
                 handler.accept(v);
 
             } else if (instr instanceof SSAPhiInstruction || instr instanceof SSACheckCastInstruction
@@ -225,6 +257,10 @@ public class InfoFlowAnalysis {
                     if (constr.getNumberOfUses() == 2) {
                         handler.accept(v.trace().getDef(constr.getUse(1)));
                     }
+
+                } else if (!alloc.getConcreteType().getName().toString().startsWith("Ljava/")){
+                    // System.err.println("Can't handle:" + instr);
+                    cont.accept(v, handler);
                 }
 
             } else if (instr instanceof SSAAbstractInvokeInstruction) {
@@ -236,6 +272,21 @@ public class InfoFlowAnalysis {
                         || mref.getName() == Constants.floatValue || mref.getName() == Constants.doubleValue)) {
                     handler.accept(v.getDef(instr.getUse(0)));
                     doCont = false;
+
+                } else if (mref.getDeclaringClass().getName() == Constants.LJavaUtilList
+                        && mref.getName() == Constants.get) {
+                    handleList(v.trace(), instr, instr.getUse(0), handler);
+                    doCont = false;
+
+                } else if (mref.getDeclaringClass().getName() == Constants.JavaUtilIterator
+                        && mref.getName() == Constants.next) {
+                    Trace.Val v1 = v.getDef(instr.getUse(0));
+                    if (v1 != null && v1.isInstr() && v1.instr() instanceof SSAAbstractInvokeInstruction
+                            && (mref = ((SSAAbstractInvokeInstruction) v1.instr()).getDeclaredTarget())
+                                    .getName() == Constants.iterator) {
+                        handleList(v1.trace(), v1.instr(), v1.instr().getUse(0), handler);
+                        doCont = false;
+                    }
 
                 } else {
                     for (Pair<Pair<TypeName, Selector>, List<Integer>> rule : flowRules) {

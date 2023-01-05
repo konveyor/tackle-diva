@@ -96,6 +96,11 @@ public interface Constants {
     Atom get = Atom.findOrCreateUnicodeAtom("get");
     Atom getProperty = Atom.findOrCreateUnicodeAtom("getProperty");
 
+    Atom next = Atom.findOrCreateUnicodeAtom("next");
+    Atom iterator = Atom.findOrCreateUnicodeAtom("iterator");
+    Atom add = Atom.findOrCreateUnicodeAtom("add");
+    Atom addAll = Atom.findOrCreateUnicodeAtom("addAll");
+
     Atom newInstance = Atom.findOrCreateUnicodeAtom("newInstance");
     Atom forName = Atom.findOrCreateUnicodeAtom("forName");
     Atom loadClass = Atom.findOrCreateUnicodeAtom("loadClass");
@@ -125,6 +130,9 @@ public interface Constants {
     TypeName LJavaUtilHashtable = TypeName.findOrCreate("Ljava/util/Hashtable");
     TypeName LJavaUtilHashMap = TypeName.findOrCreate("Ljava/util/HashMap");
     TypeName LJavaUtilProperties = TypeName.findOrCreate("Ljava/util/Properties");
+
+    TypeName JavaUtilIterator = TypeName.findOrCreate("Ljava/util/Iterator");
+
 
     // JDBC
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
@@ -201,5 +209,10 @@ public interface Constants {
 
     //SPI
     TypeName LSpiBeanManager = TypeName.findOrCreate("Ljavax/enterprise/inject/spi/BeanManager");
+
+    // Struts
+    TypeName LStrutsAction = TypeName.findOrCreate("Lorg/apache/struts/action/Action");
+    TypeName LStrutsActionForm = TypeName.findOrCreate("Lorg/apache/struts/action/ActionForm");
+    TypeName LStrutsValidatorForm = TypeName.findOrCreate("Lorg/apache/struts/validator/ValidatorForm");
 
 }

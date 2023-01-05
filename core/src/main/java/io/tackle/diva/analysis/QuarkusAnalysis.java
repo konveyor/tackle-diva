@@ -12,6 +12,7 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeCT.AnnotationsReader.ConstantElementValue;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
+import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
@@ -129,8 +130,10 @@ public class QuarkusAnalysis {
             if (def != null && def.isInstr() && def.instr() instanceof SSANewInstruction) {
                 TypeReference typ = fw.classHierarchy().lookupClass(((SSANewInstruction) def.instr()).getConcreteType())
                         .getReference();
-                PointerAnalysis.fromDefUse(fw, def, trace.new Val(instr), (t, put) -> {
-                    if (put.getDeclaredField().getDeclaringClass() == typ) {
+                PointerAnalysis.fromDefUse(fw, def, trace.new Val(instr), (t, i) -> {
+                    SSAPutInstruction put;
+                    if (i instanceof SSAPutInstruction
+                            && (put = (SSAPutInstruction) i).getDeclaredField().getDeclaringClass() == typ) {
                         Trace.Val v = t.getDef(put.getUse(1));
                         if (v != null && v.isConstant()) {
                             map.put("json:" + put.getDeclaredField().getName().toString(), v.constant().toString());
