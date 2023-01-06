@@ -844,7 +844,7 @@ public class Framework {
     public int operationId;
     public Map<Trace, Integer> callSiteToOp;
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named, IntSet uses) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put(Report.TXID, transactionId++);
@@ -875,22 +875,11 @@ public class Framework {
                 }
             });
             named.accept(map);
-            if (uses != null && !uses.isEmpty()) {
-                map.put("uses", (Report r) -> uses.foreach(i -> r.add(i)));
-            }
         });
-    }
-
-    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
-        reportOperation(trace, named, null);
     }
 
     public void reportSqlStatement(Trace trace, String stmt) {
         reportOperation(trace, map -> map.put(Report.SQL, stmt));
-    }
-
-    public void reportSqlStatement(Trace trace, String stmt, IntSet uses) {
-        reportOperation(trace, map -> map.put(Report.SQL, stmt), uses);
     }
 
     public void reportTxBoundary() {

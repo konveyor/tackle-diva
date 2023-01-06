@@ -16,6 +16,7 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
+import com.ibm.wala.ssa.SSALoadMetadataInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeName;
@@ -60,6 +61,7 @@ public class DispatchAnalysis {
 
     public static Set<CGNode> getFilteredTargets(Framework fw, Trace trace, CallSiteReference site,
             boolean pathSensitive) {
+
         Set<CGNode> targets = fw.callgraph.getPossibleTargets(trace.node(), site);
 
         if (targets.isEmpty())
@@ -122,9 +124,9 @@ public class DispatchAnalysis {
             }
         }
 
-        if (targets.size() > 8) {
-            targets = Collections.emptySet();
-        }
+        // if (targets.size() > 8) {
+        // targets = Collections.emptySet();
+        // }
         return targets;
     }
 
@@ -136,8 +138,13 @@ public class DispatchAnalysis {
                 return null;
 
             if (v.isInstr() && v.instr() instanceof SSAPhiInstruction) {
-                v = v.getDef(v.instr().getUse(0));
-                continue;
+                if (v.instr().getUse(0) < v.instr().getDef()) {
+                    v = v.getDef(v.instr().getUse(0));
+                    continue;
+                } else if (v.instr().getUse(1) < v.instr().getDef()) {
+                    v = v.getDef(v.instr().getUse(1));
+                    continue;
+                }
 
             } else if (v.isInstr() && v.instr() instanceof SSACheckCastInstruction) {
                 v = v.getDef(v.instr().getUse(0));
@@ -148,32 +155,54 @@ public class DispatchAnalysis {
 
                 MethodReference mref = ((SSAAbstractInvokeInstruction) v.instr()).getCallSite().getDeclaredTarget();
 
+                Trace.Val c = null;
+
                 if (mref.getDeclaringClass().getName() == Constants.LJavaLangClass
                         && mref.getName() == Constants.newInstance) {
 
-                    Trace.Val c = v.getDef(v.instr().getUse(0));
+                    c = v.getDef(v.instr().getUse(0));
 
-                    if (c.isInstr() && c.instr() instanceof SSAAbstractInvokeInstruction) {
+                } else if (mref.getDeclaringClass().getName() == Constants.LSpiBeanManager
+                        && mref.getName() == Constants.getReference) {
 
-                        MethodReference mref2 = ((SSAAbstractInvokeInstruction) c.instr()).getCallSite()
-                                .getDeclaredTarget();
+                    c = v.getDef(v.instr().getUse(2));
+                }
 
-                        if ((mref2.getDeclaringClass().getName() == Constants.LJavaLangClass
-                                && mref2.getName() == Constants.forName)
-                                || (mref2.getDeclaringClass().getName() == Constants.LJavaLangClassLoader
-                                        && mref2.getName() == Constants.loadClass)) {
-                            String klazz = classNameAnalysis.apply(fw,
-                                    c.getDef(c.instr().getUse(mref2.getName() == Constants.forName ? 0 : 1)));
-                            if (klazz != null && !klazz.contains("?")) {
-                                TypeName t = TypeName
-                                        .string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
-                                for (IClassLoader cl : fw.classHierarchy().getLoaders()) {
-                                    IClass r = cl.lookupClass(t);
-                                    if (r != null) {
-                                        return r;
-                                    }
+                if (classNameAnalysis != null && c != null && c.isInstr()
+                        && c.instr() instanceof SSAAbstractInvokeInstruction) {
+
+                    MethodReference mref2 = ((SSAAbstractInvokeInstruction) c.instr()).getCallSite()
+                            .getDeclaredTarget();
+
+                    if ((mref2.getDeclaringClass().getName() == Constants.LJavaLangClass
+                            && mref2.getName() == Constants.forName)
+                            || (mref2.getDeclaringClass().getName() == Constants.LJavaLangClassLoader
+                                    && mref2.getName() == Constants.loadClass)) {
+                        BiFunction<Framework, Trace.Val, String> analysis = classNameAnalysis;
+                        classNameAnalysis = null;
+                        String klazz = analysis.apply(fw,
+                                c.getDef(c.instr().getUse(mref2.getName() == Constants.forName ? 0 : 1)));
+                        classNameAnalysis = analysis;
+                        if (klazz != null && !klazz.contains("?")) {
+                            TypeName t = TypeName.string2TypeName(StringStuff.deployment2CanonicalTypeString(klazz));
+                            for (IClassLoader cl : fw.classHierarchy().getLoaders()) {
+                                IClass r = cl.lookupClass(t);
+                                if (r != null) {
+                                    return r;
                                 }
                             }
+                        }
+                    }
+
+                } else if (c != null && c.isInstr() && c.instr() instanceof SSALoadMetadataInstruction) {
+
+                    SSALoadMetadataInstruction meta = (SSALoadMetadataInstruction) c.instr();
+                    Object o = meta.getToken();
+
+                    if (o instanceof TypeReference) {
+                        IClass r = fw.classHierarchy().lookupClass((TypeReference) o);
+                        if (r != null) {
+                            return r;
                         }
                     }
                 }

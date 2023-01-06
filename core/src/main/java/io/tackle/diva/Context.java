@@ -322,6 +322,12 @@ public class Context extends ArrayList<Constraint> {
 
     }
 
+    public void report(Report.Named map) {
+        for (Constraint c : this) {
+            c.report(map);
+        }
+    }
+
     @Override
     public int hashCode() {
         int result = 1;
