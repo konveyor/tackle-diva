@@ -844,7 +844,7 @@ public class Framework {
     public int operationId;
     public Map<Trace, Integer> callSiteToOp;
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> handler) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put(Report.TXID, transactionId++);
@@ -874,12 +874,20 @@ public class Framework {
                     });
                 }
             });
-            named.accept(map);
+            handler.accept(map);
         });
     }
 
     public void reportSqlStatement(Trace trace, String stmt) {
-        reportOperation(trace, map -> map.put(Report.SQL, stmt));
+        reportSqlStatement(trace, stmt, map -> {
+        });
+    }
+
+    public void reportSqlStatement(Trace trace, String stmt, Consumer<Report.Named> handler) {
+        reportOperation(trace, map -> {
+            map.put(Report.SQL, stmt);
+            handler.accept(map);
+        });
     }
 
     public void reportTxBoundary() {

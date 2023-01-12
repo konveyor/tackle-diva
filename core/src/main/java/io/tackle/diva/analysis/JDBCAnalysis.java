@@ -218,8 +218,7 @@ public class JDBCAnalysis {
         if (flow == null) {
             fw.reportSqlStatement(trace, sql);
         } else {
-            fw.reportOperation(trace, (map) -> {
-                map.put("sql", sql);
+            fw.reportSqlStatement(trace, sql, (map) -> {
                 map.put("infoflow", (Report.Named info) -> {
                     for (Map.Entry<String, Set<String>> e : flow.entrySet()) {
                         info.put(e.getKey(), (Report vs) -> {

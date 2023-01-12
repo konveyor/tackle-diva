@@ -126,7 +126,9 @@ public interface Constants {
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
+    TypeName LJavaUtilCollection = TypeName.findOrCreate("Ljava/util/Collection");
     TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+    TypeName LJavaUtilArrayList = TypeName.findOrCreate("Ljava/util/ArrayList");
     TypeName LJavaUtilHashtable = TypeName.findOrCreate("Ljava/util/Hashtable");
     TypeName LJavaUtilHashMap = TypeName.findOrCreate("Ljava/util/HashMap");
     TypeName LJavaUtilProperties = TypeName.findOrCreate("Ljava/util/Properties");

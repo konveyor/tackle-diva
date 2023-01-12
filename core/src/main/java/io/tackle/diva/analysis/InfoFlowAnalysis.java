@@ -36,12 +36,11 @@ import io.tackle.diva.Context;
 import io.tackle.diva.Framework;
 import io.tackle.diva.Report;
 import io.tackle.diva.Trace;
+import io.tackle.diva.Trace.ValRef;
 
 public class InfoFlowAnalysis {
 
     public static Context.CallSiteVisitor getTransactionAnalysis(Framework fw, Context context) {
-
-        Map<String, Set<String>> flow = new LinkedHashMap<>();
 
         return context.new CallSiteVisitor() {
 
@@ -56,6 +55,8 @@ public class InfoFlowAnalysis {
                         && (ref.getName() == Constants.include || ref.getName() == Constants.forward)) {
                     SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
 
+                    Map<String, Set<String>> flow = new LinkedHashMap<>();
+
                     for (Trace.Val use : trace.receiverUseChain(instr, instr.getUse(1))) {
 
                         if (!(use.instr() instanceof SSAAbstractInvokeInstruction))
@@ -63,20 +64,38 @@ public class InfoFlowAnalysis {
                         MethodReference ref1 = ((SSAAbstractInvokeInstruction) use.instr()).getDeclaredTarget();
                         if (ref1.getName() != Constants.setAttribute)
                             continue;
-                        String attr = StringAnalysis.calculateReachingString(fw, use.getDef(use.instr().getUse(1)));
+                        String attr = StringAnalysis.calculateReachingString(fw, use.getUse(1).getDef());
 
-                        TypeReference tref = use.trace().inferType(use.instr().getUse(2));
-                        IClass c = tref == null ? null : fw.classHierarchy().lookupClass(tref);
-                        if (c != null && !c.getReference().getClassLoader().equals(ClassLoaderReference.Primordial)) {
+                        Stack<Trace.ValRef> stack = new Stack<>();
+                        stack.push(use.getUse(2));
 
-                            for (IField f : c.getAllFields()) {
-                                SSAGetInstruction get = c.getClassLoader().getInstructionFactory().GetInstruction(
-                                        use.instr().iIndex(), -1, use.instr().getUse(2), f.getReference());
+                        while (!stack.isEmpty()) {
 
-                                String key = "req:" + attr + "." + f.getName();
+                            Trace.ValRef r = stack.pop();
+                            TypeReference tref = r.inferType();
+                            if (tref != null && (tref.getName() == Constants.LJavaUtilList
+                                    || tref.getName() == Constants.LJavaUtilArrayList)) {
+                                handleList(r, r2 -> {
+                                    if (r2 != r)
+                                        stack.push(r2);
+                                });
+                                continue;
+                            }
 
-                                handleReachingValues(fw, Collections.singletonList(use.trace().new Val(get)),
-                                        resultSetHandler(fw, key, flow).andThen(requestParamHandler(fw, key, flow)));
+                            IClass c = tref == null ? null : fw.classHierarchy().lookupClass(tref);
+                            if (c != null
+                                    && !c.getReference().getClassLoader().equals(ClassLoaderReference.Primordial)) {
+
+                                for (IField f : c.getAllFields()) {
+                                    SSAGetInstruction get = c.getClassLoader().getInstructionFactory().GetInstruction(
+                                            use.instr().iIndex(), -1, use.instr().getUse(2), f.getReference());
+
+                                    String key = "req:" + attr + "." + f.getName();
+
+                                    handleReachingValues(fw, Collections.singletonList(use.trace().new Val(get)),
+                                            resultSetHandler(fw, key, flow)
+                                                    .andThen(requestParamHandler(fw, key, flow)));
+                                }
                             }
                         }
                     }
@@ -95,10 +114,12 @@ public class InfoFlowAnalysis {
                             });
                         });
                     }
+
                 }
             }
 
         };
+
     }
 
     public static BiConsumer<Trace.Val, Consumer<Trace.Val>> resultSetHandler(Framework fw, String key,
@@ -174,22 +195,28 @@ public class InfoFlowAnalysis {
             Pair.make(Pair.make(Constants.LJavaLangString, Selector.make("trim()Ljava/lang/String;")),
                     Arrays.asList(0)));
 
-    public static void handleList(Trace t, SSAInstruction instr, int vn, Consumer<Trace.Val> handler) {
+    public static void handleList(Trace t, SSAInstruction instr, int vn, Consumer<Trace.ValRef> handler) {
+        handleList(t.new ValRef(instr, vn), handler);
+    }
 
-        handler.accept(t.getDef(vn));
+    public static void handleList(ValRef ref, Consumer<Trace.ValRef> handler) {
+        handler.accept(ref);
         Stack<Iterable<Trace.Val>> todo = new Stack<>();
-        todo.push(t.receiverUseChain(instr, vn));
+        todo.push(ref.receiverUseChain());
 
         while (!todo.isEmpty()) {
             for (Trace.Val v : todo.pop()) {
                 MethodReference mref;
+                TypeReference tref;
                 if (v.isInstr() && v.instr() instanceof SSAAbstractInvokeInstruction
-                        && (mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget()).getDeclaringClass()
-                                .getName() == Constants.LJavaUtilList
+                        && ((tref = (mref = ((SSAAbstractInvokeInstruction) v.instr()).getDeclaredTarget())
+                                .getDeclaringClass()).getName() == Constants.LJavaUtilList
+                                || tref.getName() == Constants.LJavaUtilCollection
+                                || tref.getName() == Constants.LJavaUtilArrayList)
                         && (mref.getName() == Constants.addAll || mref.getName() == Constants.add)) {
-                    handler.accept(v.getDef(v.instr().getUse(1)));
+                    handler.accept(v.getUse(1));
                     if (mref.getName() == Constants.addAll) {
-                        todo.push(v.trace().receiverUseChain(v.instr(), v.instr().getUse(1)));
+                        todo.push(v.getUse(1).receiverUseChain());
                     }
                 }
             }
@@ -199,7 +226,7 @@ public class InfoFlowAnalysis {
     public static void handleReachingValuesForList(Framework fw, Trace t, SSAInstruction instr, int vn,
             BiConsumer<Trace.Val, Consumer<Trace.Val>> cont) {
         List<Trace.Val> seeds = new ArrayList<>();
-        handleList(t, instr, vn, seeds::add);
+        handleList(t, instr, vn, ref -> seeds.add(ref.getDef()));
         handleReachingValues(fw, seeds, cont);
     }
 
@@ -258,7 +285,7 @@ public class InfoFlowAnalysis {
                         handler.accept(v.trace().getDef(constr.getUse(1)));
                     }
 
-                } else if (!alloc.getConcreteType().getName().toString().startsWith("Ljava/")){
+                } else if (!alloc.getConcreteType().getName().toString().startsWith("Ljava/")) {
                     // System.err.println("Can't handle:" + instr);
                     cont.accept(v, handler);
                 }
@@ -275,7 +302,7 @@ public class InfoFlowAnalysis {
 
                 } else if (mref.getDeclaringClass().getName() == Constants.LJavaUtilList
                         && mref.getName() == Constants.get) {
-                    handleList(v.trace(), instr, instr.getUse(0), handler);
+                    handleList(v.trace(), instr, instr.getUse(0), ref -> handler.accept(ref.getDef()));
                     doCont = false;
 
                 } else if (mref.getDeclaringClass().getName() == Constants.JavaUtilIterator
@@ -284,7 +311,7 @@ public class InfoFlowAnalysis {
                     if (v1 != null && v1.isInstr() && v1.instr() instanceof SSAAbstractInvokeInstruction
                             && (mref = ((SSAAbstractInvokeInstruction) v1.instr()).getDeclaredTarget())
                                     .getName() == Constants.iterator) {
-                        handleList(v1.trace(), v1.instr(), v1.instr().getUse(0), handler);
+                        handleList(v1.trace(), v1.instr(), v1.instr().getUse(0), ref -> handler.accept(ref.getDef()));
                         doCont = false;
                     }
 
