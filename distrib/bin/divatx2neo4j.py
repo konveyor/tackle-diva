@@ -110,7 +110,14 @@ if __name__ == '__main__':
     session = driver.session()
     
     for c, entry in enumerate(data):
-        res = analyze(entry['transactions'], opts)
+        txs = []
+        for tx in entry['transactions']:
+            tx['transaction'] = [op for op in tx['transaction'] if 'sql' in op]
+            if tx['transaction']:
+                txs.append(tx)
+        if not txs:
+            continue
+        res = analyze(txs, opts)
         del(entry['transactions'])
         label = yaml.dump(entry, default_flow_style=True).strip().replace("'", "")
         neo4j(res, label, session)

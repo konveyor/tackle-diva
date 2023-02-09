@@ -21,7 +21,7 @@ reserved = [
     'case', 'when', 'then', 'else', 'into', 'where', 'group', 'inner', 'outer', 'order', 'right',
     'union', 'except', 'select', 'update', 'delete', 'insert', 'null', 'having',
     'listagg', 'within', 'current', 'fetch', 'concat', 'nextval', 'for', 'and', 'or', 'is', 'not',
-    'like', 'escape', 'partition', 'exists', 'top',
+    'like', 'escape', 'partition', 'exists', 'top', 'using',
     ':_where_in', ':_where_and', ':_where_or', ':_in', ':_or', ':_and',
 ]
 
@@ -54,7 +54,7 @@ def token0(s):
     if k0 + 3 <= len(s) and s[k0:k0+3] in operator_tokens:
         return (s[k0+3:], [s[k0:k0+3]])
     k = k0 + 1
-    if s[k0].isalpha() or s[k0] == '_' or s[k0] == ':':
+    if s[k0].isalpha() or s[k0] == '_' or s[k0] == ':' or s[k0] == '?':
         while k < len(s):
             if not s[k].isalnum() and s[k] != '_':
                 break
@@ -140,9 +140,7 @@ def split(n):
         p = n.rindex('.')
         return (n[:p], n[p+1:])
 
-qname = seq(name, star(seq(op('.'), name)))
-
-variable = choice(variable0, seq(op('#'), op('{'), token, op('}')))
+qname = seq(name, star(seq(op('.'), name)), option(seq(op('@'), name)))
 
 paren = seq(op('('), star(seq(until('(', ')'), lambda s : paren(s))), until('(', ')'), op(')'))
 
@@ -158,6 +156,8 @@ ascxt = lambda e: match(seq(e, option(seq(option(op('as')), match(name, lambda s
                         lambda s, v :
                         [{ s[-1][None] : s[0] if len(s) == 2 else s[:-1] }] if s and isinstance(s[-1], dict) and None in s[-1] else
                         s)
+
+variable = choice(variable0, seq(op('#'), op('{'), qname, option(seq(op(','), comma_sep(seq(name, op('='), name)))),  op('}')))
 
 func = choice(qname, variable, op('left'), op('right'), op('concat'))
 
@@ -207,7 +207,7 @@ naryexp = choice(
 colexp = choice(naryexp, colexp0)
 
 colexp1 = match(ascxt(colexp), lambda s, _:
-                [{ split(s[0][0])[1] : s[0]}] if len(s) == 1 and isinstance(s[0], tuple) and qname(s[0][0]) == ('', [])
+                [{ split(s[0][0])[1] : s[0]}] if len(s) == 1 and isinstance(s[0], tuple)
                 else s)
 
 #colexp1 = match(ascxt(colexp), lambda s, _:
@@ -216,9 +216,12 @@ colexp1 = match(ascxt(colexp), lambda s, _:
 
 colsexp = choice(comma_sep(colexp1), match(op('*'), lambda s, v: s + [(v,)]))
 
-jointype = choice(
-    seq(choice(op('left'), op('right'), op('full')), option(op('outer')), op('join')),
-    seq(op('inner'), op('join')))
+jointype = seq(
+    choice(
+        seq(choice(op('left'), op('right'), op('full')), option(op('outer'))),
+        op('inner'),
+        nil),
+    op('join'), option(op('fetch')))
 
 joincond = seq(op('on'), lambda s : condexp(s))
 
@@ -234,8 +237,14 @@ tblsexp = frmcxt(seq(
     ascxt(tblexp),
     star(choice(
         seq(op(','), ascxt(tblexp)),
-        seq(plus(seq(jointype, ascxt(tblexp))), joincond))),
-    option(joincond)))
+        seq(jointype, ascxt(tblexp), option(joincond))))))
+
+nestedexp = seq(
+    op('('), choice(
+        match(lambda s: selexp(s), lambda s, v: [s]),
+        match(lambda s: valuesexp(s), lambda s, v: [s]),
+        lambda s: nestedexp(s)),
+    op(')'))
 
 @pegcxt
 def unioncxt(e, fix):
@@ -257,7 +266,7 @@ def withcxt(e, fix):
                 name,
                 option(seq(op('('), comma_sep(name), op(')'))),
                 op('as'),
-                lambda s: nestedexp(s))), e),
+                nestedexp)), e),
         e)
 
 colexp2 = choice(seq(qname, op('(+)')), colexp)
@@ -304,7 +313,7 @@ whrexp = choice(
 
 havingexp = seq(op('having'), condexp)
 
-grpexp = seq(op('group'), op('by'), comma_sep(choice(qname, variable)))
+grpexp = seq(op('group'), op('by'), comma_sep(colexp))
 orderexp = seq(op('order'), op('by'), comma_sep(seq(colexp, option(choice(op('asc'), op('desc'))))))
 
 assignexp = match(seq(choice(match(qname, lambda s,v: s +[(v,)]),
@@ -325,25 +334,21 @@ frmspec = seq(
                choice(op('nowait'),
                       seq(op('wait'), literal),
                       seq(op('with'), op('rs')),
+                      seq(op('of'), comma_sep(qname)),
                       nil))),
     option(seq(op('with'), op('ur'))))
 
+
 selexp = withcxt(unioncxt(seq(match(op('select')), option(op('distinct')), option(seq(op('top'), literal)), colsexp, option(op(',')), option(seq(op('into'), colsexp)), op('from'), frmspec)))
 updexp = withcxt(seq(match(op('update')), frmcxt(seq(ascxt(match(qname)), op('set'), assignsexp)), option(whrexp)))
-insexp = withcxt(seq(match(op('insert')), op('into'), frmcxt(seq(ascxt(match(qname)), option(seq(op('('), comma_sep(match(qname, lambda s,v: s +[(v,)])), op(')'))))),
-                     op('values'), choice(lambda s: nestedexp(s), seq(op('('), colsexp, op(')')), colsexp)))
+valuesexp = seq(match(op('values')), op('('), comma_sep(match(colexp, lambda s,v: [s])), op(')'))
+insexp = withcxt(seq(match(op('insert')), op('into'),
+                     frmcxt(seq(ascxt(match(qname)), option(seq(op('('), comma_sep(match(qname, lambda s,v: s +[(v,)])), op(')'))))),
+                     choice(valuesexp, selexp)))
 delexp = withcxt(seq(match(op('delete')), option(op('from')), frmcxt(ascxt(match(qname))), option(whrexp)))
+mergeexp = seq(match(op('merge')), op('into'), frmcxt(seq(ascxt(match(qname)))), op('using'), star(match(token, lambda s,v: [])))
 
-valuesexp = seq(match(op('values')), comma_sep(paren))
-
-nestedexp = seq(
-    op('('), choice(
-        match(selexp, lambda s, v: [s]),
-        match(valuesexp, lambda s, v: [s]),
-        lambda s: nestedexp(s)),
-    op(')'))
-
-sqlexp = seq(choice(selexp, updexp, insexp, delexp, valuesexp), option(op(';')))
+sqlexp = seq(choice(selexp, updexp, insexp, delexp, valuesexp, mergeexp), option(op(';')))
 
 if __name__ == '__main__':
     print(selexp('select a from b t,c where (a = b)'))
@@ -379,4 +384,5 @@ if __name__ == '__main__':
     print(ascxt(colexp)('a b'))
     print(colexp1('a'))
     print(colexp1('a b'))
-    
+    print(variable('?1'))
+    print(sqlexp('select a as x from b t left join c u on t.i = u.i, e w'))
