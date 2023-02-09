@@ -1,6 +1,6 @@
 #	Copyright IBM Corporation 2021
 #	
-#	Licensed under the Apache Public License 2.0, Version 2.0 (the "License");
+#	Licensed under the Eclipse Public License 2.0, Version 2.0 (the "License");
 #	you may not use this file except in compliance with the License.
 #	
 #	Unless required by applicable law or agreed to in writing, software
@@ -36,7 +36,7 @@ def pegcxt(f):
 def choice(s, *args):
     for f in args:
         a = f(s)
-        if a != ():
+        if a is not ():
             return a
     return ()
 
@@ -45,7 +45,7 @@ def seq(s, *args):
     r = []
     for f in args:
         a = f(s)
-        if a == ():
+        if a is ():
             return ()
         s = a[0]
         r += a[1]
@@ -74,7 +74,7 @@ def before(s, *args):
 @pegop
 def match(s, e, r=None):
     a = e(s)
-    if a == ():
+    if a is ():
         return ()
     elif r is None:
         return a[0], a[1] + [s[:len(s)-len(a[0])]]
@@ -86,12 +86,18 @@ def debug(s, e):
     print("debug:", s)
     return e(s)
 
+@pegop
+def star(s, e):
+    r = []
+    while 1:
+        a = e(s)
+        if a is ():
+            return s, r
+        s = a[0]
+        r += a[1]
+
 def nil(s):
     return s, []
-
-def star(e):
-    f = choice(seq(e, lambda s: f(s)), nil)
-    return f
 
 
 if __name__ == '__main__':
