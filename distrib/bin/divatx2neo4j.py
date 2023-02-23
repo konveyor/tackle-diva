@@ -35,8 +35,11 @@ def get_opts(argv=['']):
 def crud0(ast, write=False):
     if isinstance(ast, list):
         res = [set(), set()]
-        for child in ast[1:]:
-            rs, ws = crud0(child, ast[0] != 'select')
+        cmds = [x for x in ast if isinstance(x, str)]
+        if not cmds:
+            return [set(), set()]
+        for child in ast:
+            rs, ws = crud0(child, 'select' != cmds[0])
             res[0] |= rs
             res[1] |= ws
         return res
