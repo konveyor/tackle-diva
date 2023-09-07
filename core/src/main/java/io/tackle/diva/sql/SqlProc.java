@@ -48,11 +48,13 @@ public class SqlProc {
     public static AliasContext cxt(List<Object> a, AliasContext c0) {
 
         AliasContext c = new AliasContextImpl();
+        boolean hasFrom = false;
 
         for (Object w : a) {
             if (!(w instanceof From))
                 continue;
 
+            hasFrom = true;
             for (Object v : (From) w) {
                 if (v instanceof Name && !(v instanceof Field)) {
                     c.update(v.toString(), p -> {
@@ -114,7 +116,7 @@ public class SqlProc {
         // handle outer context c0
         if (c0 != null) {
             for (String k : c0.keySet()) {
-                if (/* !k.equals("") && */ c.containsKey(k))
+                if ((hasFrom || !k.equals("")) && c.containsKey(k))
                     continue;
                 c.update(k, p -> {
                     p.fst.addAll(c0.get(k).fst);
