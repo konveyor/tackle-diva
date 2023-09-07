@@ -25,7 +25,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
@@ -64,6 +67,7 @@ import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.ServletAnalysis;
 import io.tackle.diva.irgen.DivaIRGen;
 import io.tackle.diva.irgen.DivaSourceLoaderImpl;
+import io.tackle.diva.sql.SqlParse;
 
 public class DaytraderTest {
 
@@ -327,7 +331,18 @@ public class DaytraderTest {
 
     public static void doAnalysis(IClassHierarchy cha, List<IMethod> entries, CallGraph cg)
             throws IOException, JsonProcessingException {
-        Framework fw = new Framework(cha, cg, true);
+
+        Set<String> sqls = new LinkedHashSet<>();
+
+        Framework fw = new Framework(cha, cg, true) {
+
+            @Override
+            public void reportSqlStatement(Trace trace, String stmt, Consumer<Report.Named> handler) {
+                sqls.add(stmt);
+                super.reportSqlStatement(trace, stmt, handler);
+            }
+
+        };
 
         // fw.traverse(cg.getNode(0), ServletAnalysis.getContextualAnalysis(fw));
 
@@ -359,6 +374,19 @@ public class DaytraderTest {
         try (Writer f = new FileWriter("transaction-" + cname + ".yml")) {
             f.write(Util.YAML_SERIALIZER.writeValueAsString(res));
         }
+
+        checkSqls(sqls);
+    }
+
+    public static void checkSqls(Collection<String> sqls) {
+        int fail = 0;
+        for (String s : sqls) {
+            String sql = s.toLowerCase();
+            if (SqlParse.parse(sql, SqlParse.sqlexp) == null) {
+                fail++;
+            }
+        }
+        System.out.println("Check sqls: " + fail + "/" + sqls.size());
     }
 
     public static void addDefaultExclusions(AnalysisScope scope) throws UnsupportedEncodingException, IOException {

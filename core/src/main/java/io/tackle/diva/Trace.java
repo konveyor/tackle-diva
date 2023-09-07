@@ -232,6 +232,10 @@ public class Trace extends Util.Chain<Trace> {
             return -1;
         }
 
+        public ValRef getUse(int i) {
+            return new ValRef(instr(), instr().getUse(i));
+        }
+
         public Val getDefOrParam(int number) {
             return Trace.this.getDefOrParam(number);
         }
@@ -582,6 +586,41 @@ public class Trace extends Util.Chain<Trace> {
                 return res;
             }
         };
+    }
+
+    public class ValRef {
+
+        public ValRef(SSAInstruction instr, int use) {
+            this.instr = instr;
+            this.number = use;
+        }
+
+        public SSAInstruction instr;
+        public int number;
+
+        public SSAInstruction instr() {
+            return instr;
+        }
+
+        public int number() {
+            return number;
+        }
+
+        public Trace trace() {
+            return Trace.this;
+        }
+
+        public Val getDef() {
+            return Trace.this.getDef(number);
+        }
+
+        public TypeReference inferType() {
+            return Trace.this.inferType(number);
+        }
+
+        public Iterable<Val> receiverUseChain() {
+            return Trace.this.receiverUseChain(instr, number);
+        }
     }
 
     public static Val reachingValue(Val v, Predicate<Val> test) {
