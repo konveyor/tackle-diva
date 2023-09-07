@@ -15,8 +15,12 @@ package io.tackle.diva;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
+import java.util.function.Predicate;
 
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -228,6 +232,10 @@ public class Trace extends Util.Chain<Trace> {
             return -1;
         }
 
+        public ValRef getUse(int i) {
+            return new ValRef(instr(), instr().getUse(i));
+        }
+
         public Val getDefOrParam(int number) {
             return Trace.this.getDefOrParam(number);
         }
@@ -238,6 +246,18 @@ public class Trace extends Util.Chain<Trace> {
             } else {
                 return null;
             }
+        }
+
+        public Val getReceiverUse(Set<IntPair> visited) {
+            if (isInstr()) {
+                return Trace.this.getReceiverUse(instr(), visited);
+            } else {
+                return null;
+            }
+        }
+
+        public Val reachingValue(Predicate<Val> test) {
+            return Trace.reachingValue(this, test);
         }
 
         public int getBbId() {
@@ -384,12 +404,28 @@ public class Trace extends Util.Chain<Trace> {
     }
 
     public TypeReference inferType(Val value) {
+        return inferType(value, new HashSet<>());
+    }
+
+    public TypeReference inferType(Val value, Set<IntPair> visited) {
         if (value == null)
             return null;
-        if (value.isConstant()) {
+        if (value.isConstant())
             return null;
-        } else if (value.isParam()) {
+        if (value.isParam()) {
             return value.trace().node().getMethod().getParameterType(value.param());
+        }
+        if (value.instr() instanceof SSAPhiInstruction) {
+            for (int j = 0; j < value.instr().getNumberOfUses(); j++) {
+                IntPair key = IntPair.make(value.trace().node().getGraphNodeId(), value.instr().getUse(j));
+                if (visited.contains(key))
+                    continue;
+                visited.add(key);
+                TypeReference tref = inferType(value.getDefOrParam(value.instr().getUse(j)), visited);
+                if (tref != null)
+                    return tref;
+            }
+            return null;
         } else {
             return inferType(value.instr());
         }
@@ -445,10 +481,18 @@ public class Trace extends Util.Chain<Trace> {
 
     public Val getReceiverUseOrDef(SSAInstruction instr, Set<IntPair> visited) {
         IR ir = this.node().getIR();
-        return getReceiverUseOrDef(ir.getBasicBlockForInstruction(instr), instr.iIndex(), instr.getUse(0), visited);
+        Trace.Val v = getReceiverUse(ir.getBasicBlockForInstruction(instr), instr.iIndex(), instr.getUse(0), visited);
+        if (v != null)
+            return v;
+        return getDef(instr.getUse(0));
     }
 
-    public Val getReceiverUseOrDef(ISSABasicBlock bb, int index, int number, Set<IntPair> visited) {
+    public Val getReceiverUse(SSAInstruction instr, Set<IntPair> visited) {
+        IR ir = this.node().getIR();
+        return getReceiverUse(ir.getBasicBlockForInstruction(instr), instr.iIndex(), instr.getUse(0), visited);
+    }
+
+    public Val getReceiverUse(ISSABasicBlock bb, int index, int number, Set<IntPair> visited) {
         IR ir = this.node().getIR();
         int i = bb.getFirstInstructionIndex() <= index && index <= bb.getLastInstructionIndex() ? index - 1
                 : bb.getLastInstructionIndex();
@@ -466,12 +510,14 @@ public class Trace extends Util.Chain<Trace> {
                             if (instrs[j] == null)
                                 continue;
                             if (instrs[j] instanceof SSAReturnInstruction) {
-                                return calleeTrace.new Val(instrs[j]);
+                                return calleeTrace.getReceiverUse(
+                                        calleeTrace.node().getIR().getBasicBlockForInstruction(instrs[j]),
+                                        instrs[j].iIndex(), instrs[j].getUse(0), visited);
                             }
                         }
                     }
                 }
-                return this.new Val(s);
+                return null; // def
             }
             if (s instanceof SSAAbstractInvokeInstruction) {
                 SSAAbstractInvokeInstruction invoke = (SSAAbstractInvokeInstruction) ir.getInstructions()[i];
@@ -482,7 +528,24 @@ public class Trace extends Util.Chain<Trace> {
         }
         for (SSAPhiInstruction phi : (Iterable<SSAPhiInstruction>) () -> bb.iteratePhis()) {
             if (phi.getDef() == number) {
-                return this.new Val(phi);
+                return null; // def
+            }
+        }
+        if (bb.isEntryBlock()) {
+            int ix = 0;
+            for (int p : ir.getParameterValueNumbers()) {
+                if (p == number)
+                    break;
+                ix++;
+            }
+            if (ix < ir.getParameterValueNumbers().length) {
+                Trace callerTrace = this.next;
+                if (callerTrace != null) {
+                    SSAInstruction caller = callerTrace.instrFromSite(callerTrace.site);
+                    IR callerIr = callerTrace.node().getIR();
+                    return callerTrace.getReceiverUse(callerIr.getBasicBlockForInstruction(caller), caller.iIndex(),
+                            caller.getUse(ix), visited);
+                }
             }
         }
         Collection<ISSABasicBlock> preds = ir.getControlFlowGraph().getNormalPredecessors(bb);
@@ -497,9 +560,89 @@ public class Trace extends Util.Chain<Trace> {
                 }
                 visited.add(key);
             }
-            Trace.Val v0 = getReceiverUseOrDef(pred, index, number, visited);
+            Trace.Val v0 = getReceiverUse(pred, index, number, visited);
             if (v0 != null)
                 return v0;
+        }
+        return null;
+    }
+
+    public Iterable<Val> receiverUseChain(SSAInstruction instr, int number) {
+        IR ir = node().getIR();
+        Set<IntPair> visited = new HashSet<>();
+
+        return () -> new Iterator<Val>() {
+            Trace.Val use = getReceiverUse(ir.getBasicBlockForInstruction(instr), instr.iIndex(), number, visited);
+
+            @Override
+            public boolean hasNext() {
+                return use != null && use.isInstr();
+            }
+
+            @Override
+            public Val next() {
+                Val res = use;
+                use = use.isInstr() ? use.trace().getReceiverUse(use.instr(), visited) : null;
+                return res;
+            }
+        };
+    }
+
+    public class ValRef {
+
+        public ValRef(SSAInstruction instr, int use) {
+            this.instr = instr;
+            this.number = use;
+        }
+
+        public SSAInstruction instr;
+        public int number;
+
+        public SSAInstruction instr() {
+            return instr;
+        }
+
+        public int number() {
+            return number;
+        }
+
+        public Trace trace() {
+            return Trace.this;
+        }
+
+        public Val getDef() {
+            return Trace.this.getDef(number);
+        }
+
+        public TypeReference inferType() {
+            return Trace.this.inferType(number);
+        }
+
+        public Iterable<Val> receiverUseChain() {
+            return Trace.this.receiverUseChain(instr, number);
+        }
+    }
+
+    public static Val reachingValue(Val v, Predicate<Val> test) {
+        Set<IntPair> visited = new HashSet<>();
+        Stack<Val> todo = new Stack<>();
+        todo.add(v);
+        while (!todo.isEmpty()) {
+            v = todo.pop();
+            if (v == null)
+                continue;
+            if (test.test(v)) {
+                return v;
+            } else if (v.isInstr() && v.instr() instanceof SSAPhiInstruction
+                    || v.instr() instanceof SSACheckCastInstruction) {
+                for (int j = 0; j < v.instr().getNumberOfUses(); j++) {
+                    IntPair key = IntPair.make(v.trace().node().getGraphNodeId(), v.instr().getUse(j));
+                    if (visited.contains(key))
+                        continue;
+                    visited.add(key);
+                    todo.add(v.getDef(v.instr().getUse(j)));
+                }
+            }
         }
         return null;
     }

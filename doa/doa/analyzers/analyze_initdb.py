@@ -3,6 +3,7 @@ analyzer and generator for SQL startup.
 """
 import subprocess
 from dataclasses import dataclass
+from logging import getLogger
 from os import getcwd
 from pathlib import Path
 from shutil import copyfile
@@ -11,6 +12,8 @@ from tempfile import TemporaryDirectory
 
 from lark import Lark, Tree
 from lark.visitors import Visitor
+from rich import print as rprint
+from rich.text import Text
 from typer import Abort, Option, Typer
 from wasabi import msg
 
@@ -21,6 +24,7 @@ from . import __version__
 # from ast import parse
 
 app = Typer()
+logger = getLogger(__name__)
 
 
 def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
@@ -31,14 +35,16 @@ def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
     _args = ['kubectl', 'create', 'cm', f'{app_name}-cm-init-db',
              '--dry-run=client', '-o', 'yaml']
 
-    msg.good(f'DiVA-DOA: SQL init file analyzer v{__version__}')
+    # msg.good(f'DiVA-DOA: SQL init file analyzer v{__version__}')
+    # rprint(Text.assemble(
+    #     (f'DOA SQL init file analyzer v{__version__}', "cyan")))
 
-    msg.info('setting up...')
-    msg.info(f'  current directory = {getcwd()}')
-    msg.info(f'  application name = {app_name}')
-    msg.info(f'  input directory = {in_dir}')
-    msg.info(f'  output directory = {out_dir}')
-    msg.info(f'  init file = {init_file}')
+    logger.info('setting up...')
+    logger.info(f'  current directory = {getcwd()}')
+    logger.info(f'  application name = {app_name}')
+    logger.info(f'  input directory = {in_dir}')
+    logger.info(f'  output directory = {out_dir}')
+    logger.info(f'  init file = {init_file}')
 
     with TemporaryDirectory() as d:  # create tempdir
         # read from init_file and write to init_db.sh
@@ -56,20 +62,23 @@ def main(app_name: str, in_dir: Path, out_dir: Path, init_file: Path) -> None:
                         msg.info(f"  converted to: {parsed.to_statement()}")
                         g.write(parsed.to_statement()+"\n")
         else:
-            msg.info('using general init file...')
+            logger.info('using general init file...')
             copyfile(Path(__file__).parent/"init-db.sh", init_db_file)
 
         out_file = out_dir / "cm-init-db.yaml"
-        msg.info('generating manifest...')
+        logger.info('generating manifest...')
         with open(out_file, mode='w', encoding='utf-8') as file:
             _args.extend(['--from-file', init_db_file])
-            msg.info(f"  output file: {out_file}")
-            msg.info(f"  k8s command to create: {' '.join(map(str, _args))}")
+            logger.info(f"  output file: {out_file}")
+            logger.info(
+                f"  k8s command to create: {' '.join(map(str, _args))}")
             comp_proc: CompletedProcess = run(
                 args=_args, stdout=file, stderr=subprocess.PIPE, text=True, check=False)
             if comp_proc.returncode == 0:
                 # normal termination
-                msg.good('successfully generated')
+                logger.info('successfully generated')
+                rprint(
+                    f'configmap manifest (init script) {out_file} has been generated.')
             else:
                 # abnormal termination
                 msg.fail('generation failed')

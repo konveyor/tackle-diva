@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,6 +104,7 @@ import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
@@ -114,7 +116,9 @@ import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.ref.CacheReference;
+import com.ibm.wala.util.strings.Atom;
 
+import io.tackle.diva.analysis.DispatchAnalysis;
 import io.tackle.diva.analysis.JDBCAnalysis;
 import io.tackle.diva.analysis.JPAAnalysis;
 import io.tackle.diva.analysis.SpringBootAnalysis;
@@ -137,7 +141,7 @@ public class Framework {
     }
 
     IClassHierarchy cha;
-    CallGraph callgraph;
+    public CallGraph callgraph;
     public boolean usageAnalysis;
 
     public CallGraph callgraph() {
@@ -251,7 +255,8 @@ public class Framework {
                 String sha1 = DigestUtils.sha1Hex(jar.getInputStream(entry));
                 if (checkMavenCentral(sha1, file.getName())) {
                     LOGGER.info("skpping " + sha1 + " " + file.getName());
-                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" + file.getName() + "\");");
+                    // System.out.println("inMemoryIdentifier.addMapping(\"" + sha1 + "\", \"" +
+                    // file.getName() + "\");");
                 } else {
                     jars.add(fileName);
                 }
@@ -619,37 +624,44 @@ public class Framework {
     MutableIntSet[] reachability;
 
     public void reachabilityAnalysis() {
+        LOGGER.info("Started: reachability analysis");
+
         reachability = new MutableIntSet[callgraph().getNumberOfNodes()];
 
+        MutableIntSet[] backedges = new MutableIntSet[callgraph().getNumberOfNodes()];
         MutableIntSet todo = new BitVectorIntSet();
 
         for (CGNode n : callgraph()) {
+            backedges[n.getGraphNodeId()] = new BimodalMutableIntSet();
             reachability[n.getGraphNodeId()] = new BimodalMutableIntSet();
-            todo.add(n.getGraphNodeId());
         }
 
+        for (CGNode n : callgraph()) {
+            for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
+                String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
+                if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
+                    continue;
+                for (CGNode m : callgraph().getPossibleTargets(n, site)) {
+                    if (reachability[n.getGraphNodeId()].add(m.getGraphNodeId())) {
+                        todo.add(n.getGraphNodeId());
+                    }
+                    backedges[m.getGraphNodeId()].add(n.getGraphNodeId());
+                }
+            }
+        }
+
+        // Transitive closure algorithm -- faster than Warshall's algorithm?
         while (!todo.isEmpty()) {
             MutableIntSet next = new BitVectorIntSet();
-            for (CGNode n : callgraph()) {
-                boolean t = false;
-                MutableIntSet rs = reachability[n.getGraphNodeId()];
-                for (CallSiteReference site : (Iterable<CallSiteReference>) () -> n.iterateCallSites()) {
-                    String klazz = site.getDeclaredTarget().getDeclaringClass().getName().toString();
-                    if (klazz.startsWith("Ljava/") || klazz.startsWith("Ljavax/"))
-                        continue;
-                    for (CGNode m : callgraph().getPossibleTargets(n, site)) {
-                        if (todo.contains(m.getGraphNodeId())) {
-                            t |= rs.add(m.getGraphNodeId());
-                            t |= rs.addAll(reachability[m.getGraphNodeId()]);
-                        }
+            for (int j : Util.makeIterable(todo)) {
+                for (int i : Util.makeIterable(backedges[j])) {
+                    if (reachability[i].addAll(reachability[j])) {
+                        next.add(i);
                     }
                 }
-                if (t)
-                    next.add(n.getGraphNodeId());
             }
             todo = next;
         }
-
         LOGGER.info("Done: reachability analysis");
     }
 
@@ -657,9 +669,17 @@ public class Framework {
         return from == to || reachability[from.getGraphNodeId()].contains(to.getGraphNodeId());
     }
 
+    public int maxRecursion = 1;
+
+    public void setMaxRecursion(int k) {
+        maxRecursion = k;
+    }
+
     public void traverse(CGNode entry, Trace.Visitor visitor) {
         traverse(new Trace(entry, null), visitor, false);
     }
+
+    public static Atom CALL = Atom.findOrCreateUnicodeAtom("call");
 
     public void traverse(Trace trace0, Trace.Visitor visitor, boolean pathSensitive) {
 
@@ -729,7 +749,10 @@ public class Framework {
                 iters.push(targetTrace.node().getIR().iterateAllInstructions());
 
             } else {
-                Set<CGNode> targets = getFilteredTargets(trace, site);
+//                if (pathSensitive && site.getDeclaredTarget().getName().toString().equals("exec")) {
+//                    System.out.println("BREAK HERE");
+//                }
+                Set<CGNode> targets = DispatchAnalysis.getFilteredTargets(this, trace, site, pathSensitive);
 
                 if (targets.isEmpty())
                     continue;
@@ -740,7 +763,8 @@ public class Framework {
 
                 for (CGNode n : targets) {
                     if (pathSensitive) {
-                        if (Util.any(trace, t -> t.node().getGraphNodeId() == n.getGraphNodeId()))
+                        if (Util.count(Util.filter(trace,
+                                t -> t.node().getGraphNodeId() == n.getGraphNodeId())) >= maxRecursion)
                             continue;
                     } else if (visited.contains(n.getGraphNodeId())) {
                         continue;
@@ -760,57 +784,6 @@ public class Framework {
                 }
             }
         }
-    }
-
-    public Set<CGNode> getFilteredTargets(Trace trace, CallSiteReference site) {
-        Set<CGNode> targets = callgraph.getPossibleTargets(trace.node(), site);
-
-        if (targets.isEmpty())
-            return targets;
-
-        if (Util.any(targets, n -> n.getIR() == null)) {
-            // native methods...
-            targets = Util.makeSet(Util.filter(targets, n -> n.getIR() != null));
-        }
-
-        if (targets.size() > 1 && trace.context() != null && !trace.context().dispatchMap().isEmpty()) {
-            IClass c = classHierarchy().lookupClass(site.getDeclaredTarget().getDeclaringClass());
-            outer: for (Map.Entry<IClass, IClass> e : trace.context().dispatchMap().entrySet()) {
-                if (e.getKey() == c
-                        || Util.any(e.getKey().isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                                i -> i == e.getKey())) {
-                    for (IClass d : Util.superChain(e.getValue())) {
-                        Set<CGNode> ts = Util
-                                .makeSet(Util.filter(targets, n -> n.getMethod().getDeclaringClass() == d));
-                        if (!ts.isEmpty()) {
-                            targets = ts;
-                            break outer;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (targets.size() > 1 && trace.node().getGraphNodeId() != 0) {
-            SSAAbstractInvokeInstruction instr = trace.instrFromSite(site);
-            IClass self = trace.inferType(this, instr.getUse(0));
-            if (self != null) {
-                targets = Util.makeSet(Util.filter(targets, n -> {
-                    IClass c = n.getMethod().getDeclaringClass();
-                    return Util.any(self.isInterface() ? c.getAllImplementedInterfaces() : Util.superChain(c),
-                            i -> i == self);
-                }));
-            }
-        }
-
-        if (targets.size() > 1) {
-            for (CGNode m : targets) {
-                if (site.getDeclaredTarget() == m.getMethod().getReference()) {
-                    return Collections.singleton(m);
-                }
-            }
-        }
-        return targets;
     }
 
     MutableIntSet relevance;
@@ -853,13 +826,25 @@ public class Framework {
 
     }
 
+    public Map<String, String> stringDictionary = new LinkedHashMap<>();
+
+    public void populateStringDictionary(Map<String, String> dict) {
+        stringDictionary.putAll(dict);
+    }
+
+    public Set<MethodReference> methodsTreatedAsIdentity = new LinkedHashSet<>();
+
+    public void registerIdentityMethod(MethodReference mref) {
+        methodsTreatedAsIdentity.add(mref);
+    }
+
     public Report report;
     public Report transaction;
     public int transactionId;
     public int operationId;
     public Map<Trace, Integer> callSiteToOp;
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named, IntSet uses) {
+    public void reportOperation(Trace trace, Consumer<Report.Named> handler) {
         if (transaction == null) {
             report.add((Report.Named map) -> {
                 map.put(Report.TXID, transactionId++);
@@ -889,23 +874,20 @@ public class Framework {
                     });
                 }
             });
-            named.accept(map);
-            if (uses != null && !uses.isEmpty()) {
-                map.put("uses", (Report r) -> uses.foreach(i -> r.add(i)));
-            }
+            handler.accept(map);
         });
     }
 
-    public void reportOperation(Trace trace, Consumer<Report.Named> named) {
-        reportOperation(trace, named, null);
-    }
-
     public void reportSqlStatement(Trace trace, String stmt) {
-        reportOperation(trace, map -> map.put(Report.SQL, stmt));
+        reportSqlStatement(trace, stmt, map -> {
+        });
     }
 
-    public void reportSqlStatement(Trace trace, String stmt, IntSet uses) {
-        reportOperation(trace, map -> map.put(Report.SQL, stmt), uses);
+    public void reportSqlStatement(Trace trace, String stmt, Consumer<Report.Named> handler) {
+        reportOperation(trace, map -> {
+            map.put(Report.SQL, stmt);
+            handler.accept(map);
+        });
     }
 
     public void reportTxBoundary() {

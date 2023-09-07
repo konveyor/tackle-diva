@@ -9,7 +9,6 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
-import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.types.TypeReference;
 
@@ -28,26 +27,21 @@ public class PointerAnalysis {
     }
 
     public static Trace.Val fromInits(Framework fw, Trace trace, SSAGetInstruction field) {
-        return fromInits(fw, trace, field, true);
+        return fromInits(fw, trace, field, true, false);
     }
 
-    public static Trace.Val fromInits(Framework fw, Trace trace, SSAGetInstruction field, boolean nonnull) {
+    public static Trace.Val fromInits(Framework fw, Trace trace, SSAGetInstruction field, boolean nonnull,
+            boolean nonconst) {
         if (!field.isStatic()) {
             Trace.Val v = trace.getDef(field.getUse(0));
-            if (v != null && v.isInstr() && v.instr() instanceof SSAPhiInstruction) {
-                Trace.Val v0 = v.getDef(v.instr().getUse(0));
-                if (v0.isInstr() && v0.instr() instanceof SSANewInstruction) {
-                    v = v0;
-                } else {
-                    v = v.getDef(v.instr().getUse(1));
-                }
-            }
+            v = v.reachingValue(v0 -> v0.isInstr() && v0.instr() instanceof SSANewInstruction);
             if (v != null && v.isInstr() && v.instr() instanceof SSANewInstruction) {
                 try {
-                    fromDefUse(fw, v, trace.new Val(field), (t, put) -> {
-                        if (put.getDeclaredField() == field.getDeclaredField()) {
-                            Trace.Val v0 = t.getDef(put.getUse(1));
-                            if (v0 != null && (!nonnull || !v0.isConstant() || v0.constant() != null))
+                    fromDefUse(fw, v, trace.new Val(field), (t, instr) -> {
+                        if (instr instanceof SSAPutInstruction
+                                && ((SSAPutInstruction) instr).getDeclaredField() == field.getDeclaredField()) {
+                            Trace.Val v0 = t.getDef(instr.getUse(1));
+                            if (v0 != null && (!nonnull || !v0.isConstant() || !nonconst && v0.constant() != null))
                                 throw new Escape(v0);
                         }
                     });
@@ -107,8 +101,7 @@ public class PointerAnalysis {
         return null;
     }
 
-    public static void fromDefUse(Framework fw, Trace.Val def, Trace.Val use,
-            BiConsumer<Trace, SSAPutInstruction> cont) {
+    public static void fromDefUse(Framework fw, Trace.Val def, Trace.Val use, BiConsumer<Trace, SSAInstruction> cont) {
         Iterator<Trace> ds = Util.makeList(def.trace().reversed()).iterator();
         Trace nca = null;
         for (Trace u : Util.makeList(use.trace().reversed())) {
@@ -131,9 +124,8 @@ public class PointerAnalysis {
                 } else if (phase[0] == 1) {
                     if (instr == use.instr()) {
                         phase[0]++;
-                    } else if (instr instanceof SSAPutInstruction) {
-                        SSAPutInstruction put = (SSAPutInstruction) instr;
-                        cont.accept(trace, put);
+                    } else {
+                        cont.accept(trace, instr);
                     }
                 }
             }

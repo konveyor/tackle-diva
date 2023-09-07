@@ -1,0 +1,199 @@
+tables:
+- FKs: []
+  columns:
+  - CATEGORYID
+  - CATEGORYNAME
+  - DESCRIPTION
+  - PICTURE
+  table_name: CATEGORIES
+- FKs:
+  - columns:
+    - CUSTOMERTYPEID
+    referenced_columns:
+    - CUSTOMERTYPEID
+    referenced_table: CUSTOMERDEMOGRAPHICS
+  - columns:
+    - CUSTOMERID
+    referenced_columns:
+    - CUSTOMERID
+    referenced_table: CUSTOMERS
+  columns:
+  - CUSTOMERID
+  - CUSTOMERTYPEID
+  table_name: CUSTOMERCUSTOMERDEMO
+- FKs: []
+  columns:
+  - CUSTOMERID
+  - COMPANYNAME
+  - CONTACTNAME
+  - CONTACTTITLE
+  - ADDRESS
+  - CITY
+  - REGION
+  - POSTALCODE
+  - COUNTRY
+  - PHONE
+  - FAX
+  table_name: CUSTOMERS
+- FKs: []
+  columns:
+  - SUPPLIERID
+  - COMPANYNAME
+  - CONTACTNAME
+  - CONTACTTITLE
+  - ADDRESS
+  - CITY
+  - REGION
+  - POSTALCODE
+  - COUNTRY
+  - PHONE
+  - FAX
+  - HOMEPAGE
+  table_name: SUPPLIERS
+- FKs:
+  - columns:
+    - REPORTSTO
+    referenced_columns:
+    - EMPLOYEEID
+    referenced_table: EMPLOYEES
+  columns:
+  - EMPLOYEEID
+  - LASTNAME
+  - FIRSTNAME
+  - TITLE
+  - TITLEOFCOURTESY
+  - BIRTHDATE
+  - HIREDATE
+  - ADDRESS
+  - CITY
+  - REGION
+  - POSTALCODE
+  - COUNTRY
+  - HOMEPHONE
+  - EXTENSION
+  - PHOTO
+  - NOTES
+  - REPORTSTO
+  - PHOTOPATH
+  table_name: EMPLOYEES
+- FKs:
+  - columns:
+    - CUSTOMERID
+    referenced_columns:
+    - CUSTOMERID
+    referenced_table: CUSTOMERS
+  - columns:
+    - EMPLOYEEID
+    referenced_columns:
+    - EMPLOYEEID
+    referenced_table: EMPLOYEES
+  - columns:
+    - SHIPVIA
+    referenced_columns:
+    - SHIPPERID
+    referenced_table: SHIPPERS
+  - columns:
+    - TERRITORYID
+    referenced_columns:
+    - TERRITORYID
+    referenced_table: TERRITORIES
+  columns:
+  - ORDERID
+  - CUSTOMERID
+  - EMPLOYEEID
+  - TERRITORYID
+  - ORDERDATE
+  - REQUIREDDATE
+  - SHIPPEDDATE
+  - SHIPVIA
+  - FREIGHT
+  - SHIPNAME
+  - SHIPADDRESS
+  - SHIPCITY
+  - SHIPREGION
+  - SHIPPOSTALCODE
+  - SHIPCOUNTRY
+  table_name: ORDERS
+- FKs: []
+  columns:
+  - REGIONID
+  - REGIONDESCRIPTION
+  table_name: REGION
+- FKs:
+  - columns:
+    - CATEGORYID
+    referenced_columns:
+    - CATEGORYID
+    referenced_table: CATEGORIES
+  - columns:
+    - SUPPLIERID
+    referenced_columns:
+    - SUPPLIERID
+    referenced_table: SUPPLIERS
+  columns:
+  - PRODUCTID
+  - PRODUCTNAME
+  - SUPPLIERID
+  - CATEGORYID
+  - QUANTITYPERUNIT
+  - UNITPRICE
+  - UNITSINSTOCK
+  - UNITSONORDER
+  - REORDERLEVEL
+  - DISCONTINUED
+  table_name: PRODUCTS
+- FKs:
+  - columns:
+    - EMPLOYEEID
+    referenced_columns:
+    - EMPLOYEEID
+    referenced_table: EMPLOYEES
+  - columns:
+    - TERRITORYID
+    referenced_columns:
+    - TERRITORYID
+    referenced_table: TERRITORIES
+  columns:
+  - EMPLOYEEID
+  - TERRITORYID
+  table_name: EMPLOYEETERRITORIES
+- FKs:
+  - columns:
+    - ORDERID
+    referenced_columns:
+    - ORDERID
+    referenced_table: ORDERS
+  - columns:
+    - PRODUCTID
+    referenced_columns:
+    - PRODUCTID
+    referenced_table: PRODUCTS
+  columns:
+  - ORDERID
+  - PRODUCTID
+  - UNITPRICE
+  - QUANTITY
+  - DISCOUNT
+  table_name: ORDERDETAILS
+- FKs:
+  - columns:
+    - REGIONID
+    referenced_columns:
+    - REGIONID
+    referenced_table: REGION
+  columns:
+  - TERRITORYID
+  - TERRITORYDESCRIPTION
+  - REGIONID
+  table_name: TERRITORIES
+- FKs: []
+  columns:
+  - CUSTOMERTYPEID
+  - CUSTOMERDESC
+  table_name: CUSTOMERDEMOGRAPHICS
+- FKs: []
+  columns:
+  - SHIPPERID
+  - COMPANYNAME
+  - PHONE
+  table_name: SHIPPERS

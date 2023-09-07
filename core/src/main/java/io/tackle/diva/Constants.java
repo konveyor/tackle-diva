@@ -64,6 +64,11 @@ public interface Constants {
 
     Atom toString = Atom.findOrCreateUnicodeAtom("toString");
     Atom append = Atom.findOrCreateUnicodeAtom("append");
+    Atom trim = Atom.findOrCreateUnicodeAtom("trim");
+    Atom strip = Atom.findOrCreateUnicodeAtom("strip");
+    Atom toUpperCase = Atom.findOrCreateUnicodeAtom("toUpperCase");
+    Atom toLowerCase = Atom.findOrCreateUnicodeAtom("toLowerCase");
+    Atom replaceAll = Atom.findOrCreateUnicodeAtom("replaceAll");
 
     Atom equals = Atom.findOrCreateUnicodeAtom("equals");
     Atom equalsIgnoreCase = Atom.findOrCreateUnicodeAtom("equalsIgnoreCase");
@@ -88,15 +93,48 @@ public interface Constants {
     Atom getDouble = Atom.findOrCreateUnicodeAtom("getDouble");
     Atom getTimestamp = Atom.findOrCreateUnicodeAtom("getTimestamp");
 
+    Atom get = Atom.findOrCreateUnicodeAtom("get");
+    Atom getProperty = Atom.findOrCreateUnicodeAtom("getProperty");
+
+    Atom next = Atom.findOrCreateUnicodeAtom("next");
+    Atom iterator = Atom.findOrCreateUnicodeAtom("iterator");
+    Atom add = Atom.findOrCreateUnicodeAtom("add");
+    Atom addAll = Atom.findOrCreateUnicodeAtom("addAll");
+
+    Atom newInstance = Atom.findOrCreateUnicodeAtom("newInstance");
+    Atom forName = Atom.findOrCreateUnicodeAtom("forName");
+    Atom loadClass = Atom.findOrCreateUnicodeAtom("loadClass");
+
+    Atom include = Atom.findOrCreateUnicodeAtom("include");
+    Atom forward = Atom.findOrCreateUnicodeAtom("forward");
+    Atom setAttribute = Atom.findOrCreateUnicodeAtom("setAttribute");
+
+    Atom getReference = Atom.findOrCreateUnicodeAtom("getReference");
+
+    TypeName LUnknown = TypeName.findOrCreate("Lunknown/Unknown");
     TypeName LJavaLangObject = TypeName.findOrCreate("Ljava/lang/Object");
+    TypeName LJavaLangClass = TypeName.findOrCreate("Ljava/lang/Class");
+    TypeName LJavaLangClassLoader = TypeName.findOrCreate("Ljava/lang/ClassLoader");
 
     TypeName LJavaLangInteger = TypeName.findOrCreate("Ljava/lang/Integer");
+    TypeName LJavaLangLong = TypeName.findOrCreate("Ljava/lang/Long");
+    TypeName LJavaLangFloat = TypeName.findOrCreate("Ljava/lang/Float");
+    TypeName LJavaLangDouble = TypeName.findOrCreate("Ljava/lang/Double");
+    TypeName LJavaMathBigDecimal = TypeName.findOrCreate("Ljava/math/BigDecimal");
 
     TypeName LJavaLangString = TypeName.findOrCreate("Ljava/lang/String");
     TypeName LJavaLangStringBuffer = TypeName.findOrCreate("Ljava/lang/StringBuffer");
     TypeName LJavaLangStringBuilder = TypeName.findOrCreate("Ljava/lang/StringBuilder");
 
+    TypeName LJavaUtilCollection = TypeName.findOrCreate("Ljava/util/Collection");
     TypeName LJavaUtilList = TypeName.findOrCreate("Ljava/util/List");
+    TypeName LJavaUtilArrayList = TypeName.findOrCreate("Ljava/util/ArrayList");
+    TypeName LJavaUtilHashtable = TypeName.findOrCreate("Ljava/util/Hashtable");
+    TypeName LJavaUtilHashMap = TypeName.findOrCreate("Ljava/util/HashMap");
+    TypeName LJavaUtilProperties = TypeName.findOrCreate("Ljava/util/Properties");
+
+    TypeName JavaUtilIterator = TypeName.findOrCreate("Ljava/util/Iterator");
+
 
     // JDBC
     TypeName LJavaSqlConnection = TypeName.findOrCreate("Ljava/sql/Connection");
@@ -128,6 +166,9 @@ public interface Constants {
     TypeName LJavaxHttpServlet = TypeName.findOrCreate("Ljavax/servlet/http/HttpServlet");
     TypeName LJavaxHttpServletRequest = TypeName.findOrCreate("Ljavax/servlet/http/HttpServletRequest");
 
+    TypeName LJavaxServletContext = TypeName.findOrCreate("Ljavax/servlet/ServletContext");
+    TypeName LJavaxRequestDispatcher = TypeName.findOrCreate("Ljavax/servlet/RequestDispatcher");
+
     // JPA
     TypeName LJavaxPersistenceCascadeType = TypeName.findOrCreate("Ljavax/persistence/CascadeType");
     TypeName LJavaxPersistenceColumn = TypeName.findOrCreate("Ljavax/persistence/Column");
@@ -148,6 +189,8 @@ public interface Constants {
     TypeName LJavaxPersistenceEntityManager = TypeName.findOrCreate("Ljavax/persistence/EntityManager");
     TypeName LJavaxPersistenceQuery = TypeName.findOrCreate("Ljavax/persistence/QUery");
 
+    TypeName LJakartaPersistenceEntityManager = TypeName.findOrCreate("Ljakarta/persistence/EntityManager");
+
     TypeName LSpringRepository = TypeName.findOrCreate("Lorg/springframework/data/repository/Repository");
     TypeName LSpringJPARepository = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/JpaRepository");
     TypeName LSpringJPAQuery = TypeName.findOrCreate("Lorg/springframework/data/jpa/repository/Query");
@@ -165,5 +208,13 @@ public interface Constants {
     // RestEasy
     TypeName LMicroprofileReigsterRestClient = TypeName
             .findOrCreate("Lorg/eclipse/microprofile/rest/client/inject/RegisterRestClient");
+
+    //SPI
+    TypeName LSpiBeanManager = TypeName.findOrCreate("Ljavax/enterprise/inject/spi/BeanManager");
+
+    // Struts
+    TypeName LStrutsAction = TypeName.findOrCreate("Lorg/apache/struts/action/Action");
+    TypeName LStrutsActionForm = TypeName.findOrCreate("Lorg/apache/struts/action/ActionForm");
+    TypeName LStrutsValidatorForm = TypeName.findOrCreate("Lorg/apache/struts/validator/ValidatorForm");
 
 }

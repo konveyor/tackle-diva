@@ -1,6 +1,11 @@
 #!/bin/bash
+#
 # build diva-doa docker image.
-
+# usage:
+#   bash [-f] util/build.sh
+#
+# if "-f" is specified, run "docker build" with "--no-cache".
+#
 set -eu  # abort on error or undefined variable reference
 
 # idiom to use the common.sh utilities.
@@ -8,8 +13,13 @@ set -eu  # abort on error or undefined variable reference
 WORK_DIR=$(readlink -f $(dirname $0)) # this script's directory
 . ${WORK_DIR}/common.sh
 
-DOCKER_BUILD_OPT="--progress=plain"
-# DOCKER_BUILD_OPT=""
+echo "-----------------------"
+echo "DiVA-DOA image builder "
+echo "-----------------------"
+
+# If you want detailed build log, uncomment the following line.
+# DOCKER_BUILD_OPT="--progress=plain"
+DOCKER_BUILD_OPT=
 
 # process optional arguments
 while getopts f OPT
@@ -57,4 +67,4 @@ echo
 docker image ls ${IMAGE_NAME}
 
 echo
-info "build completed."
+ok "build completed."

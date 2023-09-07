@@ -5,17 +5,22 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAGotoInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
+import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.TypeName;
 import com.ibm.wala.util.intset.BitVector;
 import com.ibm.wala.util.intset.IntPair;
 import com.ibm.wala.util.strings.StringStuff;
@@ -232,6 +237,7 @@ public interface Constraint {
         public boolean forbids(Constraint other) {
             return other instanceof EntryConstraint;
         }
+
     }
 
     class DispatchConstraint implements Constraint {
