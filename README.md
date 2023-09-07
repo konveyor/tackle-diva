@@ -11,6 +11,7 @@ Tackle-DiVA is a command-line tool for data-centric application analysis. It imp
 - Transaction refactoring recommendation.
 
 ![Overview](./docs/diva-overview.png)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkonveyor%2Ftackle-diva.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkonveyor%2Ftackle-diva?ref=badge_shield)
 
 ## Prerequisites
 - Docker runnable environment (e.g. RHEL, Ubuntu, macOS)
@@ -70,3 +71,7 @@ The other frameworks to be supported.
 
 ## Code of Conduct
 Refer to Konveyor's Code of Conduct [here](https://github.com/konveyor/community/blob/main/CODE_OF_CONDUCT.md).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkonveyor%2Ftackle-diva.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkonveyor%2Ftackle-diva?ref=badge_large)
