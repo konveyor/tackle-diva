@@ -91,7 +91,7 @@ jar {
         attributes 'Main-Class': 'io.tackle.diva.Standalone'
         attributes 'Class-Path': configurations.runtimeClasspath.collect { it.isDirectory() ? '' : '../lib/' + it.name }.join(' ')
     }
-    archiveName = 'diva.jar'
+    archiveFileName = 'diva.jar'
     from configurations.runtimeClasspath.collect { it.isDirectory() ? it : [] }
 }
 
