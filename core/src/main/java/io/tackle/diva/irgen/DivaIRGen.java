@@ -1269,7 +1269,7 @@ public class DivaIRGen {
 
             @Override
             public boolean isClass() {
-                return knownAsClasses.contains(theName);
+                return knownAsClasses != null && knownAsClasses.contains(theName);
             }
 
             @Override
