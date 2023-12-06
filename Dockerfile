@@ -18,7 +18,7 @@ WORKDIR /home/gradle/diva
 RUN gradle ziptask
 RUN jar xvf build/distributions/diva-all.zip
 
-FROM eclipse-temurin:11-jre-alpine
+FROM adoptopenjdk/openjdk11:alpine-slim
 
 ENV PYTHONUNBUFFERED=1
 
