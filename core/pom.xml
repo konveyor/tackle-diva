@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.github.konveyor.tackle-diva</groupId>
         <artifactId>diva-parent</artifactId>
-        <version>0.2.b0</version>
+        <version>0.2.b1</version>
     </parent>
 
     <artifactId>diva-core</artifactId>
