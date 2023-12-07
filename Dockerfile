@@ -18,14 +18,14 @@ WORKDIR /home/gradle/diva
 RUN gradle ziptask
 RUN jar xvf build/distributions/diva-all.zip
 
-FROM adoptopenjdk/openjdk11:alpine-slim
+FROM openjdk:11-jre
 
 ENV PYTHONUNBUFFERED=1
 
-RUN apk add --update --no-cache python3 graphviz ttf-freefont git bash && \
-    ln -sf python3 /usr/bin/python && \
-    python3 -m ensurepip && \
-    pip3 install --no-cache --upgrade pip pyyaml 
+RUN apt-get update
+RUN apt-get install -y python3 python3-pip graphviz git
+RUN ln -sf python3 /usr/bin/python
+RUN pip3 install --no-cache --upgrade pip pyyaml
 
 RUN mkdir -p /diva-distribution/lib
 COPY distrib/ /diva-distribution/
